@@ -1,3 +1,4 @@
+import AppKit
 import ExchangeMailKit
 import SwiftUI
 
@@ -29,6 +30,7 @@ struct SettingsView: View {
                 switch tab {
                 case .account: AccountSettings()
                 case .attachments: AttachFixSettings()
+                case .notifications: NotificationSettings()
                 case .appearance: AppearanceSettings()
                 case .signatures: EmptyView()
                 }
@@ -42,7 +44,7 @@ struct SettingsView: View {
 
 /// The Settings tabs. Snapshot mode walks through every case.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case account, signatures, attachments, appearance
+    case account, signatures, attachments, notifications, appearance
 
     var id: String { rawValue }
 
@@ -51,6 +53,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .account: "계정"
         case .signatures: "서명"
         case .attachments: "첨부 보정"
+        case .notifications: "알림"
         case .appearance: "모양"
         }
     }
@@ -60,6 +63,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .account: "person.crop.circle"
         case .signatures: "signature"
         case .attachments: "paperclip"
+        case .notifications: "bell.badge"
         case .appearance: "paintpalette"
         }
     }
@@ -135,6 +139,49 @@ struct AttachFixSettings: View {
             Label("한글 파일명을 완성형(NFC)으로 바꿉니다.", systemImage: "textformat")
             Label("파일명을 RFC 2047과 RFC 2231로 함께 기록해 Windows·Outlook에서도 한글로 보입니다.", systemImage: "doc.text")
             Label("서명과 인용문 안의 그림은 본문에 그대로 둡니다.", systemImage: "signature")
+        }
+    }
+}
+
+/// 설정 > 알림 (S-024)
+struct NotificationSettings: View {
+    @Environment(AppModel.self) private var model
+    @AppStorage("notify.newMail") private var newMail = true
+    @AppStorage("notify.sound") private var sound = true
+    @AppStorage("notify.badge") private var badge = true
+
+    var body: some View {
+        Section {
+            Toggle("새 메일 알림", isOn: $newMail)
+                .onChange(of: newMail) { _, on in
+                    if on { Task { await model.prepareNotifications() } }
+                }
+            Toggle("알림 소리", isOn: $sound)
+                .disabled(!newMail)
+            if newMail && model.notificationPermission == .denied {
+                LabeledContent {
+                    Button("시스템 설정 열기") { openSystemSettings() }
+                } label: {
+                    Label("macOS 알림 권한이 꺼져 있습니다.", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("받은 편지함")
+        } footer: {
+            Text("앱이 켜져 있는 동안 2분마다 확인합니다. 앱이 앞에 있으면 배너 없이 알림 센터에만 남습니다.")
+                .foregroundStyle(.secondary)
+        }
+        Section("Dock") {
+            Toggle("읽지 않은 메일 수 배지", isOn: $badge)
+                .onChange(of: badge) { _, _ in model.updateBadge() }
+        }
+        .task { await model.refreshNotificationPermission() }
+    }
+
+    private func openSystemSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+            NSWorkspace.shared.open(url)
         }
     }
 }

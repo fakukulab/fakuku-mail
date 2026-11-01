@@ -37,6 +37,10 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
 - Large mail (S-023): `MIMEBuilder.buildForGraph` moves the largest attachments out until the MIME request
   fits 4 MB. Those go through `MailService.uploadAttachment` (upload sessions, `UploadChunks`) on a draft,
   then `sendDraft`. `ComposeModel.sendLarge` deletes the draft if any step fails.
+- New mail (S-024): `ContentView.autoRefresh` calls `AppModel.checkNewMail` every 2 minutes, also in the
+  background. `NewMailTracker` (Kit) decides what is new; **seam `MailNotifier`** posts it:
+  `SystemNotifier` (UserNotifications, Dock badge, notification-click delegate) or `RecordingNotifier`
+  (demo and self-test). A click goes through `NotificationRouter` to `AppModel.openFromNotification`.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 

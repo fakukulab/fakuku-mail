@@ -308,3 +308,52 @@ func resumeDraft() {
     #expect(d.forwardAttachmentsFrom == "d1")
     #expect(d.inReplyTo == "<orig@x>")
 }
+
+// S-024 새 메일 알림
+
+func inboxMessage(_ id: String, minutesAgo: Double, unread: Bool = true, from: String = "김민지",
+                  now: Date = Date(timeIntervalSince1970: 1_714_557_600)) -> MailMessage {
+    MailMessage(id: id, subject: "제목 \(id)", from: Recipient(name: from, address: "\(id)@x.com"),
+                receivedDateTime: now.addingTimeInterval(-minutesAgo * 60), bodyPreview: "미리보기 \(id)", isRead: !unread)
+}
+
+@Test("처음 확인은 기준만 정하고, 그 뒤 도착한 읽지 않은 메일만 한 번씩 알린다")
+func newMailTracking() {
+    let now = Date(timeIntervalSince1970: 1_714_557_600)
+    var tracker = NewMailTracker()
+    #expect(tracker.take([inboxMessage("a", minutesAgo: 10), inboxMessage("b", minutesAgo: 20)], now: now).isEmpty)
+    let second = [inboxMessage("c", minutesAgo: 1), inboxMessage("d", minutesAgo: 2, unread: false),
+                  inboxMessage("a", minutesAgo: 10), inboxMessage("b", minutesAgo: 20)]
+    #expect(tracker.take(second, now: now).map(\.id) == ["c"])
+    #expect(tracker.take(second, now: now).isEmpty)
+    #expect(tracker.watermark == now.addingTimeInterval(-60))
+}
+
+@Test("빈 받은 편지함에서 시작해도 다음 메일을 알린다")
+func newMailFromEmptyInbox() {
+    let now = Date(timeIntervalSince1970: 1_714_557_600)
+    var tracker = NewMailTracker()
+    #expect(tracker.take([], now: now.addingTimeInterval(-300)).isEmpty)
+    #expect(tracker.take([inboxMessage("x", minutesAgo: 1)], now: now).map(\.id) == ["x"])
+}
+
+@Test("3통까지는 한 통씩, 4통부터는 요약 하나")
+func notificationGrouping() {
+    let three = ["a", "b", "c"].map { inboxMessage($0, minutesAgo: 1) }
+    let singles = MailNotification.make(for: three)
+    #expect(singles.count == 3)
+    #expect(singles[0].title == "김민지")
+    #expect(singles[0].subtitle == "제목 a")
+    #expect(singles[0].messageID == "a")
+    let five = (1...5).map { inboxMessage("m\($0)", minutesAgo: 1, from: "보낸이\($0)") }
+    let summary = MailNotification.make(for: five)
+    #expect(summary.count == 1)
+    #expect(summary[0].title == "새 메일 5통")
+    #expect(summary[0].subtitle == "보낸이1, 보낸이2, 보낸이3 외")
+    #expect(summary[0].messageID == nil)
+}
+
+@Test("Dock 배지 글자", arguments: [(0, nil), (nil, nil), (3, "3"), (1200, "999+")] as [(Int?, String?)])
+func dockBadge(_ n: Int?, _ expected: String?) {
+    #expect(DockBadge.label(unread: n) == expected)
+}

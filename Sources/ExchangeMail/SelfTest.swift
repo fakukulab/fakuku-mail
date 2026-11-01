@@ -287,6 +287,49 @@ enum SelfTest {
             await bigDraft.discard(app: model)
             try? FileManager.default.removeItem(at: bigDir)
 
+            // S-024: 새 메일 알림과 Dock 배지 (기록만 하는 알리미로)
+            if let recorder = model.notifier as? RecordingNotifier {
+                // 앱 실행 파일이 같아 사용자 설정을 공유한다. 바꾼 값은 끝에서 되돌린다.
+                let defaults = UserDefaults.standard
+                let savedNotify = defaults.object(forKey: "notify.newMail")
+                let savedBadge = defaults.object(forKey: "notify.badge")
+                defaults.set(true, forKey: "notify.newMail")
+                defaults.set(true, forKey: "notify.badge")
+
+                await model.prepareNotifications()
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.5))
+                await model.checkNewMail()
+                check("S-024 처음 확인은 기준만 정하고 알리지 않는다", recorder.posted.isEmpty)
+                demo.deliver(MailMessage(id: "n1", subject: "새 견적 요청",
+                                         from: Recipient(name: "박서준", address: "seojun.park@fabrikam.com"),
+                                         receivedDateTime: Date().addingTimeInterval(5),
+                                         bodyPreview: "견적 부탁드립니다", isRead: false))
+                await model.checkNewMail()
+                check("S-024 새 메일이 오면 알림 1건 (보낸 사람, 제목)",
+                      recorder.posted.count == 1 && recorder.posted.last?.messageID == "n1"
+                          && recorder.posted.last?.title == "박서준" && recorder.posted.last?.subtitle == "새 견적 요청")
+                await model.checkNewMail()
+                check("S-024 다시 확인해도 알림이 늘지 않는다", recorder.posted.count == 1)
+                let unread = model.folders.first { $0.kind == "inbox" }?.unreadItemCount
+                check("S-024 Dock 배지는 받은 편지함의 읽지 않은 수",
+                      recorder.badge != nil && recorder.badge == DockBadge.label(unread: unread))
+
+                model.selectedFolderID = "sentitems"
+                try? await Task.sleep(for: .seconds(0.5))
+                await model.openFromNotification("n1")
+                try? await Task.sleep(for: .seconds(0.6))
+                check("S-024 알림을 누르면 받은 편지함의 그 메일이 열린다",
+                      model.selectedFolderID == "inbox" && model.selectedMessageID == "n1")
+
+                defaults.set(false, forKey: "notify.badge")
+                model.updateBadge()
+                check("S-024 배지를 끄면 사라진다", recorder.badge == nil)
+
+                if let savedNotify { defaults.set(savedNotify, forKey: "notify.newMail") } else { defaults.removeObject(forKey: "notify.newMail") }
+                if let savedBadge { defaults.set(savedBadge, forKey: "notify.badge") } else { defaults.removeObject(forKey: "notify.badge") }
+            }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

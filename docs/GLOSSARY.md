@@ -21,3 +21,5 @@
 | 데모 모드 | `DemoMailService` | 로그인 없이 예시 메일로 도는 모드 (`APP_SEED=1`) |
 | 초안, 임시 보관함 | `ComposeModel.saveDraft`, `MailService.saveDraft` | 쓰던 메일. ⌘S, 30초마다, 창을 닫을 때 저장 |
 | 이어서 쓰기 | `AppModel.resumeDraft` | 저장된 초안을 작성 창으로 다시 열기 (⌘O) |
+| 새 메일 알림 | `NewMailTracker`, `MailNotifier` | 지난 확인 이후 받은 편지함에 온 읽지 않은 메일 |
+| Dock 배지 | `DockBadge`, `AppModel.updateBadge` | 받은 편지함의 읽지 않은 수 |

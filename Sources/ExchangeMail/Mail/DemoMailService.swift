@@ -205,6 +205,12 @@ final class DemoMailService: MailService {
         return id
     }
 
+    /// 데모 받은 편지함에 새 메일이 온 것처럼 넣는다 (셀프 테스트 S-024).
+    func deliver(_ message: MailMessage) {
+        store["inbox", default: []].append(message)
+        recount()
+    }
+
     /// 올린 큰 첨부 (메시지 id, 파일 이름, 크기). 셀프 테스트가 읽는다.
     private(set) var uploaded: [(message: String, name: String, size: Int)] = []
     /// 초안으로 보낸 메시지 id

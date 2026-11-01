@@ -9,6 +9,13 @@ final class AppModel {
     let auth: GraphAuth
     let signatures: SignatureStore
     let addressBook: AddressBookStore
+    /// 새 메일 알림과 Dock 배지 (S-024)
+    @ObservationIgnored let notifier: any MailNotifier
+    private(set) var notificationPermission = NotifyPermission.notAsked
+    @ObservationIgnored private var tracker = NewMailTracker()
+    @ObservationIgnored private var trackerLoaded = false
+    /// 알림을 눌러 열 메일. 받은 편지함 목록이 오면 고른다.
+    @ObservationIgnored private var pendingOpenID: String?
     let isDemo: Bool
     @ObservationIgnored let service: any MailService
     /// 본문 웹 보기 넘기기 (S-019)
@@ -57,8 +64,10 @@ final class AppModel {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
     }
 
-    init(auth: GraphAuth, signatures: SignatureStore, addressBook: AddressBookStore, service: any MailService, isDemo: Bool) {
+    init(auth: GraphAuth, signatures: SignatureStore, addressBook: AddressBookStore, service: any MailService,
+         notifier: any MailNotifier, isDemo: Bool) {
         self.addressBook = addressBook
+        self.notifier = notifier
         self.auth = auth
         self.signatures = signatures
         self.service = service
@@ -71,9 +80,11 @@ final class AppModel {
         let auth = GraphAuth(demoEmail: Store.isDemo ? DemoMailService.myAddress : nil)
         if Store.isDemo {
             if signatures.signatures.isEmpty { DemoMailService.seedSignatures(into: signatures) }
-            return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: DemoMailService(), isDemo: true)
+            return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: DemoMailService(),
+                            notifier: RecordingNotifier(), isDemo: true)
         }
-        return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: GraphMailService(auth: auth), isDemo: false)
+        return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: GraphMailService(auth: auth),
+                        notifier: SystemNotifier.shared, isDemo: false)
     }
 
     var isSignedIn: Bool { auth.isSignedIn }
@@ -92,6 +103,10 @@ final class AppModel {
     func reloadAll() async {
         guard isSignedIn else {
             folders = []; messages = []; detail = nil
+            // 로그아웃: 배지를 지우고, 다음 계정은 새 기준으로 시작한다.
+            tracker = NewMailTracker()
+            trackerLoaded = false
+            updateBadge()
             updateMenu()
             return
         }
@@ -115,6 +130,7 @@ final class AppModel {
     func loadFolders() async {
         do {
             folders = FolderOrder.sorted(try await service.folders())
+            updateBadge()
         } catch {
             report(error)
         }
@@ -132,7 +148,10 @@ final class AppModel {
             messages = page.messages
             addressBook.noteSeen(page.messages, me: auth.email)
             nextLink = page.nextLink
-            if !(keepSelection && messages.contains { $0.id == selectedMessageID }) {
+            if let pending = pendingOpenID, messages.contains(where: { $0.id == pending }) {
+                pendingOpenID = nil
+                selectedMessageID = pending
+            } else if !(keepSelection && messages.contains { $0.id == selectedMessageID }) {
                 selectedMessageID = nil
             }
         } catch {
@@ -198,6 +217,7 @@ final class AppModel {
                 }
             }
             if detail?.id == id { detail?.isRead = read }
+            updateBadge()
             updateMenu()
         } catch {
             report(error)
@@ -284,6 +304,80 @@ final class AppModel {
             ? detailBody?.content ?? ""
             : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(detailBody?.content ?? ""))</pre>"
         return ReplyBuilder.draft(kind: kind, message: m, bodyHTML: body, myAddress: auth.email)
+    }
+
+    // MARK: 새 메일 알림 (S-024)
+
+    static func setting(_ key: String) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? true
+    }
+    var notifyNewMail: Bool { Self.setting("notify.newMail") }
+    var notifySound: Bool { Self.setting("notify.sound") }
+    var showBadge: Bool { Self.setting("notify.badge") }
+
+    /// 로그인한 뒤 한 번: 알림을 켜 두었으면 권한을 묻는다(처음일 때만).
+    func prepareNotifications() async {
+        guard isSignedIn else { return }
+        if notifyNewMail {
+            notificationPermission = await notifier.requestPermission()
+        } else {
+            notificationPermission = await notifier.permission()
+        }
+    }
+
+    func refreshNotificationPermission() async {
+        notificationPermission = await notifier.permission()
+    }
+
+    /// 받은 편지함을 보고 새 메일을 알린다. 앱이 뒤에 있어도 2분마다 불린다. 오류는 조용히 넘긴다.
+    func checkNewMail() async {
+        guard isSignedIn else { return }
+        loadTracker()
+        guard let page = try? await service.messages(folderID: "inbox", search: nil) else { return }
+        let fresh = tracker.take(page.messages)
+        saveTracker()
+        if notifyNewMail && notificationPermission == .allowed {
+            for n in MailNotification.make(for: fresh) { notifier.post(n, sound: notifySound) }
+        }
+        if !fresh.isEmpty {
+            await loadFolders()
+            if selectedFolder?.kind == "inbox" && searchText.isEmpty { await loadMessages(keepSelection: true) }
+        }
+    }
+
+    /// Dock 배지 = 받은 편지함의 읽지 않은 수. 설정에서 끄면 지운다.
+    func updateBadge() {
+        let unread = folders.first { $0.kind == "inbox" }?.unreadItemCount
+        notifier.setBadge(showBadge && isSignedIn ? DockBadge.label(unread: unread) : nil)
+    }
+
+    /// 알림을 눌렀을 때: 받은 편지함에서 그 메일을 연다. 요약 알림(id 없음)은 받은 편지함만 연다.
+    func openFromNotification(_ id: String?) async {
+        guard isSignedIn else { return }
+        let inboxID = folders.first { $0.kind == "inbox" }?.id ?? "inbox"
+        pendingOpenID = id
+        if selectedFolderID != inboxID {
+            selectedFolderID = inboxID   // didSet이 목록을 불러오고 pendingOpenID를 고른다
+        } else {
+            searchText = ""
+            await loadMessages(keepSelection: true)
+        }
+    }
+
+    /// 새 메일 기준은 계정마다 UserDefaults에 둔다. 테스트 실행(APP_STORE)은 메모리에만.
+    private var trackerKey: String { "newMail.tracker.\((auth.email ?? "").lowercased())" }
+
+    private func loadTracker() {
+        guard !trackerLoaded else { return }
+        trackerLoaded = true
+        guard !Store.isOverridden, let data = UserDefaults.standard.data(forKey: trackerKey),
+              let saved = try? JSONDecoder().decode(NewMailTracker.self, from: data) else { return }
+        tracker = saved
+    }
+
+    private func saveTracker() {
+        guard !Store.isOverridden, let data = try? JSONEncoder().encode(tracker) else { return }
+        UserDefaults.standard.set(data, forKey: trackerKey)
     }
 
     // MARK: 초안 (S-022)

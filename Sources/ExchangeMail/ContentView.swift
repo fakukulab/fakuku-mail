@@ -22,6 +22,10 @@ struct ContentView: View {
         }
         .task(id: model.isSignedIn) { await model.reloadAll() }
         .task(id: model.isSignedIn) { await autoRefresh() }
+        .task(id: model.isSignedIn) {
+            NotificationRouter.shared.open = { id in Task { await model.openFromNotification(id) } }
+            await model.prepareNotifications()
+        }
         .alert("오류", isPresented: Binding(get: { model.errorMessage != nil },
                                           set: { if !$0 { model.errorMessage = nil } })) {
             Button("확인", role: .cancel) {}
@@ -30,12 +34,15 @@ struct ContentView: View {
         }
     }
 
-    /// 앱이 앞에 있는 동안 2분마다 받은 메일을 가져온다 (S-015).
+    /// 2분마다: 앱이 앞에 있으면 화면을 새로 고치고(S-015), 뒤에 있어도 새 메일을 확인해 알린다(S-024).
     private func autoRefresh() async {
         guard model.isSignedIn, !model.isDemo else { return }
+        await model.checkNewMail()   // 처음 한 번: 새 메일 기준을 정한다
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(120))
+            if Task.isCancelled { break }
             if NSApp.isActive { await model.refresh() }
+            await model.checkNewMail()
         }
     }
 }
