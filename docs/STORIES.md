@@ -178,8 +178,11 @@ Status: todo
 ## M4 Polish
 
 ### S-020 앱 아이콘
-As the user, Dock에서 봉투와 클립 모양의 Liquid Glass 아이콘을 본다 (`app-icon` skill).
-Status: todo
+As the user, Dock에서 보라 배경에 봉투와 클립이 있는 Liquid Glass 아이콘을 본다 (`app-icon` skill).
+Acceptance:
+- [manual] `tools/make_icon.sh`가 성공하고, `tools/icon_review.sh`의 기본·다크·틴트·클리어와 16pt에서 클립과 봉투가 보인다.
+- [manual] Dock에서 Apple Mail(파란 배경 흰 봉투)과 구분된다.
+Status: doing (레이어와 icon.json 완료, 맥에서 actool 컴파일과 검토 대기. 미리보기: docs/design/icon-preview.png)
 
 ### S-021 계정별 서명 규칙 화면
 As the user, 설정 > 서명에서 계정마다 다른 기본 서명을 정한다 (모델 `SignatureRules.perAccount`는 있음).
