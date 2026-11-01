@@ -29,8 +29,11 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
 - **Seam: `MailService`** with two adapters: `GraphMailService` (Microsoft Graph over URLSession) and
   `DemoMailService` (in-memory sample mailbox for demo mode, snapshots, and the self-test).
 - `GraphAuth`: OAuth PKCE via ASWebAuthenticationSession, tokens in the Keychain, single-flight refresh.
-- Compose: `ComposeView` (fields, attachments, toolbar), `RichTextController` (WKWebView editor),
-  `ComposeSender` (fields to fixed MIME).
+- Compose: `ComposeModel` (@Observable: fields, attachments, signature swap, send, drafts),
+  `ComposeView` (layout only), `RichTextController` (WKWebView editor),
+  `ComposeSender` (fields to fixed MIME for sending, unfixed MIME for drafts).
+- Drafts: `MailService.saveDraft` creates a new draft from MIME and deletes the old one
+  (Graph cannot PATCH a message with MIME); `AppModel.resumeDraft` reopens one.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 
@@ -42,4 +45,6 @@ large attachments make sending feel slow.
 
 ## Reviews
 
-- `docs/architecture-review-2026-11-01.md` (end of M3): no Strong candidates; compose model before S-022.
+- `docs/architecture-review-2026-11-01.md` (end of M3): no Strong candidates; compose model before S-022 (done).
+- End of M4 (2026-11-01): largest file AppModel.swift at 335 lines; nothing Strong. Split `MessageReader`
+  out of AppModel when it passes 400 lines or when threads/offline cache start.

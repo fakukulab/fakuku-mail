@@ -61,3 +61,9 @@ Nothing is `Strong`, so nothing was refactored in this check-in.
 - Replacing the WKWebView editor with NSTextView: loses HTML signatures and font control the brief asks for.
 - SwiftData for signatures: one small JSON file is simpler and already tested by the self-test.
 - Splitting `ExchangeMailKit` into more targets: 1,300 lines do not need it.
+
+## Follow-up at end of M4
+
+- Compose state as a model: done in 1aa4d88 before S-022.
+- Testable Graph requests: still Worth exploring.
+- Reader state out of AppModel: AppModel is 335 lines; still Speculative.
