@@ -41,6 +41,8 @@ protocol MailService: AnyObject {
     func setFlag(id: String, flagged: Bool) async throws
     /// 깃발 단 메일, 모든 폴더, 최근 순 (S-029)
     func flaggedMessages() async throws -> MessagePage
+    /// 사서함 전체 검색 (S-033). 결과에는 parentFolderId가 있다.
+    func searchAll(_ text: String) async throws -> MessagePage
     /// 폴더 만들기·이름 바꾸기·지우기 (S-031). `parentID`가 nil이면 맨 위에 만든다.
     func createFolder(name: String, parentID: String?) async throws -> MailFolder
     func renameFolder(id: String, name: String) async throws
@@ -269,6 +271,13 @@ final class GraphMailService: MailService {
     func setFlag(id: String, flagged: Bool) async throws {
         let body = try JSONEncoder().encode(["flag": flagged ? FollowupFlag.flagged : FollowupFlag.notFlagged])
         _ = try await request("PATCH", "/me/messages/\(id)", body: body)
+    }
+
+    func searchAll(_ text: String) async throws -> MessagePage {
+        let r = GraphQuery.searchAll(text)
+        let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
+        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        return MessagePage(messages: list.value, nextLink: list.nextLink)
     }
 
     func flaggedMessages() async throws -> MessagePage {

@@ -59,6 +59,35 @@ public enum MailContent {
     }
 }
 
+extension MailContent {
+    /// 인쇄용 문서 (S-034): 머리글(제목, 보낸 사람, 받는 사람, 참조, 날짜) + 본문. 본문 안전 규칙(CSP)은 그대로.
+    public static func printPage(message m: MailMessage, body: MailMessage.Body?, allowRemote: Bool,
+                                 timeZone: TimeZone = .current) -> String {
+        func people(_ list: [Recipient]?) -> String {
+            HTMLProcessor.escape(AddressParser.format((list ?? []).compactMap { $0.emailAddress.mailAddress }))
+        }
+        let from = HTMLProcessor.escape(m.from?.emailAddress.mailAddress?.editable ?? m.from?.emailAddress.display ?? "")
+        var rows = "<tr><th>보낸 사람</th><td>\(from)</td></tr>"
+        rows += "<tr><th>받는 사람</th><td>\(people(m.toRecipients))</td></tr>"
+        if !(m.ccRecipients ?? []).isEmpty { rows += "<tr><th>참조</th><td>\(people(m.ccRecipients))</td></tr>" }
+        if let date = m.receivedDateTime {
+            rows += "<tr><th>날짜</th><td>\(HTMLProcessor.escape(MailDate.long(date, timeZone: timeZone)))</td></tr>"
+        }
+        let header = """
+        <style>@media print{body{padding:0}}.print-head{border-bottom:1px solid #999;margin-bottom:16px;padding-bottom:8px}\
+        .print-head h1{font-size:18px;margin:0 0 8px}.print-head th{text-align:left;color:#555;font-weight:normal;\
+        padding-right:12px;vertical-align:top;white-space:nowrap}.print-head td,.print-head th{font-size:12px}</style>\
+        <div class="print-head"><h1>\(HTMLProcessor.escape(m.title))</h1><table>\(rows)</table></div>
+        """
+        // page()가 CSP meta를 맨 앞에 두므로 머리글은 그 뒤, 본문 앞에 넣는다.
+        let content = page(body: body, allowRemote: allowRemote)
+        guard let styleEnd = content.range(of: "</style>") else { return header + content }
+        var result = content
+        result.insert(contentsOf: header, at: styleEnd.upperBound)
+        return result
+    }
+}
+
 /// 목록과 인용문에 쓰는 날짜 글자. 앱 UI가 한국어라 한국어 형식으로 고정한다.
 public enum MailDate {
     static let korean = Locale(identifier: "ko_KR")

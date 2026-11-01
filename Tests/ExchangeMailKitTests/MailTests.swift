@@ -513,3 +513,32 @@ func flagDecode() throws {
     let body = try JSONEncoder().encode(["flag": FollowupFlag.notFlagged])
     #expect(String(decoding: body, as: UTF8.self) == #"{"flag":{"flagStatus":"notFlagged"}}"#)
 }
+
+// S-033 모든 폴더 검색, S-034 인쇄
+
+@Test("모든 폴더 검색 요청은 /me/messages에 $search를 쓴다")
+func searchAllQuery() {
+    let r = GraphQuery.searchAll(" 견적 \"서\" ")
+    #expect(r.query["$search"] == "\"견적 서\"")
+    #expect(r.query["$orderby"] == nil)
+    #expect(r.query["$select"]?.contains("parentFolderId") == true)
+    #expect(r.headers["ConsistencyLevel"] == "eventual")
+}
+
+@Test("인쇄 문서는 CSP를 맨 앞에 두고, 머리글을 이스케이프해 본문 앞에 넣는다")
+func printPage() throws {
+    let tz = try #require(TimeZone(identifier: "Asia/Seoul"))
+    let m = MailMessage(id: "p", subject: "<견적>", from: Recipient(name: "김 & 이", address: "a@x.com"),
+                        toRecipients: [Recipient(name: nil, address: "b@x.com")],
+                        receivedDateTime: Date(timeIntervalSince1970: 1_714_557_600))
+    let html = MailContent.printPage(message: m, body: .init(contentType: "html", content: "<p>본문</p>"),
+                                     allowRemote: false, timeZone: tz)
+    #expect(html.hasPrefix("<meta http-equiv=\"Content-Security-Policy\""))
+    #expect(html.contains("<h1>&lt;견적&gt;</h1>"))
+    #expect(html.contains("김 &amp; 이 &lt;a@x.com&gt;"))
+    #expect(html.contains("b@x.com"))
+    #expect(html.contains("2024년 5월 1일"))
+    let head = try #require(html.range(of: "print-head\"><h1>"))
+    let body = try #require(html.range(of: "<p>본문</p>"))
+    #expect(head.lowerBound < body.lowerBound)
+}

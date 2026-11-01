@@ -286,6 +286,23 @@ final class DemoMailService: MailService {
         store[folder]?[index].flag = flagged ? .flagged : .notFlagged
     }
 
+    func searchAll(_ text: String) async throws -> MessagePage {
+        try checkOnline()
+        let s = text.lowercased()
+        let all = store.flatMap { folder, list in
+            list.filter { m in
+                [m.subject, m.bodyPreview, m.from?.emailAddress.display, m.from?.emailAddress.address]
+                    .compactMap { $0?.lowercased() }.contains { $0.contains(s) }
+            }.map { m -> MailMessage in
+                var copy = m
+                copy.parentFolderId = folder
+                return copy
+            }
+        }
+        return MessagePage(messages: all.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) },
+                           nextLink: nil)
+    }
+
     func flaggedMessages() async throws -> MessagePage {
         try checkOnline()
         let all = store.flatMap { folder, list in

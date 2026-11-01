@@ -62,6 +62,11 @@ struct MailSplitView: View {
             MessageDetailView()
         }
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "검색")
+        // 검색 범위: 이 폴더 / 모든 폴더 (S-033)
+        .searchScopes($model.searchScope) {
+            Text("이 폴더").tag(SearchScope.folder)
+            Text("모든 폴더").tag(SearchScope.all)
+        }
         .onSubmit(of: .search) { Task { await model.loadMessages() } }
         // 메시지 > 이동… (S-028)
         .sheet(isPresented: $model.showMovePicker) { MovePicker() }

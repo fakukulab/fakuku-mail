@@ -68,6 +68,35 @@ enum SelfTest {
             check("S-013 다시 바꾸면 읽음", model.selectedMessage?.isRead == true
                   && (model.selectedFolder?.unreadItemCount ?? 0) == unreadOpen)
 
+            // S-032: 첨부 미리보기 파일
+            await open("m1")
+            if let pdf = model.listedAttachments.first {
+                let url = model.previewFile(for: pdf)
+                let written = url.flatMap { try? Data(contentsOf: $0) }
+                check("S-032 첨부를 NFC 이름의 임시 파일로 써서 훑어본다",
+                      url?.lastPathComponent == "2024년 3분기 장비 견적서.pdf" && written == pdf.data)
+                model.preview(pdf)
+                check("S-032 훑어보기를 누르면 Quick Look 주소가 정해진다", model.previewURL == url)
+                model.previewURL = nil
+                model.preview(FileAttachment(id: "x", name: "없음.pdf", contentType: nil, size: 10, isInline: false, contentBytes: nil))
+                check("S-032 내용이 없는 첨부는 열지 않고 이유를 알린다", model.previewURL == nil && model.errorMessage != nil)
+                model.errorMessage = nil
+            }
+
+            // S-033: 모든 폴더 검색
+            model.searchScope = .all
+            model.searchText = "견적"
+            await model.loadMessages()
+            let everywhere = model.messages.map(\.id)
+            check("S-033 모든 폴더 검색은 다른 폴더의 메일도 찾는다", everywhere.contains("s2") && everywhere.contains("m1"))
+            check("S-033 다른 폴더의 결과에는 폴더 꼬리표가 붙는다",
+                  model.messages.first { $0.id == "s2" }.flatMap { model.folderTag(for: $0) } == "보낸 편지함")
+            model.searchScope = .folder
+            await model.loadMessages()
+            check("S-033 이 폴더 검색은 이 폴더만", !model.messages.contains { $0.id == "s2" })
+            model.searchText = ""
+            await model.loadMessages()
+
             // S-025: 대화별로 묶어 보기 (설정을 잠깐 켜고 끝에서 되돌린다)
             let defaults = UserDefaults.standard
             let savedThreaded = defaults.object(forKey: "list.threaded")

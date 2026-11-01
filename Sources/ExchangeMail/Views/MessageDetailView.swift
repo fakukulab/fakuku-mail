@@ -1,4 +1,5 @@
 import ExchangeMailKit
+import QuickLook
 import SwiftUI
 
 struct MessageDetailView: View {
@@ -44,6 +45,8 @@ struct MessageDetailView: View {
             }
         }
         .toolbar { toolbar }
+        // 첨부 미리보기 (S-032)
+        .quickLookPreview(Binding(get: { model.previewURL }, set: { model.previewURL = $0 }))
     }
 
     /// 임시 보관함의 초안: 이어서 쓰기 (S-022)
@@ -145,14 +148,19 @@ struct MessageHeader: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: Space.sm) {
                         ForEach(model.listedAttachments) { a in
+                            // 누르면 훑어보기, 오른쪽 클릭으로 저장 (S-032)
                             Button {
-                                model.save(attachment: a)
+                                model.preview(a)
                             } label: {
                                 Label("\(FilenameEncoder.normalize(a.name))  \(a.sizeLabel)", systemImage: "paperclip")
                                     .lineLimit(1)
                             }
                             .buttonStyle(.bordered)
-                            .help("저장…")
+                            .help("훑어보기 (⌘Y). 오른쪽 클릭으로 저장")
+                            .contextMenu {
+                                Button("훑어보기") { model.preview(a) }
+                                Button("저장…") { model.save(attachment: a) }
+                            }
                         }
                     }
                 }

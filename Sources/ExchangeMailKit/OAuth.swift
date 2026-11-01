@@ -122,6 +122,13 @@ public enum GraphQuery {
     public static let pageSize = 50
     public static let folderSelect = "id,displayName,unreadItemCount,totalItemCount,parentFolderId,childFolderCount"
 
+    /// 사서함 전체 검색 (S-033). `$search`는 `$orderby`와 함께 쓸 수 없다.
+    public static func searchAll(_ text: String, top: Int = pageSize) -> Request {
+        let q = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "\"", with: "")
+        return Request(query: ["$search": "\"\(q)\"", "$select": listSelect, "$top": "\(top)"],
+                       headers: ["ConsistencyLevel": "eventual"])
+    }
+
     /// 깃발 단 메일, 모든 폴더 (S-029). `$orderby`를 함께 쓰면 Graph가 거절할 수 있어 정렬은 앱에서 한다.
     public static func flagged(top: Int = pageSize) -> Request {
         Request(query: ["$filter": "flag/flagStatus eq 'flagged'", "$select": listSelect, "$top": "\(top)"], headers: [:])

@@ -65,6 +65,7 @@ struct MenuSnapshot: Equatable {
     var isUnread = false
     var isFlagged = false
     var inJunk = false
+    var hasAttachments = false
     var isDraft = false
     var hasRemoteContent = false
 }
@@ -95,6 +96,11 @@ struct MailCommands: Commands {
             Toggle("대화별로 정리", isOn: $threaded)
                 .keyboardShortcut("t", modifiers: [.command, .control])
         }
+        CommandGroup(replacing: .printItem) {
+            Button("인쇄…") { model.printDisplayed() }
+                .keyboardShortcut("p")
+                .disabled(!menu.hasMessage)
+        }
         CommandMenu("사서함") {
             Button("새 폴더…") {
                 if let name = TextPrompt.ask("새 폴더", confirm: "만들기") {
@@ -114,6 +120,9 @@ struct MailCommands: Commands {
             Button("전달") { compose(.forward) }
                 .keyboardShortcut("f", modifiers: [.command, .shift])
                 .disabled(!menu.hasMessage)
+            Button("첨부 훑어보기") { model.previewFirstAttachment() }
+                .keyboardShortcut("y")
+                .disabled(!menu.hasAttachments)
             Button("초안 이어서 쓰기") { if let d = model.resumeDraft() { openWindow(id: "compose", value: d) } }
                 .keyboardShortcut("o")
                 .disabled(!menu.isDraft)

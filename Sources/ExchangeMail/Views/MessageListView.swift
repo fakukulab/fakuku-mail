@@ -24,7 +24,7 @@ struct MessageListView: View {
                 }
             } else {
                 ForEach(model.messages) { m in
-                    MessageRow(message: m)
+                    MessageRow(message: m, folderTag: model.folderTag(for: m))
                         .tag(m.id)
                         .draggable(model.dragPayload(for: m.id))
                         .onAppear {
@@ -149,6 +149,8 @@ struct MessageListView: View {
 
 struct MessageRow: View {
     let message: MailMessage
+    /// 다른 폴더의 메일이면 그 폴더 이름 (모든 폴더 검색, 깃발 표시)
+    var folderTag: String? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.sm) {
@@ -180,8 +182,18 @@ struct MessageRow: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-                Text(message.title)
-                    .lineLimit(1)
+                HStack(spacing: Space.xs) {
+                    Text(message.title)
+                        .lineLimit(1)
+                    if let folderTag {
+                        Spacer(minLength: Space.xs)
+                        Text(folderTag)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Space.xs)
+                            .background(.quaternary, in: Capsule())
+                    }
+                }
                 Text(message.bodyPreview ?? "")
                     .font(.callout)
                     .foregroundStyle(.secondary)

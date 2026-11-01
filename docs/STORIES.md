@@ -347,15 +347,24 @@ Status: done (맥에서 빌드·swift test·selftest 통과, 사용자 확인 20
 
 ### S-032 첨부 미리보기
 As the user, 첨부 칩을 고르고 Space를 누르거나 "훑어보기"로 Quick Look 미리보기를 연다.
-Status: todo
+Acceptance:
+- [self] 첨부를 NFC 이름의 임시 파일로 써서 Quick Look으로 연다. 내용이 없으면(오프라인의 큰 첨부 등) 이유를 알린다.
+- [manual] 칩을 누르면 미리보기, 오른쪽 클릭에 "훑어보기 / 저장…", 메시지 > 첨부 훑어보기(⌘Y)는 첫 첨부.
+Status: doing (코드 완료, 맥 빌드·확인 대기)
 
 ### S-033 모든 폴더에서 검색
 As the user, 검색 칸 아래에서 "모든 폴더 / 이 폴더"를 골라 사서함 전체를 찾는다.
-Status: todo
+Acceptance:
+- [unit] 모든 폴더 검색은 `/me/messages`에 `$search`를 쓰고 `$orderby`는 쓰지 않는다.
+- [self] "모든 폴더"면 보낸 편지함 메일도 나오고 폴더 꼬리표가 붙는다. "이 폴더"로 바꾸면 다시 찾는다.
+Status: doing (코드 완료, 맥 빌드·확인 대기)
 
 ### S-034 인쇄
 As the user, ⌘P로 지금 보는 메일(머리글 포함)을 인쇄하거나 PDF로 저장한다.
-Status: todo
+Acceptance:
+- [unit] 인쇄 문서는 CSP를 맨 앞에, 이스케이프한 머리글(제목, 보낸 사람, 받는 사람, 참조, 날짜)을 본문 앞에 둔다.
+- [manual] 파일 > 인쇄…(⌘P)로 인쇄 창이 열리고, PDF로 저장하면 머리글과 한글 본문이 그대로 나온다.
+Status: doing (코드 완료, 맥 빌드·확인 대기)
 
 ## M11 Write more
 

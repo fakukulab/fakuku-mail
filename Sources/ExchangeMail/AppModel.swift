@@ -3,6 +3,10 @@ import ExchangeMailKit
 import Observation
 import SwiftUI
 
+enum SearchScope: Hashable {
+    case folder, all
+}
+
 /// App-wide state that menus, toolbars, and views share.
 @Observable
 final class AppModel {
@@ -49,6 +53,17 @@ final class AppModel {
     }
     /// 메시지 > 이동… 시트 (S-028)
     var showMovePicker = false
+    /// 검색 범위 (S-033). 바꾸면 검색어가 있을 때 다시 찾는다.
+    var searchScope = SearchScope.folder {
+        didSet {
+            guard searchScope != oldValue, !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+            Task { await loadMessages() }
+        }
+    }
+    /// Quick Look으로 보는 첨부 파일 (S-032)
+    var previewURL: URL?
+    /// 인쇄가 끝날 때까지 잡아 둔다 (S-034)
+    @ObservationIgnored var printer: MailPrinter?
 
     // 본문
     var selectedMessageID: String? {
@@ -205,7 +220,10 @@ final class AppModel {
         defer { isLoading = false }
         do {
             let page: MessagePage
-            if folderID == FolderOrder.flaggedID && search.isEmpty {
+            if !search.isEmpty && (searchScope == .all || folderID == FolderOrder.flaggedID) {
+                // 모든 폴더 검색 (S-033). 깃발 표시는 서버 폴더가 아니라서 그 안의 검색도 전체 검색이다.
+                page = try await service.searchAll(search)
+            } else if folderID == FolderOrder.flaggedID {
                 page = try await service.flaggedMessages()
             } else {
                 page = try await service.messages(folderID: folderID, search: search.isEmpty ? nil : search)
@@ -421,6 +439,7 @@ final class AppModel {
             isUnread: messages.filter { selectedIDs.contains($0.id) }.contains(where: \.isUnread),
             isFlagged: !messages.filter { selectedIDs.contains($0.id) }.contains { !$0.isFlagged },
             inJunk: selectedFolder?.kind == "junkemail",
+            hasAttachments: !listedAttachments.isEmpty,
             isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed))
     }
