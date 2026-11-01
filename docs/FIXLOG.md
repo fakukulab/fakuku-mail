@@ -28,3 +28,10 @@ Cause: Option-Command-T is macOS's Show/Hide Toolbar (from `ToolbarCommands`), w
 `@AppStorage` inside `Commands`, which does not redraw the menu.
 Fix: Control-Command-T; the App owns `@AppStorage("list.threaded")` and passes a binding to `MailCommands`.
 Rule: Before picking a menu shortcut, check the standard View, Edit, and Window menu shortcuts; keep menu state in the App.
+
+## 2026-11-01 Build failed: missing return in DemoMailService.conversation
+
+Symptom: "missing return in instance method expected to return '[MailMessage]'" and "result of call to 'flatMap' is unused".
+Cause: adding `try checkOnline()` as a first line turned a single-expression body into two statements, so the implicit return was gone.
+Fix: `return store.flatMap { ... }`; checked every value-returning demo method has an explicit return.
+Rule: When adding a line to a single-expression function body, add `return` to the expression.

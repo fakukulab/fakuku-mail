@@ -263,7 +263,7 @@ final class DemoMailService: MailService {
 
     func conversation(id: String) async throws -> [MailMessage] {
         try checkOnline()
-        store.flatMap { folder, list in
+        return store.flatMap { folder, list in
             list.filter { $0.conversationId == id }.map { m -> MailMessage in
                 var copy = m
                 copy.parentFolderId = folder
