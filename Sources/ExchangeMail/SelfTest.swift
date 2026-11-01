@@ -426,6 +426,95 @@ enum SelfTest {
                 UserDefaults.standard.removeObject(forKey: "cache.enabled")
             }
 
+            // M9: 여러 통 선택, 이동, 깃발, 정크, 폴더
+            defaults.set(false, forKey: "list.threaded")   // 한 통씩 보며 검사한다 (끝에서 되돌린다)
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            await model.refresh()
+            if model.messages.count >= 3 {
+                let two = Set(model.navigationOrder.prefix(2))
+                model.selection = two
+                try? await Task.sleep(for: .seconds(0.3))
+                check("S-027 여러 통을 고르면 본문 대신 개수가 보인다",
+                      model.multipleSelectionCount == 2 && model.selectedMessageID == nil && model.selectedIDs.count == 2)
+                let before = model.messages.count
+                let multiUndo = UndoManager()
+                multiUndo.groupsByEvent = false
+                multiUndo.beginUndoGrouping()
+                await model.archiveSelected(undoManager: multiUndo)
+                multiUndo.endUndoGrouping()
+                check("S-027 여러 통을 보관하면 모두 옮겨진다", model.messages.count == before - 2 && two.isDisjoint(with: model.messages.map(\.id)))
+                multiUndo.undo()
+                try? await Task.sleep(for: .seconds(0.8))
+                check("S-027 ⌘Z로 여러 통이 모두 돌아온다", model.messages.count == before)
+
+                model.selection = Set(model.navigationOrder.prefix(2))
+                await model.toggleReadSelected()
+                let readStates = model.messages.filter { model.selection.contains($0.id) }.map(\.isUnread)
+                check("S-027 여러 통 읽음 전환은 모두 같은 상태가 된다", Set(readStates).count == 1)
+
+                // S-028 다른 폴더로 옮기기
+                let moving = model.navigationOrder[0]
+                model.selection = [moving]
+                let moveUndo = UndoManager()
+                moveUndo.groupsByEvent = false
+                moveUndo.beginUndoGrouping()
+                await model.dropped([moving], onto: "projects", undoManager: moveUndo)
+                moveUndo.endUndoGrouping()
+                let inProjects = (try? await model.service.messages(folderID: "projects", search: nil).messages.count) ?? 0
+                check("S-028 끌어다 놓으면 그 폴더로 옮겨진다", !model.messages.contains { $0.id == moving } && inProjects == 1)
+                moveUndo.undo()
+                try? await Task.sleep(for: .seconds(0.8))
+                let backInProjects = (try? await model.service.messages(folderID: "projects", search: nil).messages.count) ?? -1
+                check("S-028 ⌘Z로 원래 폴더로 돌아온다", backInProjects == 0 && model.messages.count == before)
+
+                // S-029 깃발
+                let flagging = model.navigationOrder[0]
+                model.selection = [flagging]
+                await model.toggleFlagSelected()
+                check("S-029 깃발을 달면 목록에 깃발이 보인다", model.messages.first { $0.id == flagging }?.isFlagged == true)
+                model.selectedFolderID = FolderOrder.flaggedID
+                try? await Task.sleep(for: .seconds(0.5))
+                check("S-029 깃발 표시에 모인다", model.messages.map(\.id) == [flagging])
+                model.selection = [flagging]
+                await model.toggleFlagSelected()
+                check("S-029 깃발을 떼면 깃발 표시에서 빠진다", model.messages.isEmpty)
+
+                // S-030 정크
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.5))
+                let junking = model.navigationOrder[0]
+                model.selection = [junking]
+                await model.toggleJunkSelected(undoManager: nil)
+                let junkCount = (try? await model.service.messages(folderID: "junkemail", search: nil).messages.count) ?? 0
+                check("S-030 정크로 표시하면 정크 메일 폴더로 간다", !model.messages.contains { $0.id == junking } && junkCount == 1)
+                model.selectedFolderID = "junkemail"
+                try? await Task.sleep(for: .seconds(0.5))
+                model.selection = Set(model.navigationOrder.prefix(1))
+                await model.toggleJunkSelected(undoManager: nil)
+                let junkAfter = (try? await model.service.messages(folderID: "junkemail", search: nil).messages.count) ?? -1
+                check("S-030 정크 아님은 받은 편지함으로 돌려놓는다", junkAfter == 0)
+
+                // S-031 폴더
+                check("S-031 하위 폴더는 부모 아래에 들여 쓴다",
+                      model.folders.firstIndex { $0.id == "projects-2024" } == (model.folders.firstIndex { $0.id == "projects" } ?? -9) + 1
+                          && model.folders.first { $0.id == "projects-2024" }?.depth == 1)
+                let made = await model.createFolder(named: "셀프 테스트", parentID: "projects")
+                check("S-031 새 폴더를 만들면 사이드바에 생기고 골라진다",
+                      made != nil && model.selectedFolderID == made?.id && model.folders.contains { $0.displayName == "셀프 테스트" })
+                if let made {
+                    let folder = model.folders.first { $0.id == made.id } ?? made
+                    await model.renameFolder(folder, to: "셀프 테스트 2")
+                    check("S-031 이름을 바꾸면 바뀐다", model.folders.first { $0.id == made.id }?.displayName == "셀프 테스트 2")
+                    let renamed = model.folders.first { $0.id == made.id } ?? made
+                    await model.deleteFolder(renamed)
+                    check("S-031 지우면 사라진다", !model.folders.contains { $0.id == made.id })
+                }
+                let inbox = model.folders.first { $0.kind == "inbox" }
+                check("S-031 기본 폴더는 이름 변경·지우기를 할 수 없다", inbox?.isEditable == false)
+            }
+            if let savedThreaded { defaults.set(savedThreaded, forKey: "list.threaded") } else { defaults.removeObject(forKey: "list.threaded") }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

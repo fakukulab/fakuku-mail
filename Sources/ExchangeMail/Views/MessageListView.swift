@@ -10,14 +10,14 @@ struct MessageListView: View {
 
     var body: some View {
         @Bindable var model = model
-        List(selection: $model.selectedMessageID) {
+        List(selection: $model.selection) {
             if threaded {
                 // 대화 한 줄의 tag는 대화의 최근 메일 id다.
                 let conversations = model.conversations
                 ForEach(conversations) { c in
                     ConversationRow(conversation: c, me: model.auth.email)
                         .tag(c.latest.id)
-                        .contextMenu { contextMenu(for: c.latest) }
+                        .draggable(model.dragPayload(for: c.latest.id))
                         .onAppear {
                             if c.id == conversations.last?.id { Task { await model.loadMore() } }
                         }
@@ -26,7 +26,7 @@ struct MessageListView: View {
                 ForEach(model.messages) { m in
                     MessageRow(message: m)
                         .tag(m.id)
-                        .contextMenu { contextMenu(for: m) }
+                        .draggable(model.dragPayload(for: m.id))
                         .onAppear {
                             if m.id == model.messages.last?.id { Task { await model.loadMore() } }
                         }
@@ -41,6 +41,12 @@ struct MessageListView: View {
             }
         }
         .onDeleteCommand { Task { await model.deleteSelected(undoManager: undoManager) } }
+        // 오른쪽 클릭은 고른 줄 전체에, 두 번 클릭은 초안 이어서 쓰기 (S-027).
+        .contextMenu(forSelectionType: String.self) { rows in
+            contextMenu(for: rows)
+        } primaryAction: { rows in
+            if rows.count == 1, let d = model.resumeDraft() { openWindow(id: "compose", value: d) }
+        }
         // ↑↓는 List가 처리한다. Space/⇧Space는 본문을 넘기고, 끝에서 다음/이전 메일로 (S-019).
         // 임시 보관함에서 Return은 초안을 이어서 쓴다 (S-022).
         .onKeyPress(.return) {
@@ -58,7 +64,7 @@ struct MessageListView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if model.isOffline { OfflineBar() }
         }
-        .navigationTitle(model.selectedFolder?.displayName ?? "메일")
+        .navigationTitle(model.selectedFolderID == FolderOrder.flaggedID ? "깃발 표시" : (model.selectedFolder?.displayName ?? "메일"))
         .navigationSubtitle(subtitle)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -93,24 +99,40 @@ struct MessageListView: View {
         }
     }
 
+    /// 오른쪽 클릭 메뉴. 클릭한 줄이 선택 밖이면 그 줄만, 안이면 고른 줄 전체에 적용한다.
     @ViewBuilder
-    private func contextMenu(for m: MailMessage) -> some View {
-        Button("답장") { compose(.reply, for: m) }
-        Button("전체 답장") { compose(.replyAll, for: m) }
-        Button("전달") { compose(.forward, for: m) }
-        Divider()
-        Button(m.isUnread ? "읽음으로 표시" : "읽지 않음으로 표시") {
-            Task { await model.setRead(id: m.id, m.isUnread) }
+    private func contextMenu(for rows: Set<String>) -> some View {
+        if !rows.isEmpty {
+            let single = rows.count == 1 ? model.messages.first(where: { rows.contains($0.id) }) : nil
+            Button("답장") { if let m = single { compose(.reply, for: m) } }
+                .disabled(single == nil)
+            Button("전체 답장") { if let m = single { compose(.replyAll, for: m) } }
+                .disabled(single == nil)
+            Button("전달") { if let m = single { compose(.forward, for: m) } }
+                .disabled(single == nil)
+            Divider()
+            Button("읽음/읽지 않음 전환") { act(rows) { await model.toggleReadSelected() } }
+            Button("깃발 달기/떼기") { act(rows) { await model.toggleFlagSelected() } }
+            Divider()
+            Menu("이동") {
+                ForEach(model.moveTargets) { target in
+                    Button(target.title) {
+                        act(rows) { await model.moveSelected(to: target.id, undoManager: undoManager, undoName: "이동") }
+                    }
+                }
+            }
+            Button("보관") { act(rows) { await model.archiveSelected(undoManager: undoManager) } }
+            Button(model.selectedFolder?.kind == "junkemail" ? "정크 아님" : "정크 메일로 표시") {
+                act(rows) { await model.toggleJunkSelected(undoManager: undoManager) }
+            }
+            Button("지우기", role: .destructive) { act(rows) { await model.deleteSelected(undoManager: undoManager) } }
         }
-        Divider()
-        Button("보관") {
-            model.selectedMessageID = m.id
-            Task { await model.archiveSelected(undoManager: undoManager) }
-        }
-        Button("지우기", role: .destructive) {
-            model.selectedMessageID = m.id
-            Task { await model.deleteSelected(undoManager: undoManager) }
-        }
+    }
+
+    /// 메뉴를 연 줄들을 고른 뒤 동작한다.
+    private func act(_ rows: Set<String>, _ action: @escaping () async -> Void) {
+        if model.selection != rows { model.selection = rows }
+        Task { await action() }
     }
 
     /// 답장은 본문이 필요하다: 고른 메일이 아니면 먼저 고르고 본문을 불러온다.
@@ -141,6 +163,12 @@ struct MessageRow: View {
                         .fontWeight(message.isUnread ? .semibold : .regular)
                         .lineLimit(1)
                     Spacer(minLength: Space.xs)
+                    if message.isFlagged {
+                        Image(systemName: "flag.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel("깃발")
+                    }
                     if message.hasAttachments == true {
                         Image(systemName: "paperclip")
                             .font(.caption)
@@ -191,6 +219,12 @@ struct ConversationRow: View {
                             .accessibilityLabel("메일 \(conversation.count)통")
                     }
                     Spacer(minLength: Space.xs)
+                    if conversation.messages.contains(where: \.isFlagged) {
+                        Image(systemName: "flag.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel("깃발")
+                    }
                     if conversation.hasAttachments {
                         Image(systemName: "paperclip")
                             .font(.caption)

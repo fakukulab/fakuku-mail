@@ -37,6 +37,14 @@ protocol MailService: AnyObject {
     func sendDraft(id: String) async throws
     /// 대화의 모든 메일 (모든 폴더, 본문 없음). 순서는 정하지 않는다 (S-025).
     func conversation(id: String) async throws -> [MailMessage]
+    /// 깃발 달기·떼기 (S-029)
+    func setFlag(id: String, flagged: Bool) async throws
+    /// 깃발 단 메일, 모든 폴더, 최근 순 (S-029)
+    func flaggedMessages() async throws -> MessagePage
+    /// 폴더 만들기·이름 바꾸기·지우기 (S-031). `parentID`가 nil이면 맨 위에 만든다.
+    func createFolder(name: String, parentID: String?) async throws -> MailFolder
+    func renameFolder(id: String, name: String) async throws
+    func deleteFolder(id: String) async throws
 }
 
 struct GraphError: LocalizedError {
@@ -114,8 +122,19 @@ final class GraphMailService: MailService {
     func folders() async throws -> [MailFolder] {
         let ids = await loadWellKnownIDs()
         let data = try await request("GET", "/me/mailFolders",
-                                     query: ["$top": "100", "$select": "id,displayName,unreadItemCount,totalItemCount"])
-        return try decoder.decode(GraphList<MailFolder>.self, from: data).value.map { f in
+                                     query: ["$top": "100", "$select": GraphQuery.folderSelect])
+        var all = try decoder.decode(GraphList<MailFolder>.self, from: data).value
+        // 하위 폴더 (S-031): childFolderCount가 있는 폴더만, 4단계까지 내려간다.
+        var queue = all.filter { ($0.childFolderCount ?? 0) > 0 }.map { ($0.id, 1) }
+        while !queue.isEmpty {
+            let (parentID, level) = queue.removeFirst()
+            let childData = try await request("GET", "/me/mailFolders/\(parentID)/childFolders",
+                                              query: ["$top": "100", "$select": GraphQuery.folderSelect])
+            let children = try decoder.decode(GraphList<MailFolder>.self, from: childData).value
+            all += children
+            if level < 4 { queue += children.filter { ($0.childFolderCount ?? 0) > 0 }.map { ($0.id, level + 1) } }
+        }
+        return all.map { f in
             var f = f
             f.wellKnownName = ids[f.id]
             return f
@@ -245,6 +264,34 @@ final class GraphMailService: MailService {
         let r = GraphQuery.conversation(id: id)
         let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
         return try decoder.decode(GraphList<MailMessage>.self, from: data).value
+    }
+
+    func setFlag(id: String, flagged: Bool) async throws {
+        let body = try JSONEncoder().encode(["flag": flagged ? FollowupFlag.flagged : FollowupFlag.notFlagged])
+        _ = try await request("PATCH", "/me/messages/\(id)", body: body)
+    }
+
+    func flaggedMessages() async throws -> MessagePage {
+        let r = GraphQuery.flagged()
+        let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
+        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+        return MessagePage(messages: sorted, nextLink: nil)
+    }
+
+    func createFolder(name: String, parentID: String?) async throws -> MailFolder {
+        let path = parentID.map { "/me/mailFolders/\($0)/childFolders" } ?? "/me/mailFolders"
+        let data = try await request("POST", path, body: try json(["displayName": name]))
+        return try decoder.decode(MailFolder.self, from: data)
+    }
+
+    func renameFolder(id: String, name: String) async throws {
+        _ = try await request("PATCH", "/me/mailFolders/\(id)", body: try json(["displayName": name]))
+    }
+
+    /// 폴더를 지우면 Exchange가 지운 편지함으로 옮긴다.
+    func deleteFolder(id: String) async throws {
+        _ = try await request("DELETE", "/me/mailFolders/\(id)")
     }
 
     func sendDraft(id: String) async throws {

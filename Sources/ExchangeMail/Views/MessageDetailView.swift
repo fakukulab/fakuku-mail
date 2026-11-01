@@ -9,7 +9,11 @@ struct MessageDetailView: View {
 
     var body: some View {
         Group {
-            if let m = model.detail, m.id == model.displayedMessageID {
+            if model.multipleSelectionCount > 0 {
+                ContentUnavailableView("메시지 \(model.multipleSelectionCount)개 선택됨", systemImage: "tray.full",
+                                       description: Text("보관, 지우기, 이동, 읽음, 깃발을 한 번에 할 수 있습니다."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let m = model.detail, m.id == model.displayedMessageID {
                 VStack(alignment: .leading, spacing: 0) {
                     if threaded && model.thread.count > 1 {
                         ThreadStrip()
@@ -85,10 +89,13 @@ struct MessageDetailView: View {
         ToolbarItemGroup {
             Button("보관", systemImage: "archivebox") { Task { await model.archiveSelected(undoManager: undoManager) } }
                 .help("보관 (⌃⌘A)")
-                .disabled(model.detail == nil)
+                .disabled(model.selectedIDs.isEmpty)
             Button("지우기", systemImage: "trash") { Task { await model.deleteSelected(undoManager: undoManager) } }
                 .help("지우기 (Delete)")
-                .disabled(model.detail == nil)
+                .disabled(model.selectedIDs.isEmpty)
+            Button("깃발", systemImage: "flag") { Task { await model.toggleFlagSelected() } }
+                .help("깃발 달기/떼기 (⇧⌘L)")
+                .disabled(model.selectedIDs.isEmpty)
         }
         ToolbarSpacer(.fixed)
         ToolbarItemGroup {

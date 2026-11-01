@@ -18,9 +18,16 @@ public struct MailFolder: Codable, Identifiable, Hashable, Sendable {
     public var totalItemCount: Int?
     /// Graph의 잘 알려진 폴더 이름 (inbox, drafts, sentitems, archive, junkemail, deleteditems). 서비스가 채운다.
     public var wellKnownName: String? = nil
+    /// 하위 폴더 (S-031)
+    public var parentFolderId: String? = nil
+    public var childFolderCount: Int? = nil
+    /// 사이드바 들여쓰기 깊이. `FolderOrder.tree`가 채운다.
+    public var depth: Int? = nil
 
     // wellKnownName은 Graph JSON에는 없지만(없으면 nil) 오프라인 캐시에는 저장한다 (S-026).
-    enum CodingKeys: String, CodingKey { case id, displayName, unreadItemCount, totalItemCount, wellKnownName }
+    enum CodingKeys: String, CodingKey {
+        case id, displayName, unreadItemCount, totalItemCount, wellKnownName, parentFolderId, childFolderCount, depth
+    }
 
     public init(id: String, displayName: String, unreadItemCount: Int? = nil, totalItemCount: Int? = nil,
                 wellKnownName: String? = nil) {
@@ -31,8 +38,13 @@ public struct MailFolder: Codable, Identifiable, Hashable, Sendable {
         self.wellKnownName = wellKnownName
     }
 
-    /// 잘 알려진 이름, 없으면 표시 이름(영어·한국어)으로 추측한 이름.
-    public var kind: String? { wellKnownName ?? FolderOrder.wellKnownName(forDisplayName: displayName) }
+    /// 잘 알려진 이름, 없으면 표시 이름(영어·한국어)으로 추측한 이름. 하위 폴더는 이름이 같아도 잘 알려진 폴더가 아니다.
+    public var kind: String? {
+        wellKnownName ?? ((depth ?? 0) == 0 ? FolderOrder.wellKnownName(forDisplayName: displayName) : nil)
+    }
+
+    /// 이름 바꾸기·지우기를 할 수 있는 폴더 (잘 알려진 폴더는 안 된다)
+    public var isEditable: Bool { kind == nil }
 
     /// 맥 Mail과 같은 SF Symbol.
     public var symbol: String {
@@ -51,6 +63,8 @@ public struct MailFolder: Codable, Identifiable, Hashable, Sendable {
 
 public enum FolderOrder {
     public static let wellKnown = ["inbox", "drafts", "sentitems", "archive", "junkemail", "deleteditems", "outbox"]
+    /// 사이드바의 "깃발 표시" (서버 폴더가 아니다, S-029)
+    public static let flaggedID = "__flagged"
 
     static let displayNames: [String: String] = [
         "inbox": "inbox", "받은 편지함": "inbox",
@@ -64,6 +78,34 @@ public enum FolderOrder {
 
     public static func wellKnownName(forDisplayName name: String) -> String? {
         displayNames[name.lowercased()]
+    }
+
+    /// 사이드바 순서 (S-031): 맨 위 폴더는 `sorted` 순서, 하위 폴더는 부모 바로 아래에 이름순으로, 깊이를 채운다.
+    public static func tree(_ folders: [MailFolder]) -> [MailFolder] {
+        let ids = Set(folders.map(\.id))
+        var children: [String: [MailFolder]] = [:]
+        var roots: [MailFolder] = []
+        for f in folders {
+            if let parent = f.parentFolderId, ids.contains(parent) {
+                children[parent, default: []].append(f)
+            } else {
+                var root = f
+                root.depth = 0
+                roots.append(root)
+            }
+        }
+        var out: [MailFolder] = []
+        func visit(_ f: MailFolder, depth: Int) {
+            var copy = f
+            copy.depth = depth
+            out.append(copy)
+            guard depth < 8 else { return }
+            for child in (children[f.id] ?? []).sorted(by: { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }) {
+                visit(child, depth: depth + 1)
+            }
+        }
+        for root in sorted(roots) { visit(root, depth: 0) }
+        return out
     }
 
     /// 잘 알려진 폴더를 먼저, 나머지는 이름순.
@@ -142,6 +184,8 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var body: Body?
     /// 답장 스레드용 References 헤더를 읽으려고 요청하는 헤더 (상세 조회 때만).
     public var internetMessageHeaders: [InternetHeader]?
+    /// 깃발 (S-029)
+    public var flag: FollowupFlag?
 
     public init(id: String, internetMessageId: String? = nil, conversationId: String? = nil, subject: String?,
                 from: Recipient?, toRecipients: [Recipient]? = nil, ccRecipients: [Recipient]? = nil,
@@ -162,7 +206,10 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
         self.hasAttachments = hasAttachments
         self.body = body
         self.internetMessageHeaders = internetMessageHeaders
+        self.flag = nil
     }
+
+    public var isFlagged: Bool { flag?.flagStatus == "flagged" }
 
     public var title: String {
         if let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty { subject } else { "(제목 없음)" }
@@ -175,6 +222,18 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
         guard let raw = internetMessageHeaders?.first(where: { $0.name.lowercased() == "references" })?.value else { return [] }
         return raw.split(whereSeparator: { $0.isWhitespace }).map(String.init).filter { $0.hasPrefix("<") }
     }
+}
+
+/// Graph followupFlag. `flagStatus`: notFlagged, flagged, complete
+public struct FollowupFlag: Codable, Hashable, Sendable {
+    public var flagStatus: String?
+
+    public init(flagStatus: String?) {
+        self.flagStatus = flagStatus
+    }
+
+    public static let flagged = FollowupFlag(flagStatus: "flagged")
+    public static let notFlagged = FollowupFlag(flagStatus: "notFlagged")
 }
 
 public struct FileAttachment: Codable, Identifiable, Hashable, Sendable {

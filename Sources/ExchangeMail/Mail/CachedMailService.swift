@@ -96,7 +96,29 @@ final class CachedMailService: MailService {
         try await write("대화를 불러올") { try await remote.conversation(id: id) }
     }
 
+    func flaggedMessages() async throws -> MessagePage {
+        try await read({ try await remote.flaggedMessages() },
+                       save: { $0.saveList(folderID: FolderOrder.flaggedID, messages: $1.messages, nextLink: nil) },
+                       fallback: { c in c.list(folderID: FolderOrder.flaggedID).map { MessagePage(messages: $0.messages, nextLink: nil) } })
+    }
+
     // MARK: 쓰기
+
+    func setFlag(id: String, flagged: Bool) async throws {
+        try await write("깃발을 바꿀") { try await remote.setFlag(id: id, flagged: flagged) }
+    }
+
+    func createFolder(name: String, parentID: String?) async throws -> MailFolder {
+        try await write("폴더를 만들") { try await remote.createFolder(name: name, parentID: parentID) }
+    }
+
+    func renameFolder(id: String, name: String) async throws {
+        try await write("폴더 이름을 바꿀") { try await remote.renameFolder(id: id, name: name) }
+    }
+
+    func deleteFolder(id: String) async throws {
+        try await write("폴더를 지울") { try await remote.deleteFolder(id: id) }
+    }
 
     func setRead(id: String, read: Bool) async throws {
         try await write("읽음 상태를 바꿀") { try await remote.setRead(id: id, read: read) }

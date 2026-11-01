@@ -63,6 +63,8 @@ struct MailSplitView: View {
         }
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "검색")
         .onSubmit(of: .search) { Task { await model.loadMessages() } }
+        // 메시지 > 이동… (S-028)
+        .sheet(isPresented: $model.showMovePicker) { MovePicker() }
         .onChange(of: model.searchText) { old, new in
             // 검색어를 지우면 원래 목록으로 돌아간다 (S-014).
             if new.isEmpty && !old.isEmpty { Task { await model.loadMessages() } }
@@ -72,22 +74,72 @@ struct MailSplitView: View {
 
 struct FolderSidebar: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedFolderID) {
+            Section("스마트 폴더") {
+                Label("깃발 표시", systemImage: "flag")
+                    .tag(FolderOrder.flaggedID)
+            }
             Section(model.auth.email ?? "사서함") {
                 ForEach(model.folders) { folder in
-                    Label(folder.displayName, systemImage: folder.symbol)
-                        .badge(folder.unreadItemCount ?? 0)
+                    FolderRow(folder: folder)
                         .tag(folder.id)
+                        // 메일 줄을 끌어다 놓으면 이 폴더로 옮긴다 (S-028).
+                        .dropDestination(for: String.self) { payloads, _ in
+                            Task { await model.dropped(payloads, onto: folder.id, undoManager: undoManager) }
+                            return folder.id != model.selectedFolderID
+                        }
+                        .contextMenu { folderMenu(folder) }
                 }
             }
+        }
+        .contextMenu {
+            Button("새 폴더…") { newFolder(parent: nil) }
         }
         .overlay {
             if model.folders.isEmpty && model.isLoading {
                 ProgressView()
             }
         }
+    }
+
+    @ViewBuilder
+    private func folderMenu(_ folder: MailFolder) -> some View {
+        Button("새 하위 폴더…") { newFolder(parent: folder) }
+        Divider()
+        Button("이름 변경…") {
+            if let name = TextPrompt.ask("폴더 이름 변경", initial: folder.displayName, confirm: "변경") {
+                Task { await model.renameFolder(folder, to: name) }
+            }
+        }
+        .disabled(!folder.isEditable)
+        Button("폴더 지우기…", role: .destructive) {
+            if TextPrompt.confirm("\"\(folder.displayName)\" 폴더를 지울까요?",
+                                  message: "폴더와 안의 메일, 하위 폴더가 지운 편지함으로 옮겨집니다.", action: "지우기") {
+                Task { await model.deleteFolder(folder) }
+            }
+        }
+        .disabled(!folder.isEditable)
+    }
+
+    private func newFolder(parent: MailFolder?) {
+        let message = parent.map { "\"\($0.displayName)\" 안에 만듭니다." } ?? ""
+        if let name = TextPrompt.ask("새 폴더", message: message, confirm: "만들기") {
+            Task { await model.createFolder(named: name, parentID: parent?.id) }
+        }
+    }
+}
+
+/// 폴더 한 줄: 하위 폴더는 깊이만큼 들여 쓴다 (S-031).
+struct FolderRow: View {
+    let folder: MailFolder
+
+    var body: some View {
+        Label(folder.displayName, systemImage: folder.symbol)
+            .padding(.leading, CGFloat(folder.depth ?? 0) * Space.lg)
+            .badge(folder.unreadItemCount ?? 0)
     }
 }

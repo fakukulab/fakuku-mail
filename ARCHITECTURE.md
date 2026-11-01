@@ -48,7 +48,10 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   whole thread (`MailService.conversation`, all folders) and moves whole conversations. `selectedMessageID`
   is the list row (latest message); `displayedMessageID` is the message open in the detail.
 - AppModel is split into `AppModel.swift` (folders, list, detail, moves) and extensions
-  `+Compose`, `+Notifications`, `+Conversations`.
+  `+Compose`, `+Notifications`, `+Conversations`, `+Organize` (multi-select, move, flag, junk, folders).
+- Selection (S-027): the list binds `selection: Set<String>`; `selectedMessageID` is its single member or nil.
+  Actions use `selectedIDs` (rows, expanded to whole conversations when organized by conversation).
+  `move(_:to:)` records each message's original folder (`parentFolderId`) so Command-Z works from mixed lists.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 

@@ -117,9 +117,15 @@ extension Data {
 
 /// Graph 메일 요청에 쓰는 쿼리.
 public enum GraphQuery {
-    public static let listSelect = "id,conversationId,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments"
-    public static let detailSelect = "id,internetMessageId,conversationId,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,isRead,hasAttachments,internetMessageHeaders"
+    public static let listSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,flag"
+    public static let detailSelect = "id,internetMessageId,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,isRead,hasAttachments,internetMessageHeaders,flag"
     public static let pageSize = 50
+    public static let folderSelect = "id,displayName,unreadItemCount,totalItemCount,parentFolderId,childFolderCount"
+
+    /// 깃발 단 메일, 모든 폴더 (S-029). `$orderby`를 함께 쓰면 Graph가 거절할 수 있어 정렬은 앱에서 한다.
+    public static func flagged(top: Int = pageSize) -> Request {
+        Request(query: ["$filter": "flag/flagStatus eq 'flagged'", "$select": listSelect, "$top": "\(top)"], headers: [:])
+    }
     /// 대화 보기의 한 줄에 필요한 값 (본문은 펼칠 때 따로 가져온다)
     public static let threadSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments"
 

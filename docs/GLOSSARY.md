@@ -25,3 +25,8 @@
 | Dock 배지 | `DockBadge`, `AppModel.updateBadge` | 받은 편지함의 읽지 않은 수 |
 | 대화, 대화별로 정리 | `Conversation`, `AppModel.thread` | 같은 conversationId의 메일. 보기 메뉴에서 켜고 끔 (⌃⌘T) |
 | 오프라인, 저장된 메일 | `MailCache`, `CachedMailService`, `AppModel.isOffline` | 네트워크가 없을 때 보여 주는 최근 목록과 본문 |
+| 여러 통 선택 | `AppModel.selection`, `selectedIDs` | 목록에서 고른 줄들. 동작은 대화별이면 대화 전체에 |
+| 이동 | `AppModel.move(_:to:)`, `MovePicker` | 다른 폴더로 옮기기. ⌘Z는 메일마다 원래 폴더로 |
+| 깃발, 깃발 표시 | `FollowupFlag`, `FolderOrder.flaggedID` | 중요 표시와 그 메일을 모은 스마트 폴더 |
+| 정크 메일로 표시 / 정크 아님 | `toggleJunkSelected` | 정크 메일 폴더로 / 받은 편지함으로 |
+| 하위 폴더 | `MailFolder.depth`, `FolderOrder.tree` | 사이드바에서 들여 쓴 폴더 |

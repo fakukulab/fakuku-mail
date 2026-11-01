@@ -38,10 +38,28 @@ final class AppModel {
     private(set) var isLoading = false
     private(set) var isLoadingMore = false
 
+    /// 목록에서 고른 줄들 (S-027). 한 줄이면 `selectedMessageID`와 같고, 여러 줄이면 본문은 비운다.
+    var selection: Set<String> = [] {
+        didSet {
+            guard selection != oldValue else { return }
+            let single = selection.count == 1 ? selection.first : nil
+            if selectedMessageID != single { selectedMessageID = single }
+            updateMenu()
+        }
+    }
+    /// 메시지 > 이동… 시트 (S-028)
+    var showMovePicker = false
+
     // 본문
     var selectedMessageID: String? {
         didSet {
             guard selectedMessageID != oldValue else { return }
+            // 목록 선택과 맞춘다: 한 통을 고르면 그 줄만, 비우면(여러 줄이 아닐 때) 선택도 비운다.
+            if let id = selectedMessageID {
+                if selection != [id] { selection = [id] }
+            } else if selection.count == 1 {
+                selection = []
+            }
             allowRemoteFor = nil
             shownMessageID = nil
             thread = []
@@ -167,9 +185,9 @@ final class AppModel {
 
     func loadFolders() async {
         // 처음에는 저장된 폴더를 먼저 보여 준다 (S-026).
-        if folders.isEmpty, let saved = cachedService?.cache?.folders() { folders = FolderOrder.sorted(saved) }
+        if folders.isEmpty, let saved = cachedService?.cache?.folders() { folders = FolderOrder.tree(saved) }
         do {
-            folders = FolderOrder.sorted(try await service.folders())
+            folders = FolderOrder.tree(try await service.folders())
             updateBadge()
         } catch {
             report(error)
@@ -186,7 +204,12 @@ final class AppModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            let page = try await service.messages(folderID: folderID, search: search.isEmpty ? nil : search)
+            let page: MessagePage
+            if folderID == FolderOrder.flaggedID && search.isEmpty {
+                page = try await service.flaggedMessages()
+            } else {
+                page = try await service.messages(folderID: folderID, search: search.isEmpty ? nil : search)
+            }
             // 기다리는 사이 폴더나 검색어가 바뀌었으면 버린다.
             guard folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) else { return }
             messages = page.messages
@@ -292,9 +315,12 @@ final class AppModel {
         }
     }
 
+    /// 고른 메일을 모두 읽음(하나라도 안 읽었으면) 또는 모두 안 읽음으로 (S-027).
     func toggleReadSelected() async {
-        guard let m = selectedMessage else { return }
-        await setRead(id: m.id, m.isUnread)
+        let targets = messages.filter { selectedIDs.contains($0.id) }
+        guard !targets.isEmpty else { return }
+        let makeRead = targets.contains(where: \.isUnread)
+        for m in targets where m.isUnread == makeRead { await setRead(id: m.id, makeRead) }
     }
 
     /// 보관도 지우기처럼 ⌘Z로 되돌린다 (창의 되돌리기 관리자를 넘긴다).
@@ -306,42 +332,57 @@ final class AppModel {
         await moveSelected(to: "deleteditems", undoManager: undoManager, undoName: "지우기")
     }
 
-    /// 고른 메일을 옮기고 다음 메일을 고른다. 되돌리기는 원래 폴더로 다시 옮긴다.
+    /// 고른 메일(여러 통, 대화별이면 대화 전체)을 옮긴다 (S-027).
     func moveSelected(to destination: String, undoManager: UndoManager?, undoName: String) async {
-        guard let id = selectedMessageID, messages.contains(where: { $0.id == id }),
-              let fromFolder = selectedFolderID else { return }
-        // 대화별로 정리 중이면 이 폴더에 있는 그 대화를 모두 옮긴다 (S-025).
-        let ids = Self.organizeByConversation ? conversationMessageIDs(containing: id) : [id]
-        let order = Self.organizeByConversation ? conversations.map(\.latest.id) : messages.map(\.id)
-        let position = order.firstIndex(of: id) ?? 0
+        await move(selectedIDs, to: destination, undoManager: undoManager, undoName: undoName)
+    }
+
+    /// 메일을 옮기고 다음 줄을 고른다. ⌘Z는 메일마다 원래 폴더로 되돌린다 (S-028).
+    func move(_ ids: [String], to destination: String, undoManager: UndoManager?, undoName: String) async {
+        let targets = messages.filter { ids.contains($0.id) }
+        guard !targets.isEmpty else { return }
+        let order = navigationOrder
+        let position = order.firstIndex { ids.contains($0) } ?? 0
+        var moves: [UndoMove] = []
         do {
-            var movedIDs: [String] = []
-            for messageID in ids {
-                movedIDs.append(try await service.move(id: messageID, to: destination))
+            for m in targets {
+                // 깃발 모아 보기처럼 여러 폴더가 섞인 목록에서도 원래 폴더로 돌아가게 메일의 폴더를 기억한다.
+                let from = m.parentFolderId ?? selectedFolderID ?? "inbox"
+                let newID = try await service.move(id: m.id, to: destination)
+                moves.append(UndoMove(messageID: newID, folderID: from))
             }
-            messages.removeAll { ids.contains($0.id) }
-            let remaining = Self.organizeByConversation ? conversations.map(\.latest.id) : messages.map(\.id)
-            selectedMessageID = remaining.isEmpty ? nil : remaining[min(position, remaining.count - 1)]
-            undoManager?.registerUndo(withTarget: self) { target in
-                // 되돌리기는 메인 스레드에서 불린다.
-                MainActor.assumeIsolated {
-                    _ = Task { await target.restore(movedIDs: movedIDs, to: fromFolder) }
-                }
-            }
-            undoManager?.setActionName(undoName)
-            await loadFolders()
         } catch {
             // 사람이 누른 동작이라 오프라인이어도 알린다.
             report(error, quietIfOffline: false)
         }
+        guard !moves.isEmpty else { return }
+        let movedOld = Set(targets.prefix(moves.count).map(\.id))
+        messages.removeAll { movedOld.contains($0.id) }
+        selection = []
+        let remaining = navigationOrder
+        selectedMessageID = remaining.isEmpty ? nil : remaining[min(position, remaining.count - 1)]
+        let undoMoves = moves
+        undoManager?.registerUndo(withTarget: self) { target in
+            // 되돌리기는 메인 스레드에서 불린다.
+            MainActor.assumeIsolated {
+                _ = Task { await target.restore(undoMoves) }
+            }
+        }
+        undoManager?.setActionName(undoName)
+        await loadFolders()
     }
 
-    func restore(movedIDs: [String], to folderID: String) async {
+    struct UndoMove: Sendable {
+        var messageID: String
+        var folderID: String
+    }
+
+    func restore(_ moves: [UndoMove]) async {
         do {
-            for movedID in movedIDs { _ = try await service.move(id: movedID, to: folderID) }
+            for m in moves { _ = try await service.move(id: m.messageID, to: m.folderID) }
             await refresh()
         } catch {
-            report(error)
+            report(error, quietIfOffline: false)
         }
     }
 
@@ -376,7 +417,10 @@ final class AppModel {
         MenuState.shared.update(MenuSnapshot(
             signedIn: isSignedIn,
             hasMessage: detail != nil && selectedMessageID != nil,
-            isUnread: selectedMessage?.isUnread ?? false,
+            hasSelection: !selectedIDs.isEmpty,
+            isUnread: messages.filter { selectedIDs.contains($0.id) }.contains(where: \.isUnread),
+            isFlagged: !messages.filter { selectedIDs.contains($0.id) }.contains { !$0.isFlagged },
+            inJunk: selectedFolder?.kind == "junkemail",
             isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed))
     }

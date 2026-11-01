@@ -60,7 +60,11 @@ struct ExchangeMailApp: App {
 struct MenuSnapshot: Equatable {
     var signedIn = false
     var hasMessage = false
+    /// 한 통 이상 골랐다 (여러 통 포함, S-027)
+    var hasSelection = false
     var isUnread = false
+    var isFlagged = false
+    var inJunk = false
     var isDraft = false
     var hasRemoteContent = false
 }
@@ -91,6 +95,15 @@ struct MailCommands: Commands {
             Toggle("대화별로 정리", isOn: $threaded)
                 .keyboardShortcut("t", modifiers: [.command, .control])
         }
+        CommandMenu("사서함") {
+            Button("새 폴더…") {
+                if let name = TextPrompt.ask("새 폴더", confirm: "만들기") {
+                    Task { await model.createFolder(named: name, parentID: nil) }
+                }
+            }
+            .keyboardShortcut("n", modifiers: [.command, .control])
+            .disabled(!menu.signedIn)
+        }
         CommandMenu("메시지") {
             Button("답장") { compose(.reply) }
                 .keyboardShortcut("r")
@@ -107,13 +120,25 @@ struct MailCommands: Commands {
             Divider()
             Button("보관") { Task { await model.archiveSelected(undoManager: NSApp.keyWindow?.undoManager) } }
                 .keyboardShortcut("a", modifiers: [.command, .control])
-                .disabled(!menu.hasMessage)
+                .disabled(!menu.hasSelection)
+            Button("이동…") { model.showMovePicker = true }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+                .disabled(!menu.hasSelection)
+            Button(menu.inJunk ? "정크 아님" : "정크 메일로 표시") {
+                Task { await model.toggleJunkSelected(undoManager: NSApp.keyWindow?.undoManager) }
+            }
+            .keyboardShortcut("j", modifiers: [.command, .shift])
+            .disabled(!menu.hasSelection)
             // Delete 키는 목록의 onDeleteCommand가 맡는다 (메뉴 단축키로 쓰면 글자 입력 중에도 지워진다).
             Button("지우기") { Task { await model.deleteSelected(undoManager: NSApp.keyWindow?.undoManager) } }
-                .disabled(!menu.hasMessage)
+                .disabled(!menu.hasSelection)
+            Divider()
             Button(menu.isUnread ? "읽음으로 표시" : "읽지 않음으로 표시") { Task { await model.toggleReadSelected() } }
                 .keyboardShortcut("u", modifiers: [.command, .shift])
-                .disabled(!menu.hasMessage)
+                .disabled(!menu.hasSelection)
+            Button(menu.isFlagged ? "깃발 떼기" : "깃발 달기") { Task { await model.toggleFlagSelected() } }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+                .disabled(!menu.hasSelection)
             Divider()
             Button("원격 이미지 불러오기") { model.allowRemoteContentForSelection() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])

@@ -475,3 +475,41 @@ func cachePrune() throws {
 func offlineClassification(_ error: Error, _ expected: Bool) {
     #expect(OfflineError.isOffline(error) == expected)
 }
+
+// S-029 깃발, S-031 폴더 계층
+
+@Test("하위 폴더는 부모 바로 아래에 깊이만큼 놓인다")
+func folderTree() {
+    func f(_ id: String, _ name: String, parent: String? = "root") -> MailFolder {
+        var m = MailFolder(id: id, displayName: name)
+        m.parentFolderId = parent
+        return m
+    }
+    let list = [f("p", "프로젝트"), f("p2", "2024 견적", parent: "p"), f("in", "Inbox"), f("p1", "2023 견적", parent: "p"),
+                f("p21", "최종", parent: "p2"), f("x", "Archive")]
+    let tree = FolderOrder.tree(list)
+    #expect(tree.map(\.id) == ["in", "x", "p", "p1", "p2", "p21"])
+    #expect(tree.map { $0.depth ?? -1 } == [0, 0, 0, 1, 1, 2])
+    #expect(tree[0].kind == "inbox" && !tree[0].isEditable)
+    #expect(tree[2].isEditable)
+    // 하위 폴더 이름이 "Inbox"여도 잘 알려진 폴더가 아니다
+    let nested = FolderOrder.tree([f("p", "프로젝트"), f("c", "Inbox", parent: "p")])
+    #expect(nested[1].kind == nil)
+}
+
+@Test("깃발 모아 보기 요청은 모든 폴더에서 flagged를 찾는다")
+func flaggedQuery() {
+    let r = GraphQuery.flagged()
+    #expect(r.query["$filter"] == "flag/flagStatus eq 'flagged'")
+    #expect(r.query["$select"]?.contains("flag") == true)
+    #expect(r.query["$orderby"] == nil)
+}
+
+@Test("깃발 상태를 읽는다")
+func flagDecode() throws {
+    let json = #"{"id":"m","flag":{"flagStatus":"flagged"}}"#
+    let m = try GraphJSON.decoder().decode(MailMessage.self, from: Data(json.utf8))
+    #expect(m.isFlagged)
+    let body = try JSONEncoder().encode(["flag": FollowupFlag.notFlagged])
+    #expect(String(decoding: body, as: UTF8.self) == #"{"flag":{"flagStatus":"notFlagged"}}"#)
+}

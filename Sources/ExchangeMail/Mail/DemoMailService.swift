@@ -29,6 +29,11 @@ final class DemoMailService: MailService {
             MailFolder(id: "junkemail", displayName: "정크 메일", wellKnownName: "junkemail"),
             MailFolder(id: "deleteditems", displayName: "지운 편지함", wellKnownName: "deleteditems"),
             MailFolder(id: "projects", displayName: "프로젝트"),
+            {
+                var child = MailFolder(id: "projects-2024", displayName: "2024 견적")
+                child.parentFolderId = "projects"
+                return child
+            }(),
         ]
         store = [:]
         let now = Date()
@@ -101,6 +106,7 @@ final class DemoMailService: MailService {
         store["junkemail"] = []
         store["deleteditems"] = []
         store["projects"] = []
+        store["projects-2024"] = []
 
         files["m1"] = [
             FileAttachment(id: "f1", name: "2024년 3분기 장비 견적서.pdf", contentType: "application/pdf", size: 182_000,
@@ -209,6 +215,7 @@ final class DemoMailService: MailService {
                                 receivedDateTime: m.receivedDateTime, bodyPreview: m.bodyPreview, isRead: m.isRead,
                                 hasAttachments: m.hasAttachments, body: m.body)
         moved.conversationId = m.conversationId
+        moved.flag = m.flag
         store[target, default: []].append(moved)
         files[moved.id] = files[m.id]
         recount()
@@ -271,6 +278,65 @@ final class DemoMailService: MailService {
                 return copy
             }
         }
+    }
+
+    func setFlag(id: String, flagged: Bool) async throws {
+        try checkOnline()
+        guard let (folder, index) = find(id) else { throw URLError(.fileDoesNotExist) }
+        store[folder]?[index].flag = flagged ? .flagged : .notFlagged
+    }
+
+    func flaggedMessages() async throws -> MessagePage {
+        try checkOnline()
+        let all = store.flatMap { folder, list in
+            list.filter(\.isFlagged).map { m -> MailMessage in
+                var copy = m
+                copy.parentFolderId = folder
+                return copy
+            }
+        }
+        return MessagePage(messages: all.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) },
+                           nextLink: nil)
+    }
+
+    private var folderCounter = 0
+
+    func createFolder(name: String, parentID: String?) async throws -> MailFolder {
+        try checkOnline()
+        folderCounter += 1
+        var folder = MailFolder(id: "folder\(folderCounter)", displayName: name)
+        folder.parentFolderId = parentID
+        folderList.append(folder)
+        store[folder.id] = []
+        recount()
+        return folder
+    }
+
+    func renameFolder(id: String, name: String) async throws {
+        try checkOnline()
+        guard let i = folderList.firstIndex(where: { $0.id == id }) else { throw URLError(.fileDoesNotExist) }
+        let old = folderList[i]
+        var renamed = MailFolder(id: old.id, displayName: name, unreadItemCount: old.unreadItemCount,
+                                 totalItemCount: old.totalItemCount, wellKnownName: old.wellKnownName)
+        renamed.parentFolderId = old.parentFolderId
+        folderList[i] = renamed
+    }
+
+    func deleteFolder(id: String) async throws {
+        try checkOnline()
+        // 하위 폴더까지 지운 편지함으로 (메일은 지운 편지함으로 옮긴다)
+        var doomed = [id]
+        var i = 0
+        while i < doomed.count {
+            doomed += folderList.filter { $0.parentFolderId == doomed[i] }.map(\.id)
+            i += 1
+        }
+        for folder in doomed {
+            store["deleteditems", default: []] += store[folder] ?? []
+            store[folder] = nil
+        }
+        folderList.removeAll { doomed.contains($0.id) }
+        recount()
     }
 
     func sendDraft(id: String) async throws {
