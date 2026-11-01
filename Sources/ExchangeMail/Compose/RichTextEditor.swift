@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 import WebKit
 
 /// WKWebView(contentEditable) 기반 리치 텍스트 편집기. 작성 창과 서명 편집기가 같이 쓴다.
@@ -11,6 +12,8 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     private(set) var html = ""
     /// 사람이 고쳤을 때만 불린다 (서명 편집기가 저장에 쓴다).
     @ObservationIgnored var onUserEdit: ((String) -> Void)?
+    /// 편집기에 파일을 끌어다 놓았을 때 (S-017). 없으면 그림은 본문에 넣고 나머지는 무시한다 (서명 편집기).
+    @ObservationIgnored var onFileDrop: (([URL]) -> Void)?
 
     @ObservationIgnored private(set) var webView: WKWebView?
     @ObservationIgnored private var pendingHTML: String?
@@ -57,11 +60,23 @@ final class RichTextController: NSObject, WKNavigationDelegate {
         let config = WKWebViewConfiguration()
         config.userContentController.add(ScriptProxy(self), name: "change")
         let wv = WKWebView(frame: .zero, configuration: config)
+        // 웹 편집기는 끌어다 놓은 파일을 file:// 링크나 그림으로 넣어 버린다. 드래그 등록을 풀어
+        // 드롭이 SwiftUI의 .dropDestination으로 가게 하고, 앱이 첨부로 받는다 (S-017).
+        wv.unregisterDraggedTypes()
         wv.navigationDelegate = self
         wv.setValue(false, forKey: "drawsBackground")
         wv.loadHTMLString(Self.editorPage, baseURL: nil)
         webView = wv
         return wv
+    }
+
+    /// 편집기 영역에 놓은 파일. 작성 창은 첨부로, 서명 편집기는 그림만 본문에 넣는다.
+    func dropped(_ urls: [URL]) {
+        if let onFileDrop {
+            onFileDrop(urls)
+        } else {
+            for url in urls where UTTypeLookup.isImage(url) { insertImage(url: url) }
+        }
     }
 
     fileprivate func receive(html newHTML: String, user: Bool) {
@@ -71,6 +86,7 @@ final class RichTextController: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
+        webView.unregisterDraggedTypes()
         if let p = pendingHTML {
             pendingHTML = nil
             setHTML(p)
@@ -152,6 +168,10 @@ private final class ScriptProxy: NSObject, WKScriptMessageHandler {
 }
 
 enum UTTypeLookup {
+    static func isImage(_ url: URL) -> Bool {
+        UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) ?? false
+    }
+
     static func mimeType(for url: URL, fallback: String) -> String {
         ComposeSender.mimeType(for: url) == "application/octet-stream" ? fallback : ComposeSender.mimeType(for: url)
     }

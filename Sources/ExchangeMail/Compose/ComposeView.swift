@@ -23,7 +23,9 @@ struct ComposeView: View {
     @State private var fixEnabled = true
     @State private var sending = false
     @State private var error: String?
+    @State private var errorTitle = "보낼 수 없습니다"
     @State private var didSetUp = false
+    @State private var dropTargeted = false
     @FocusState private var focus: Field?
 
     private enum Field { case to, cc, bcc, subject }
@@ -42,10 +44,24 @@ struct ComposeView: View {
         }
         .navigationTitle(subject.isEmpty ? draft.kind.label : subject)
         .toolbar { toolbar }
-        .alert("보낼 수 없습니다", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+        .alert(errorTitle, isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("확인", role: .cancel) {}
         } message: {
             Text(error ?? "")
+        }
+        // 창 어디에 놓아도 첨부가 된다 (S-017). 편집기 위도 여기로 온다 (RichTextController.makeWebView).
+        .dropDestination(for: URL.self) { urls, _ in
+            addFiles(urls.filter(\.isFileURL))
+            return true
+        } isTargeted: { dropTargeted = $0 }
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Palette.accent, lineWidth: 2)
+                    .padding(Space.xs)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
         }
         .task { await setUp() }
     }
@@ -198,6 +214,7 @@ struct ComposeView: View {
         let sig = model.signatures.defaultSignature(kind: draft.kind, account: model.auth.email)
         signatureID = sig?.id
         editor.setHTML("<div><br></div>" + SignatureComposer.block(for: sig) + draft.quoteHTML)
+        editor.onFileDrop = { urls in addFiles(urls) }
         didSetUp = true
         if draft.to.isEmpty {
             focus = .to
@@ -208,8 +225,19 @@ struct ComposeView: View {
             do {
                 forwarded = try await model.service.attachments(messageID: source).filter { $0.isListed && $0.isFile }
             } catch {
+                errorTitle = "첨부를 가져오지 못했습니다"
                 self.error = "원본 첨부를 가져오지 못했습니다: \(error.localizedDescription)"
             }
+        }
+    }
+
+    /// 파일 선택 창과 끌어다 놓기가 같이 쓴다. 같은 파일은 한 번만, 폴더는 건너뛴다.
+    private func addFiles(_ urls: [URL]) {
+        let result = AttachmentList.merge(files, adding: urls)
+        files = result.files
+        if !result.skipped.isEmpty {
+            errorTitle = "첨부할 수 없습니다"
+            error = "폴더는 첨부할 수 없습니다: \(result.skipped.joined(separator: ", ")). 압축한 뒤 첨부하세요."
         }
     }
 
@@ -218,11 +246,12 @@ struct ComposeView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         if panel.runModal() == .OK {
-            files.append(contentsOf: panel.urls.filter { !files.contains($0) })
+            addFiles(panel.urls)
         }
     }
 
     private func send() async {
+        errorTitle = "보낼 수 없습니다"
         sending = true
         defer { sending = false }
         let input = ComposeSender.Input(

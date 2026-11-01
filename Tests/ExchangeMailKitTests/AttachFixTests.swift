@@ -172,3 +172,16 @@ func requestSize() {
     #expect(MIMEBuilder.graphRequestSize(forMIMEBytes: 3) == 4)
     #expect(MIMEBuilder.graphRequestSize(forMIMEBytes: 4) == 8)
 }
+
+// S-017 끌어다 놓기
+
+@Test("첨부 목록은 같은 파일을 한 번만 넣고 폴더는 건너뛴다")
+func mergeAttachments() {
+    let a = URL(fileURLWithPath: "/tmp/a.pdf")
+    let nfd = URL(fileURLWithPath: "/tmp/" + "견적서.pdf".decomposedStringWithCanonicalMapping)
+    let nfc = URL(fileURLWithPath: "/tmp/견적서.pdf")
+    let folder = URL(fileURLWithPath: "/tmp/사진", isDirectory: true)
+    let r = AttachmentList.merge([a], adding: [a, nfd, nfc, folder], isDirectory: { $0 == folder })
+    #expect(r.files == [a, nfd])
+    #expect(r.skipped == ["사진"])
+}

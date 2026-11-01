@@ -126,6 +126,16 @@ enum SelfTest {
                 try? FileManager.default.removeItem(at: nfdFile)
             }
 
+            // S-017: 끌어다 놓기와 파일 선택이 같이 쓰는 규칙 (실제 파일로)
+            let dropDir = FileManager.default.temporaryDirectory.appending(path: "selftest-drop", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: dropDir.appending(path: "폴더"), withIntermediateDirectories: true)
+            let dropFile = dropDir.appending(path: "현장사진.jpg")
+            try? Data([1]).write(to: dropFile)
+            let merged = AttachmentList.merge([], adding: [dropFile, dropFile, dropDir.appending(path: "폴더")])
+            check("S-017 같은 파일은 한 번만 첨부된다", merged.files == [dropFile])
+            check("S-017 폴더는 건너뛰고 알린다", merged.skipped == ["폴더"])
+            try? FileManager.default.removeItem(at: dropDir)
+
             // S-011, S-012
             await open("m2")
             let countBefore = model.messages.count

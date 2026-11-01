@@ -113,6 +113,11 @@ struct SignatureSettings: View {
                     FormatToolbar(controller: editor)
                     Divider()
                     RichTextEditor(controller: editor)
+                        // 서명에 그림 파일을 끌어다 놓으면 본문에 넣는다.
+                        .dropDestination(for: URL.self) { urls, _ in
+                            editor.dropped(urls.filter(\.isFileURL))
+                            return true
+                        }
                 }
             }
         } else {
