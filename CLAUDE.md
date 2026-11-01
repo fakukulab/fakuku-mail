@@ -1,12 +1,18 @@
 # ExchangeMail
 
-A native macOS app in SwiftUI. It runs on this Mac only, with a local
-SwiftData database and no server.
+A native macOS mail client in SwiftUI for Microsoft Exchange Online.
+Mail stays on the server (Microsoft Graph). Local data: signatures in
+`~/Library/Application Support/ExchangeMail/signatures.json`, tokens in the Keychain,
+settings in UserDefaults. UI language: Korean (`docs/GLOSSARY.md` for words).
 
 ## Layout
 
-- `Sources/ExchangeMail/` the app. `App.swift` has the window, menus, and the database location.
-- `Sources/ExchangeMailKit/` rules and data logic with no SwiftUI. Tests in `Tests/ExchangeMailKitTests/`.
+- `Sources/ExchangeMail/` the app. `App.swift` has the windows, menus, and the data location (`Store`).
+  `AppModel.swift` app state. `Auth/` OAuth PKCE and Keychain. `Mail/` the `MailService` protocol,
+  `GraphMailService` (real) and `DemoMailService` (sample mailbox). `Compose/` the compose window,
+  the WKWebView rich text editor, and `ComposeSender` (input -> fixed MIME). `Views/` list, detail, sign-in, signatures.
+- `Sources/ExchangeMailKit/` rules with no SwiftUI: attachment fix (FilenameEncoder, HTMLProcessor, MIMEBuilder),
+  Graph models, OAuth, reply drafts, mail content safety. Tests in `Tests/ExchangeMailKitTests/`.
 - `Package.swift` a Swift package. There is no Xcode project.
 - `build.sh` builds, signs, and installs `~/Applications/ExchangeMail.app`.
 - `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). `build.sh` compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
@@ -16,12 +22,20 @@ SwiftData database and no server.
 
 - Build and install: `./build.sh`. Add `--open` to restart the app with the new build. The build shows warnings; fix them.
 - Unit tests: `swift test --scratch-path ~/Library/Developer/ExchangeMail/test-build`.
-- Self-test (the app's real functions on a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic in `SelfTest.swift`.
+- Demo mode: `APP_STORE=<dir in /tmp> APP_SEED=1` runs a sample mailbox with no sign-in and no network.
+  `tools/demo.sh` opens it. Snapshots and the self-test always run in demo mode.
+- Self-test (the app's real functions on the demo mailbox and a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic in `SelfTest.swift`.
 - After every UI change, take snapshots with sample data and look at them: `tools/snap.sh`.
-  It writes `/tmp/ExchangeMail-shots/<page>-light.png` and `-dark.png` for every sidebar page, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits. `APP_SNAPSHOT_PAGES=all,settings tools/snap.sh` limits the pages.
+  It writes `/tmp/ExchangeMail-shots/<page>-light.png` and `-dark.png` for inbox, sentitems, drafts, archive,
+  deleteditems, signin, compose, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits.
+  `APP_SNAPSHOT_PAGES=inbox,compose,settings tools/snap.sh` limits the pages.
   For a panel, sheet, or popover, add a capture to `Snapshot.swift` like the Settings loop.
-- Snapshots, seed data, and the self-test refuse to run without `APP_STORE` in /tmp.
-- Never test against the real database in `~/Library/Application Support/ExchangeMail/`.
+- Snapshots, demo mode, and the self-test refuse to run without `APP_STORE` in /tmp.
+- Never test against a real Exchange account or the real `~/Library/Application Support/ExchangeMail/`.
+- Graph rules: sending is `POST /me/sendMail` with the base64 MIME as `text/plain` (4 MB request limit);
+  moving a message changes its id; `$search` cannot be combined with `$orderby`.
+- Received HTML is untrusted: JavaScript off, remote content blocked by CSP until the person allows it,
+  navigation other than link clicks cancelled (`Views/HTMLView.swift`, `MailContent`).
 - Then check the grid: `tools/grid-lint.sh` and `swift tools/check-layout.swift /tmp/ExchangeMail-shots/*-layout.json`. Both print PASS.
 - A change is done when the build has no errors, the grid checks pass, and you looked at the light and dark snapshots.
 

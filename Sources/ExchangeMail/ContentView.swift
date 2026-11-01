@@ -1,91 +1,86 @@
-import SwiftData
+import AppKit
+import ExchangeMailKit
 import SwiftUI
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        NavigationSplitView {
-            sidebar
-        } content: {
-            ItemList(page: model.sidebar ?? .all)
-                .navigationSplitViewColumnWidth(min: 260, ideal: 320)
-        } detail: {
-            ItemDetail()
+        @Bindable var model = model
+        Group {
+            if model.showsMail {
+                MailSplitView()
+            } else {
+                SignInView()
+            }
         }
         .task {
-            SeedData.insertIfRequested(into: model)
             SelfTest.runIfRequested(model: model)
-            Snapshot.runIfRequested(model: model, openSettings: openSettings)
+            Snapshot.runIfRequested(model: model, openSettings: openSettings, openWindow: openWindow)
+        }
+        .task(id: model.isSignedIn) { await model.reloadAll() }
+        .task(id: model.isSignedIn) { await autoRefresh() }
+        .alert("오류", isPresented: Binding(get: { model.errorMessage != nil },
+                                          set: { if !$0 { model.errorMessage = nil } })) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(model.errorMessage ?? "")
         }
     }
 
-    private var sidebar: some View {
-        @Bindable var model = model
-        return List(SidebarItem.allCases, selection: $model.sidebar) { page in
-            Label(page.title, systemImage: page.symbol)
-                .tag(page)
+    /// 앱이 앞에 있는 동안 2분마다 받은 메일을 가져온다 (S-015).
+    private func autoRefresh() async {
+        guard model.isSignedIn, !model.isDemo else { return }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(120))
+            if NSApp.isActive { await model.refresh() }
         }
-        .navigationSplitViewColumnWidth(min: 180, ideal: 212)
     }
 }
 
-struct ItemList: View {
+struct MailSplitView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.modelContext) private var context
-    @Query(sort: \Item.createdAt, order: .reverse) private var items: [Item]
-    let page: SidebarItem
-
-    private var visible: [Item] {
-        page == .starred ? items.filter(\.isStarred) : items
-    }
 
     var body: some View {
         @Bindable var model = model
-        List(visible, selection: $model.selection) { item in
-            Label(item.title, systemImage: item.isStarred ? "star.fill" : "circle")
-                .tag(item.id)
-                .contextMenu {
-                    Button("Delete", role: .destructive) { context.delete(item) }
+        NavigationSplitView {
+            FolderSidebar()
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220)
+        } content: {
+            MessageListView()
+                .navigationSplitViewColumnWidth(min: 280, ideal: 360)
+        } detail: {
+            MessageDetailView()
+        }
+        .searchable(text: $model.searchText, placement: .toolbar, prompt: "검색")
+        .onSubmit(of: .search) { Task { await model.loadMessages() } }
+        .onChange(of: model.searchText) { old, new in
+            // 검색어를 지우면 원래 목록으로 돌아간다 (S-014).
+            if new.isEmpty && !old.isEmpty { Task { await model.loadMessages() } }
+        }
+    }
+}
+
+struct FolderSidebar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        List(selection: $model.selectedFolderID) {
+            Section(model.auth.email ?? "사서함") {
+                ForEach(model.folders) { folder in
+                    Label(folder.displayName, systemImage: folder.symbol)
+                        .badge(folder.unreadItemCount ?? 0)
+                        .tag(folder.id)
                 }
+            }
         }
         .overlay {
-            if visible.isEmpty {
-                ContentUnavailableView(
-                    "No Items",
-                    systemImage: page.symbol,
-                    description: Text("Press Command-N to add one.")
-                )
+            if model.folders.isEmpty && model.isLoading {
+                ProgressView()
             }
         }
-        .navigationTitle(page.title)
-        .toolbar {
-            ToolbarItem {
-                Button("New Item", systemImage: "plus") { model.addItem() }
-                    .help("Add an item (Command-N)")
-            }
-        }
-    }
-}
-
-struct ItemDetail: View {
-    @Environment(AppModel.self) private var model
-    @Query private var items: [Item]
-
-    var body: some View {
-        if let item = items.first(where: { $0.id == model.selection }) {
-            @Bindable var item = item
-            Form {
-                TextField("Title", text: $item.title)
-                Toggle("Starred", isOn: $item.isStarred)
-                TextField("Notes", text: $item.notes, axis: .vertical)
-                    .lineLimit(4...)
-            }
-            .formStyle(.grouped)
-            } else {
-            ContentUnavailableView("No Selection", systemImage: "sidebar.right")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings > Appearance: the accent color. Light and dark mode follow the Mac.
+/// 설정 > 모양: 강조 색. 밝은/어두운 모드는 Mac 설정을 따른다.
 struct AppearanceSettings: View {
     @Bindable private var store = ThemeStore.shared
 
@@ -8,7 +8,7 @@ struct AppearanceSettings: View {
         Section {
             AccentPreview()
                 .padding(.vertical, Space.xs)
-            LabeledContent("Accent color") {
+            LabeledContent("강조 색") {
                 VStack(alignment: .trailing, spacing: Space.xs) {
                     HStack(spacing: Space.sm) {
                         ForEach(Theme.all) { theme in
@@ -44,7 +44,7 @@ private struct AccentPreview: View {
         .overlay(shape.strokeBorder(.separator, lineWidth: 1))
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Preview of the accent color")
+        .accessibilityLabel("강조 색 미리보기")
     }
 
     private var sidebar: some View {
@@ -56,9 +56,9 @@ private struct AccentPreview: View {
             }
             .padding(.leading, Space.xs)
             .padding(.bottom, Space.sm)
-            sidebarRow("Inbox", symbol: "tray", selected: true)
-            sidebarRow("Today", symbol: "star", selected: false)
-            sidebarRow("Done", symbol: "checkmark.circle", selected: false)
+            sidebarRow("받은 편지함", symbol: "tray", selected: true)
+            sidebarRow("보낸 편지함", symbol: "paperplane", selected: false)
+            sidebarRow("보관", symbol: "archivebox", selected: false)
             Spacer(minLength: 0)
         }
         .padding(Space.sm)
@@ -79,24 +79,24 @@ private struct AccentPreview: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Inbox").font(.headline)
+                Text("받은 편지함").font(.headline)
                 Spacer()
-                Text("1 left").font(.caption).foregroundStyle(Palette.accentText)
+                Text("읽지 않음 1").font(.caption).foregroundStyle(Palette.accentText)
             }
-            task("Pick a color", done: true)
-            task("Ship the first build", done: false, tag: "Today")
+            task("주간 회의록", done: true)
+            task("견적서 송부드립니다", done: false, tag: "첨부")
             Spacer(minLength: 0)
             // Drawn, not real controls: the preview is a picture, and real
             // controls turn gray when the window is not in front.
             HStack {
-                Label("Add Task", systemImage: "plus")
+                Label("새로운 메시지", systemImage: "square.and.pencil")
                     .font(.callout.weight(.medium))
                     .foregroundStyle(Palette.onAccent)
                     .padding(.horizontal, Space.md)
                     .frame(height: 24)
                     .background(Palette.accent, in: Capsule())
                 Spacer()
-                Text("Focus").font(.caption).foregroundStyle(.secondary)
+                Text("첨부 보정").font(.caption).foregroundStyle(.secondary)
                 Capsule()
                     .fill(Palette.accent)
                     .frame(width: 28, height: 16)
@@ -110,10 +110,9 @@ private struct AccentPreview: View {
 
     private func task(_ title: String, done: Bool, tag: String? = nil) -> some View {
         HStack(spacing: Space.sm) {
-            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+            Image(systemName: done ? "envelope.open" : "envelope.badge")
                 .foregroundStyle(done ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
             Text(title)
-                .strikethrough(done)
                 .foregroundStyle(done ? .secondary : .primary)
             Spacer()
             if let tag {

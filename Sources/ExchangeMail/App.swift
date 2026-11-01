@@ -1,40 +1,48 @@
 import AppKit
-import SwiftData
+import ExchangeMailKit
 import SwiftUI
 
 // ExchangeMail
-//   ExchangeMail                      the app
-//   APP_STORE=<file> ExchangeMail     use another database (tests, experiments)
-//   APP_SNAPSHOT=<dir> ExchangeMail   save a PNG of every sidebar page and Settings tab in light and dark mode, then quit
-//   APP_SEED=1 ExchangeMail           fill an empty /tmp store with sample items (tools/snap.sh)
-//   ExchangeMail --selftest           run the self-test on a /tmp store and quit with 0 or 1 (tools/selftest.sh)
-//   APP_ACCENT=<id> ExchangeMail      run with another accent from Theme.all (UI/Theme.swift)
-//   APP_GRID=1 ExchangeMail           draw the 8 pt grid and the layout probes over the window
+//   ExchangeMail                       the app (Microsoft Graph, real account)
+//   APP_STORE=<dir> ExchangeMail       keep signatures in another folder (tests, experiments)
+//   APP_SEED=1 ExchangeMail            demo mode: sample folders and mail, no sign-in (needs APP_STORE in /tmp)
+//   APP_SNAPSHOT=<dir> ExchangeMail    save a PNG of every folder page, the sign-in page, a compose window,
+//                                      and every Settings tab in light and dark mode, then quit (tools/snap.sh)
+//   ExchangeMail --selftest            run the self-test in demo mode on a /tmp store, quit with 0 or 1 (tools/selftest.sh)
+//   APP_ACCENT=<id> ExchangeMail       run with another accent from Theme.all (UI/Theme.swift)
+//   APP_GRID=1 ExchangeMail            draw the 8 pt grid and the layout probes over the window
 
 @main
 struct ExchangeMailApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = AppModel(container: Store.makeContainer())
+    @State private var model = AppModel.make()
+    /// SwiftUI Commands do not observe @Observable models. MenuState mirrors what the menus need.
+    @ObservedObject private var menu = MenuState.shared
 
     var body: some Scene {
-        Window("ExchangeMail", id: "main") {
+        Window("메일", id: "main") {
             ContentView()
                 .environment(model)
                 .themed()
                 .overlay { if GridOverlay.enabled { GridOverlay() } }
-                .frame(minWidth: 760, minHeight: 480)
+                .frame(minWidth: 960, minHeight: 560)
         }
-        .modelContainer(model.container)
-        .defaultSize(width: 1100, height: 720)
+        .defaultSize(width: 1240, height: 780)
         .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
             ToolbarCommands()
-            CommandGroup(replacing: .newItem) {
-                Button("New Item") { model.addItem() }
-                    .keyboardShortcut("n")
-            }
+            MailCommands(model: model, menu: menu.snapshot)
         }
+
+        WindowGroup("새로운 메시지", id: "compose", for: ComposeDraft.self) { $draft in
+            ComposeView(draft: draft ?? ComposeDraft())
+                .environment(model)
+                .themed()
+                .frame(minWidth: 640, minHeight: 480)
+        }
+        .defaultSize(width: 760, height: 680)
+        .windowToolbarStyle(.unified)
 
         Settings {
             SettingsView()
@@ -42,6 +50,70 @@ struct ExchangeMailApp: App {
                 .themed()
         }
         .windowResizability(.contentSize)
+    }
+}
+
+/// What the menu bar needs to know, copied out of the model.
+struct MenuSnapshot: Equatable {
+    var signedIn = false
+    var hasMessage = false
+    var isUnread = false
+    var hasRemoteContent = false
+}
+
+final class MenuState: ObservableObject {
+    static let shared = MenuState()
+    @Published private(set) var snapshot = MenuSnapshot()
+
+    func update(_ s: MenuSnapshot) {
+        if snapshot != s { snapshot = s }
+    }
+}
+
+struct MailCommands: Commands {
+    let model: AppModel
+    let menu: MenuSnapshot
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("새로운 메시지") { openWindow(id: "compose", value: ComposeDraft()) }
+                .keyboardShortcut("n")
+                .disabled(!menu.signedIn)
+        }
+        CommandMenu("메시지") {
+            Button("답장") { compose(.reply) }
+                .keyboardShortcut("r")
+                .disabled(!menu.hasMessage)
+            Button("전체 답장") { compose(.replyAll) }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(!menu.hasMessage)
+            Button("전달") { compose(.forward) }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(!menu.hasMessage)
+            Divider()
+            Button("보관") { Task { await model.archiveSelected() } }
+                .keyboardShortcut("a", modifiers: [.command, .control])
+                .disabled(!menu.hasMessage)
+            // Delete 키는 목록의 onDeleteCommand가 맡는다 (메뉴 단축키로 쓰면 글자 입력 중에도 지워진다).
+            Button("지우기") { Task { await model.deleteSelected(undoManager: NSApp.keyWindow?.undoManager) } }
+                .disabled(!menu.hasMessage)
+            Button(menu.isUnread ? "읽음으로 표시" : "읽지 않음으로 표시") { Task { await model.toggleReadSelected() } }
+                .keyboardShortcut("u", modifiers: [.command, .shift])
+                .disabled(!menu.hasMessage)
+            Divider()
+            Button("원격 이미지 불러오기") { model.allowRemoteContentForSelection() }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .disabled(!menu.hasRemoteContent)
+            Divider()
+            Button("받은 메일 가져오기") { Task { await model.refresh() } }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(!menu.signedIn)
+        }
+    }
+
+    private func compose(_ kind: ComposeKind) {
+        if let draft = model.draft(kind) { openWindow(id: "compose", value: draft) }
     }
 }
 
@@ -60,27 +132,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Where the data lives: ~/Library/Application Support/ExchangeMail/ExchangeMail.store
+/// Where local data lives: ~/Library/Application Support/ExchangeMail/
+/// Mail stays on the server; only signatures are stored here. Tokens are in the Keychain.
 enum Store {
-    /// True when APP_STORE points somewhere else (tests, snapshots, seed data).
+    /// True when APP_STORE points somewhere else (tests, snapshots, demo mode).
     static var isOverridden: Bool {
         !(ProcessInfo.processInfo.environment["APP_STORE"] ?? "").isEmpty
     }
 
-    static var url: URL {
-        if let path = ProcessInfo.processInfo.environment["APP_STORE"], !path.isEmpty {
-            return URL(fileURLWithPath: path)
-        }
-        let dir = URL.applicationSupportDirectory.appending(path: "ExchangeMail", directoryHint: .isDirectory)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appending(path: "ExchangeMail.store")
+    /// Demo mode: sample mail and no sign-in. Only with a /tmp store, so it never mixes with real data.
+    static var isDemo: Bool {
+        isOverridden && (ProcessInfo.processInfo.environment["APP_SEED"] == "1" || SelfTest.requested)
     }
 
-    static func makeContainer() -> ModelContainer {
-        do {
-            return try ModelContainer(for: Item.self, configurations: ModelConfiguration(url: url))
-        } catch {
-            fatalError("Could not open the database at \(url.path): \(error)")
+    static var directory: URL {
+        let dir: URL
+        if let path = ProcessInfo.processInfo.environment["APP_STORE"], !path.isEmpty {
+            dir = URL(fileURLWithPath: path, isDirectory: true)
+        } else {
+            dir = URL.applicationSupportDirectory.appending(path: "ExchangeMail", directoryHint: .isDirectory)
         }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 }

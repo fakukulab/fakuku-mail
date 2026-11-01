@@ -1,25 +1,31 @@
 import AppKit
+import ExchangeMailKit
 import IOKit.pwr_mgt
 import SwiftUI
 
-/// Screenshot mode for agents.
-///   APP_STORE=/tmp/test.store APP_SNAPSHOT=/tmp/shots ~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail
-/// writes <page>-light.png and <page>-dark.png for every sidebar page, and
-/// settings-<tab>-light.png and settings-<tab>-dark.png for every Settings tab, then quits.
+/// Screenshot mode for agents (demo mailbox, no network).
+///   APP_STORE=/tmp/ExchangeMail-test APP_SEED=1 APP_SNAPSHOT=/tmp/shots ~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail
+/// writes <page>-light.png and <page>-dark.png for:
+///   every well-known folder (inbox with the first message open, sentitems, drafts, archive, deleteditems),
+///   signin (the sign-in page), compose (a reply window with a signature and a quote),
+///   and settings-<tab> for every Settings tab. Then quits.
 /// Each PNG gets a <page>-<mode>-layout.json with the grid probes (tools/check-layout.swift).
-/// APP_SNAPSHOT_PAGES=all,starred limits the pages. Add "settings" to include Settings.
-/// Add APP_ACCENT=<id> to see the pages in another accent.
+/// APP_SNAPSHOT_PAGES=inbox,compose limits the pages. Add "settings" to include Settings.
 enum Snapshot {
-    static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction) {
+    static let folderPages = ["inbox", "sentitems", "drafts", "archive", "deleteditems"]
+
+    static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction, openWindow: OpenWindowAction) {
         let env = ProcessInfo.processInfo.environment
         guard let dir = env["APP_SNAPSHOT"], !dir.isEmpty else { return }
-        // Snapshots never run against the real database.
-        guard Store.isOverridden else {
-            print("SNAPSHOT refused: set APP_STORE to a file in /tmp")
+        // Snapshots never run against the real account.
+        guard Store.isDemo else {
+            print("SNAPSHOT refused: set APP_STORE to a folder in /tmp and APP_SEED=1")
             NSApp.terminate(nil)
             return
         }
         let only = env["APP_SNAPSHOT_PAGES"].map { Set($0.split(separator: ",").map(String.init)) }
+        func wanted(_ page: String) -> Bool { only?.contains(page) ?? true }
+
         Task {
             // A sleeping display gives screencapture nothing. Declaring user
             // activity wakes it; the assertion keeps it on until the run quits.
@@ -30,23 +36,51 @@ enum Snapshot {
                                         IOPMAssertionLevel(kIOPMAssertionLevelOn), "Snapshots" as CFString, &awake)
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try? await Task.sleep(for: .seconds(1.5))
+            let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+
             for mode in ["light", "dark"] {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
-                for page in SidebarItem.allCases where only?.contains(page.rawValue) ?? true {
-                    model.sidebar = page
+                for page in folderPages where wanted(page) {
+                    model.selectedFolderID = page
                     try? await Task.sleep(for: .seconds(0.8))
-                    capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
+                    if page == "inbox" { model.selectedMessageID = model.messages.first?.id }
+                    try? await Task.sleep(for: .seconds(1.2))
+                    capture(to: "\(dir)/\(page)-\(mode).png", window: main)
+                }
+                if wanted("signin") {
+                    model.previewSignIn = true
+                    try? await Task.sleep(for: .seconds(0.8))
+                    capture(to: "\(dir)/signin-\(mode).png", window: main)
+                    model.previewSignIn = false
                 }
             }
+
+            if wanted("compose") {
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.8))
+                model.selectedMessageID = model.messages.first?.id
+                await model.loadDetail()
+                if let draft = model.draft(.reply) {
+                    openWindow(id: "compose", value: draft)
+                    try? await Task.sleep(for: .seconds(2))
+                    let compose = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet && $0.canBecomeMain }
+                    for mode in ["light", "dark"] {
+                        NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                        try? await Task.sleep(for: .seconds(0.8))
+                        capture(to: "\(dir)/compose-\(mode).png", window: compose)
+                    }
+                    compose?.close()
+                }
+            }
+
             if only == nil || only?.contains("settings") == true {
-                let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
                 openSettings()
                 try? await Task.sleep(for: .seconds(1))
                 for mode in ["light", "dark"] {
                     NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
                     for tab in SettingsTab.allCases {
                         model.settingsTab = tab
-                        try? await Task.sleep(for: .seconds(0.8))
+                        try? await Task.sleep(for: .seconds(1))
                         let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet }
                         capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
                     }
@@ -63,22 +97,18 @@ enum Snapshot {
     /// materials look exactly as on screen. That needs Screen Recording
     /// permission for the app that started this one (your terminal, or Claude).
     /// Without it, falls back to drawing the view hierarchy, which leaves
-    /// sidebars and glass blank.
+    /// sidebars, glass, and web views blank.
     private static func capture(to path: String, window: NSWindow? = nil) {
-        // Another app can hide this one while snapshots run (computer use hides
-        // apps it does not control). Hidden windows cannot be captured.
         if NSApp.isHidden { NSApp.unhideWithoutActivation() }
         guard let window = window ?? NSApp.windows.first(where: { $0.canBecomeMain && !$0.isSheet }) else {
-            print("SNAPSHOT no window")
+            print("SNAPSHOT no window for \(path)")
             return
         }
-        // Active, like a window someone is using: real accent colors and focus rings.
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         let size = window.contentView?.bounds.size ?? .zero
         GridProbes.shared.write(to: path.replacingOccurrences(of: ".png", with: "-layout.json"), window: size)
         try? FileManager.default.removeItem(atPath: path)
-        // The first capture of a run sometimes misses the window. Try three times.
         for _ in 1...3 {
             let shot = Process()
             shot.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
@@ -96,7 +126,7 @@ enum Snapshot {
         view.cacheDisplay(in: view.bounds, to: rep)
         if let data = rep.representation(using: .png, properties: [:]) {
             try? data.write(to: URL(fileURLWithPath: path))
-            print("SNAPSHOT \(path) (fallback: no Screen Recording permission, sidebars and glass are blank)")
+            print("SNAPSHOT \(path) (fallback: no Screen Recording permission, sidebars and web views are blank)")
         }
     }
 }
