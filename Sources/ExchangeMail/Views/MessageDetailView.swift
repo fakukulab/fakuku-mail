@@ -15,7 +15,8 @@ struct MessageDetailView: View {
                         remoteBar
                     }
                     Divider()
-                    HTMLView(html: MailContent.page(body: model.detailBody, allowRemote: model.remoteContentAllowed)) { url in
+                    HTMLView(html: MailContent.page(body: model.detailBody, allowRemote: model.remoteContentAllowed),
+                             scroller: model.pageScroller) { url in
                         // 본문의 mailto: 링크는 새 메시지로
                         let address = url.absoluteString.replacingOccurrences(of: "mailto:", with: "")
                             .components(separatedBy: "?").first?.removingPercentEncoding ?? ""

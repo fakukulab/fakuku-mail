@@ -126,6 +126,15 @@ enum SelfTest {
                 try? FileManager.default.removeItem(at: nfdFile)
             }
 
+            // S-019: 위아래 메일로 옮기기 (Space가 본문 끝에서 쓰는 규칙)
+            if model.messages.count >= 2 {
+                await open(model.messages[0].id)
+                check("S-019 다음 메일로 옮긴다", model.selectAdjacent(1) && model.selectedMessageID == model.messages[1].id)
+                check("S-019 이전 메일로 돌아온다", model.selectAdjacent(-1) && model.selectedMessageID == model.messages[0].id)
+                check("S-019 맨 위에서 위로는 그대로", !model.selectAdjacent(-1) && model.selectedMessageID == model.messages[0].id)
+                try? await Task.sleep(for: .seconds(0.4))
+            }
+
             // S-018: 읽은 메일의 주소로 자동완성
             let found = model.addressBook.suggestions(for: "민지")
             check("S-018 읽은 메일의 주소가 자동완성에 나온다", found.first?.address == "minji.kim@fabrikam.com")

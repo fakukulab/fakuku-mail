@@ -191,7 +191,14 @@ Status: doing (코드 완료, 맥 빌드·직접 입력 대기)
 
 ### S-019 키보드로 목록 이동
 As the user, 위/아래 화살표로 메일을 옮겨 가며 읽고, Space로 본문을 내린다.
-Status: todo
+Screens: inbox
+Depends: S-004
+Acceptance:
+- [manual] 목록에 초점이 있을 때 ↑↓로 메일을 옮기면 본문이 바로 바뀐다 (List 기본 동작).
+- [manual] Space는 본문을 한 쪽 내리고, 본문 끝이면 다음 메일을 연다. ⇧Space는 반대로 올라가고, 처음이면 이전 메일.
+- [self] 다음/이전 메일로 옮기고, 목록 끝에서는 그대로 있는다.
+UX: 맥 Mail과 같은 키. 메뉴 단축키로 쓰지 않는다(글자 입력 중에도 불리므로). 목록의 onKeyPress로만.
+Status: doing (코드 완료, 맥 빌드·직접 키 입력 대기)
 
 ## M4 Polish
 

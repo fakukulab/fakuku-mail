@@ -11,6 +11,8 @@ final class AppModel {
     let addressBook: AddressBookStore
     let isDemo: Bool
     @ObservationIgnored let service: any MailService
+    /// 본문 웹 보기 넘기기 (S-019)
+    @ObservationIgnored let pageScroller = PageScroller()
 
     // 폴더
     var folders: [MailFolder] = []
@@ -199,6 +201,28 @@ final class AppModel {
             updateMenu()
         } catch {
             report(error)
+        }
+    }
+
+    /// 목록에서 위아래 메일로 옮긴다. 끝에서는 그대로 있는다. 옮겼으면 true.
+    @discardableResult
+    func selectAdjacent(_ offset: Int) -> Bool {
+        guard !messages.isEmpty else { return false }
+        let current = messages.firstIndex { $0.id == selectedMessageID }
+        let target = current.map { $0 + offset } ?? (offset > 0 ? 0 : messages.count - 1)
+        guard messages.indices.contains(target) else { return false }
+        selectedMessageID = messages[target].id
+        return true
+    }
+
+    /// Space: 본문을 한 쪽 내리고, 끝이었으면 다음 메일. ⇧Space: 한 쪽 올리고, 처음이었으면 이전 메일 (맥 Mail과 같다).
+    func pageOrAdvance(down: Bool) async {
+        guard detail != nil else {
+            selectAdjacent(down ? 1 : -1)
+            return
+        }
+        if await pageScroller.page(down: down) {
+            selectAdjacent(down ? 1 : -1)
         }
     }
 

@@ -26,6 +26,12 @@ struct MessageListView: View {
             }
         }
         .onDeleteCommand { Task { await model.deleteSelected(undoManager: undoManager) } }
+        // ↑↓는 List가 처리한다. Space/⇧Space는 본문을 넘기고, 끝에서 다음/이전 메일로 (S-019).
+        .onKeyPress(.space, phases: .down) { press in
+            let down = !press.modifiers.contains(.shift)
+            Task { await model.pageOrAdvance(down: down) }
+            return .handled
+        }
         .overlay { emptyState }
         .navigationTitle(model.selectedFolder?.displayName ?? "메일")
         .navigationSubtitle(subtitle)
