@@ -23,7 +23,7 @@ enum SelfTest {
             return
         }
         /// 선택을 바꾸면 didSet이 본문을 불러온다. 직접 부르지 않고 끝나기를 기다린다 (데모 서비스는 바로 답한다).
-        func open(_ id: String) async {
+        @MainActor func open(_ id: String) async {
             model.selectedMessageID = id
             try? await Task.sleep(for: .seconds(0.4))
         }
@@ -208,7 +208,8 @@ enum SelfTest {
             }
 
             // S-022: 초안 저장, 이어서 쓰기, 보내면 정리, 버리기
-            func draftCount() async -> Int {
+            // 클로저 안의 async 지역 함수는 메인 액터를 물려받지 않는다. model은 메인 액터 것이므로 명시한다.
+            @MainActor func draftCount() async -> Int {
                 (try? await model.service.messages(folderID: "drafts", search: nil).messages.count) ?? -1
             }
             let draftsBefore = await draftCount()

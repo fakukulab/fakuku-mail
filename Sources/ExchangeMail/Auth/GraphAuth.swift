@@ -199,9 +199,8 @@ final class GraphAuth: NSObject {
 
 }
 
-// @preconcurrency: AuthenticationServices asks for the anchor on the main thread.
-// NSWindow is not Sendable, so a nonisolated witness with MainActor.assumeIsolated cannot return it.
-extension GraphAuth: @preconcurrency ASWebAuthenticationPresentationContextProviding {
+// The macOS 26 SDK marks this protocol @MainActor, so the main-actor method is the witness.
+extension GraphAuth: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible } ?? ASPresentationAnchor()
     }
