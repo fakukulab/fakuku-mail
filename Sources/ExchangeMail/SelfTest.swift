@@ -68,6 +68,29 @@ enum SelfTest {
             check("S-013 다시 바꾸면 읽음", model.selectedMessage?.isRead == true
                   && (model.selectedFolder?.unreadItemCount ?? 0) == unreadOpen)
 
+            // S-025: 대화별로 묶어 보기 (설정을 잠깐 켜고 끝에서 되돌린다)
+            let defaults = UserDefaults.standard
+            let savedThreaded = defaults.object(forKey: "list.threaded")
+            defaults.set(true, forKey: "list.threaded")
+            let quote = model.conversations.first { $0.id == "conv-quote" }
+            check("S-025 견적 대화는 목록에서 한 줄(2통)이다", quote?.count == 2 && quote?.latest.id == "m1")
+            await model.setRead(id: "m7", false)
+            await open("m2")
+            await open("m1")
+            check("S-025 대화를 열면 보낸 메일까지 3통이 오래된 순으로", model.thread.map(\.id) == ["s2", "m7", "m1"])
+            check("S-025 다른 폴더의 메일에는 폴더 꼬리표", model.thread.first.flatMap { model.folderTag(for: $0) } == "보낸 편지함")
+            check("S-025 대화를 열면 이 폴더의 그 대화가 모두 읽음", model.messages.first { $0.id == "m7" }?.isRead == true)
+            model.showInThread("m7")
+            try? await Task.sleep(for: .seconds(0.4))
+            check("S-025 대화 안의 메일을 누르면 그 메일이 열린다", model.detail?.id == "m7" && model.selectedMessageID == "m1")
+            check("S-025 답장은 펼친 메일에 대한 답장이다", model.draft(.reply)?.subject == "RE: [견적] 3분기 장비 견적 요청")
+            model.showInThread("m1")
+            try? await Task.sleep(for: .seconds(0.4))
+            defaults.set(false, forKey: "list.threaded")
+            check("S-025 대화별로 정리를 끄면 한 통씩 오간다", model.navigationOrder.contains("m7"))
+            defaults.set(true, forKey: "list.threaded")
+            check("S-025 대화별이면 대화 안 예전 메일로는 가지 않는다", !model.navigationOrder.contains("m7"))
+
             // S-007
             await open("m1")
             let reply = model.draft(.replyAll)
@@ -126,12 +149,13 @@ enum SelfTest {
                 try? FileManager.default.removeItem(at: nfdFile)
             }
 
-            // S-019: 위아래 메일로 옮기기 (Space가 본문 끝에서 쓰는 규칙)
-            if model.messages.count >= 2 {
-                await open(model.messages[0].id)
-                check("S-019 다음 메일로 옮긴다", model.selectAdjacent(1) && model.selectedMessageID == model.messages[1].id)
-                check("S-019 이전 메일로 돌아온다", model.selectAdjacent(-1) && model.selectedMessageID == model.messages[0].id)
-                check("S-019 맨 위에서 위로는 그대로", !model.selectAdjacent(-1) && model.selectedMessageID == model.messages[0].id)
+            // S-019: 위아래 메일로 옮기기 (Space가 본문 끝에서 쓰는 규칙). 대화별이면 대화 단위로 (S-025).
+            let order = model.navigationOrder
+            if order.count >= 2 {
+                await open(order[0])
+                check("S-019 다음 메일로 옮긴다", model.selectAdjacent(1) && model.selectedMessageID == order[1])
+                check("S-019 이전 메일로 돌아온다", model.selectAdjacent(-1) && model.selectedMessageID == order[0])
+                check("S-019 맨 위에서 위로는 그대로", !model.selectAdjacent(-1) && model.selectedMessageID == order[0])
                 try? await Task.sleep(for: .seconds(0.4))
             }
 
@@ -329,6 +353,19 @@ enum SelfTest {
                 if let savedNotify { defaults.set(savedNotify, forKey: "notify.newMail") } else { defaults.removeObject(forKey: "notify.newMail") }
                 if let savedBadge { defaults.set(savedBadge, forKey: "notify.badge") } else { defaults.removeObject(forKey: "notify.badge") }
             }
+
+            // S-025: 대화 보관은 이 폴더의 그 대화를 모두 옮긴다 (받은 편지함을 바꾸므로 맨 끝에)
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            if model.messages.contains(where: { $0.id == "m1" }) {
+                await open("m1")
+                await model.archiveSelected()
+                let archived = (try? await model.service.messages(folderID: "archive", search: nil).messages) ?? []
+                check("S-025 대화를 보관하면 그 대화가 모두 옮겨진다",
+                      !model.messages.contains { $0.conversationId == "conv-quote" }
+                          && archived.filter { $0.conversationId == "conv-quote" }.count == 2)
+            }
+            if let savedThreaded { defaults.set(savedThreaded, forKey: "list.threaded") } else { defaults.removeObject(forKey: "list.threaded") }
 
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)

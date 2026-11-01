@@ -30,7 +30,8 @@ final class DemoMailService: MailService {
         let me = who("데모 사용자", Self.myAddress)
 
         store["inbox"] = [
-            MailMessage(id: "m1", internetMessageId: "<m1@fabrikam.com>", subject: "[견적] 3분기 장비 견적서 송부드립니다",
+            MailMessage(id: "m1", internetMessageId: "<m1@fabrikam.com>", conversationId: "conv-quote",
+                        subject: "[견적] 3분기 장비 견적서 송부드립니다",
                         from: who("김민지", "minji.kim@fabrikam.com"), toRecipients: [me],
                         ccRecipients: [who("박서준", "seojun.park@fabrikam.com")], receivedDateTime: ago(0.5),
                         bodyPreview: "안녕하세요, 요청하신 3분기 장비 견적서를 첨부합니다. 검토 후 회신 부탁드립니다.",
@@ -66,7 +67,18 @@ final class DemoMailService: MailService {
                         bodyPreview: "말씀하신 대로 일정표를 수정했습니다.", isRead: true, hasAttachments: true,
                         body: .init(contentType: "html", content: "<p>말씀하신 대로 일정표를 수정했습니다. 확인 부탁드립니다.</p>")),
         ]
+        store["inbox"]?.append(
+            MailMessage(id: "m7", internetMessageId: "<m7@fabrikam.com>", conversationId: "conv-quote",
+                        subject: "RE: [견적] 3분기 장비 견적 요청", from: who("김민지", "minji.kim@fabrikam.com"),
+                        toRecipients: [me], receivedDateTime: ago(26),
+                        bodyPreview: "요청 잘 받았습니다. 내일 중으로 견적서를 보내 드리겠습니다.", isRead: true, hasAttachments: false,
+                        body: .init(contentType: "html", content: "<p>요청 잘 받았습니다. 내일 중으로 견적서를 보내 드리겠습니다.</p><p>김민지 드림</p>")))
         store["sentitems"] = [
+            MailMessage(id: "s2", internetMessageId: "<s2@contoso.co.kr>", conversationId: "conv-quote",
+                        subject: "[견적] 3분기 장비 견적 요청", from: me, toRecipients: [who("김민지", "minji.kim@fabrikam.com")],
+                        receivedDateTime: ago(30), bodyPreview: "3분기 장비 견적을 부탁드립니다. 수량은 첨부한 목록과 같습니다.",
+                        isRead: true, hasAttachments: false,
+                        body: .init(contentType: "html", content: "<p>3분기 장비 견적을 부탁드립니다. 수량은 첨부한 목록과 같습니다.</p>")),
             MailMessage(id: "s1", internetMessageId: "<s1@contoso.co.kr>", subject: "RE: [견적] 2분기 장비 견적서",
                         from: me, toRecipients: [who("김민지", "minji.kim@fabrikam.com")], receivedDateTime: ago(24 * 40),
                         bodyPreview: "견적서 잘 받았습니다. 내부 검토 후 연락드리겠습니다.", isRead: true, hasAttachments: false,
@@ -224,6 +236,17 @@ final class DemoMailService: MailService {
             progress(Double(range.upperBound) / Double(total))
         }
         uploaded.append((id, FilenameEncoder.normalize(attachment.filename), total))
+    }
+
+    func conversation(id: String) async throws -> [MailMessage] {
+        store.flatMap { folder, list in
+            list.filter { $0.conversationId == id }.map { m -> MailMessage in
+                var copy = m
+                copy.parentFolderId = folder
+                copy.body = nil
+                return copy
+            }
+        }
     }
 
     func sendDraft(id: String) async throws {

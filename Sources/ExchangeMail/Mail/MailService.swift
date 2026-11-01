@@ -35,6 +35,8 @@ protocol MailService: AnyObject {
                           progress: @escaping (Double) -> Void) async throws
     /// 초안을 보낸다 (S-023).
     func sendDraft(id: String) async throws
+    /// 대화의 모든 메일 (모든 폴더, 본문 없음). 순서는 정하지 않는다 (S-025).
+    func conversation(id: String) async throws -> [MailMessage]
 }
 
 struct GraphError: LocalizedError {
@@ -81,6 +83,8 @@ final class GraphMailService: MailService {
         }
         if !query.isEmpty {
             c.queryItems = (c.queryItems ?? []) + query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
+            // URLComponents는 +를 그대로 두는데, 서버는 공백으로 읽을 수 있다 (base64 대화 id가 깨짐).
+            c.percentEncodedQuery = QueryEncoding.fixPlus(c.percentEncodedQuery)
         }
         guard let url = c.url else { throw URLError(.badURL) }
         var req = URLRequest(url: url)
@@ -235,6 +239,12 @@ final class GraphMailService: MailService {
             }
             progress(Double(range.upperBound) / Double(total))
         }
+    }
+
+    func conversation(id: String) async throws -> [MailMessage] {
+        let r = GraphQuery.conversation(id: id)
+        let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
+        return try decoder.decode(GraphList<MailMessage>.self, from: data).value
     }
 
     func sendDraft(id: String) async throws {

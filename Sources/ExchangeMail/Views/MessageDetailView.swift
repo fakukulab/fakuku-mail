@@ -5,11 +5,16 @@ struct MessageDetailView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
+    @AppStorage("list.threaded") private var threaded = true
 
     var body: some View {
         Group {
-            if let m = model.detail, m.id == model.selectedMessageID {
+            if let m = model.detail, m.id == model.displayedMessageID {
                 VStack(alignment: .leading, spacing: 0) {
+                    if threaded && model.thread.count > 1 {
+                        ThreadStrip()
+                        Divider()
+                    }
                     MessageHeader(message: m)
                     if model.isDraftSelected {
                         draftBar
@@ -163,5 +168,83 @@ struct MessageHeader: View {
             }
             .font(.callout)
         }
+    }
+}
+
+/// 대화 보기 (S-025): 대화의 메일을 오래된 순으로 한 줄씩. 누르면 아래에 그 메일이 펼쳐진다.
+struct ThreadStrip: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("대화 \(model.thread.count)통")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, Space.margin)
+                .padding(.top, Space.sm)
+                .padding(.bottom, Space.xs)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(model.thread) { m in
+                        ThreadRow(message: m, isShown: m.id == model.displayedMessageID,
+                                  folderTag: model.folderTag(for: m), me: model.auth.email) {
+                            model.showInThread(m.id)
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: 176)
+        }
+    }
+}
+
+struct ThreadRow: View {
+    let message: MailMessage
+    let isShown: Bool
+    let folderTag: String?
+    let me: String?
+    let open: () -> Void
+
+    private var sender: String {
+        let address = message.from?.emailAddress.address?.lowercased()
+        return address != nil && address == me?.lowercased() ? "나" : (message.from?.emailAddress.display ?? "")
+    }
+
+    var body: some View {
+        Button(action: open) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                // 펼친 메일은 강조색 막대
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(isShown ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
+                    .frame(width: 2, height: 16)
+                Text(sender)
+                    .fontWeight(message.isUnread ? .semibold : .regular)
+                    .lineLimit(1)
+                    .frame(width: 120, alignment: .leading)
+                Text(message.bodyPreview ?? message.title)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: Space.sm)
+                if let folderTag {
+                    Text(folderTag)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, Space.xs)
+                        .background(.quaternary, in: Capsule())
+                }
+                Text(message.receivedDateTime.map { MailDate.listLabel($0) } ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .font(.callout)
+            .padding(.horizontal, Space.margin)
+            .padding(.vertical, Space.xs)
+            .contentShape(Rectangle())
+            .background(isShown ? AnyShapeStyle(.quaternary) : AnyShapeStyle(Color.clear))
+        }
+        .buttonStyle(.plain)
+        .help(isShown ? "지금 보고 있는 메일" : "이 메일 펼치기")
+        .accessibilityAddTraits(isShown ? .isSelected : [])
     }
 }

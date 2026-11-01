@@ -357,3 +357,47 @@ func notificationGrouping() {
 func dockBadge(_ n: Int?, _ expected: String?) {
     #expect(DockBadge.label(unread: n) == expected)
 }
+
+// S-025 대화별로 묶어 보기
+
+func threadMessage(_ id: String, conv: String?, hoursAgo: Double, from: String, address: String,
+                   unread: Bool = false, attach: Bool = false) -> MailMessage {
+    MailMessage(id: id, conversationId: conv, subject: "견적", from: Recipient(name: from, address: address),
+                receivedDateTime: Date(timeIntervalSince1970: 1_714_557_600 - hoursAgo * 3_600),
+                isRead: !unread, hasAttachments: attach)
+}
+
+@Test("같은 대화는 한 줄로, 최근 순으로 묶는다")
+func groupConversations() {
+    let list = [
+        threadMessage("a1", conv: "A", hoursAgo: 1, from: "김민지", address: "minji@x.com", unread: true),
+        threadMessage("b1", conv: "B", hoursAgo: 2, from: "박서준", address: "sj@x.com"),
+        threadMessage("a2", conv: "A", hoursAgo: 5, from: "나", address: "ME@corp.com", attach: true),
+        threadMessage("a3", conv: "A", hoursAgo: 9, from: "김민지", address: "minji@x.com"),
+        threadMessage("solo", conv: nil, hoursAgo: 3, from: "인사팀", address: "hr@corp.com"),
+    ]
+    let groups = Conversations.group(list)
+    #expect(groups.map(\.latest.id) == ["a1", "b1", "solo"])
+    #expect(groups[0].messageIDs == ["a1", "a2", "a3"])
+    #expect(groups[0].count == 3)
+    #expect(groups[0].isUnread)
+    #expect(groups[0].hasAttachments)
+    #expect(!groups[1].isUnread)
+    #expect(groups[0].participants(me: "me@corp.com") == ["김민지", "나"])
+    #expect(groups[2].count == 1)
+}
+
+@Test("대화 요청: 작은따옴표는 두 번, + 는 %2B")
+func conversationQuery() {
+    let r = GraphQuery.conversation(id: "AAQk+a/b='x'")
+    #expect(r.query["$filter"] == "conversationId eq 'AAQk+a/b=''x'''")
+    #expect(r.query["$orderby"] == nil)
+    #expect(QueryEncoding.fixPlus("a=AAQk+a%2Fb") == "a=AAQk%2Ba%2Fb")
+}
+
+@Test("대화 보기는 오래된 메일부터")
+func chronologicalThread() {
+    let list = [threadMessage("new", conv: "A", hoursAgo: 1, from: "a", address: "a@x.com"),
+                threadMessage("old", conv: "A", hoursAgo: 9, from: "b", address: "b@x.com")]
+    #expect(Conversations.chronological(list).map(\.id) == ["old", "new"])
+}

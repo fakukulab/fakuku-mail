@@ -43,10 +43,21 @@ final class AppModel {
         didSet {
             guard selectedMessageID != oldValue else { return }
             allowRemoteFor = nil
+            shownMessageID = nil
+            thread = []
             updateMenu()
-            Task { await loadDetail() }
+            Task {
+                await loadDetail()
+                await loadThread()
+            }
         }
     }
+    /// 대화 보기에서 펼친 메일 (S-025). nil이면 목록에서 고른 메일.
+    private(set) var shownMessageID: String?
+    /// 고른 메일의 대화 전체, 오래된 순 (S-025). 대화가 아니면 비어 있다.
+    var thread: [MailMessage] = []
+    /// 본문에 보이는 메일 id
+    var displayedMessageID: String? { shownMessageID ?? selectedMessageID }
     private(set) var detail: MailMessage?
     /// 인라인 첨부까지 모두. 목록에 보일 첨부는 `listedAttachments`.
     private(set) var detailAttachments: [FileAttachment] = []
@@ -176,7 +187,7 @@ final class AppModel {
     }
 
     func loadDetail() async {
-        guard let id = selectedMessageID else {
+        guard let id = displayedMessageID else {
             detail = nil; detailBody = nil; detailAttachments = []
             updateMenu()
             return
@@ -187,7 +198,7 @@ final class AppModel {
             if (m.hasAttachments ?? false) || (m.body?.content.contains("cid:") ?? false) {
                 attachments = try await service.attachments(messageID: id)
             }
-            guard id == selectedMessageID else { return }
+            guard id == displayedMessageID else { return }
             detail = m
             addressBook.noteSeen([m], me: auth.email)
             detailAttachments = attachments
@@ -217,6 +228,7 @@ final class AppModel {
                 }
             }
             if detail?.id == id { detail?.isRead = read }
+            if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].isRead = read }
             updateBadge()
             updateMenu()
         } catch {
@@ -227,11 +239,12 @@ final class AppModel {
     /// 목록에서 위아래 메일로 옮긴다. 끝에서는 그대로 있는다. 옮겼으면 true.
     @discardableResult
     func selectAdjacent(_ offset: Int) -> Bool {
-        guard !messages.isEmpty else { return false }
-        let current = messages.firstIndex { $0.id == selectedMessageID }
-        let target = current.map { $0 + offset } ?? (offset > 0 ? 0 : messages.count - 1)
-        guard messages.indices.contains(target) else { return false }
-        selectedMessageID = messages[target].id
+        let order = navigationOrder
+        guard !order.isEmpty else { return false }
+        let current = order.firstIndex { $0 == selectedMessageID }
+        let target = current.map { $0 + offset } ?? (offset > 0 ? 0 : order.count - 1)
+        guard order.indices.contains(target) else { return false }
+        selectedMessageID = order[target]
         return true
     }
 
@@ -261,16 +274,24 @@ final class AppModel {
 
     /// 고른 메일을 옮기고 다음 메일을 고른다. 되돌리기는 원래 폴더로 다시 옮긴다.
     func moveSelected(to destination: String, undoManager: UndoManager?, undoName: String) async {
-        guard let id = selectedMessageID, let index = messages.firstIndex(where: { $0.id == id }),
+        guard let id = selectedMessageID, messages.contains(where: { $0.id == id }),
               let fromFolder = selectedFolderID else { return }
+        // 대화별로 정리 중이면 이 폴더에 있는 그 대화를 모두 옮긴다 (S-025).
+        let ids = Self.organizeByConversation ? conversationMessageIDs(containing: id) : [id]
+        let order = Self.organizeByConversation ? conversations.map(\.latest.id) : messages.map(\.id)
+        let position = order.firstIndex(of: id) ?? 0
         do {
-            let movedID = try await service.move(id: id, to: destination)
-            messages.removeAll { $0.id == id }
-            selectedMessageID = messages.isEmpty ? nil : messages[min(index, messages.count - 1)].id
+            var movedIDs: [String] = []
+            for messageID in ids {
+                movedIDs.append(try await service.move(id: messageID, to: destination))
+            }
+            messages.removeAll { ids.contains($0.id) }
+            let remaining = Self.organizeByConversation ? conversations.map(\.latest.id) : messages.map(\.id)
+            selectedMessageID = remaining.isEmpty ? nil : remaining[min(position, remaining.count - 1)]
             undoManager?.registerUndo(withTarget: self) { target in
                 // 되돌리기는 메인 스레드에서 불린다.
                 MainActor.assumeIsolated {
-                    _ = Task { await target.restore(movedID: movedID, to: fromFolder) }
+                    _ = Task { await target.restore(movedIDs: movedIDs, to: fromFolder) }
                 }
             }
             undoManager?.setActionName(undoName)
@@ -280,13 +301,21 @@ final class AppModel {
         }
     }
 
-    func restore(movedID: String, to folderID: String) async {
+    func restore(movedIDs: [String], to folderID: String) async {
         do {
-            _ = try await service.move(id: movedID, to: folderID)
+            for movedID in movedIDs { _ = try await service.move(id: movedID, to: folderID) }
             await refresh()
         } catch {
             report(error)
         }
+    }
+
+    /// 대화 안의 다른 메일을 펼친다 (S-025). 목록 선택은 그대로 두고 본문만 바꾼다.
+    func showInThread(_ id: String) {
+        guard id != displayedMessageID else { return }
+        shownMessageID = id == selectedMessageID ? nil : id
+        allowRemoteFor = nil
+        Task { await loadDetail() }
     }
 
     func allowRemoteContentForSelection() {

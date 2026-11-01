@@ -132,6 +132,8 @@ public struct MailMessage: Decodable, Identifiable, Hashable, Sendable {
     public var toRecipients: [Recipient]?
     public var ccRecipients: [Recipient]?
     public var bccRecipients: [Recipient]?
+    /// 메일이 있는 폴더 id (대화 보기에서 다른 폴더 메일에 꼬리표를 붙인다)
+    public var parentFolderId: String?
     public var receivedDateTime: Date?
     public var bodyPreview: String?
     public var isRead: Bool?
@@ -152,6 +154,7 @@ public struct MailMessage: Decodable, Identifiable, Hashable, Sendable {
         self.toRecipients = toRecipients
         self.ccRecipients = ccRecipients
         self.bccRecipients = nil
+        self.parentFolderId = nil
         self.receivedDateTime = receivedDateTime
         self.bodyPreview = bodyPreview
         self.isRead = isRead

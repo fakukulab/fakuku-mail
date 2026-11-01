@@ -76,12 +76,17 @@ struct MailCommands: Commands {
     let model: AppModel
     let menu: MenuSnapshot
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("list.threaded") private var threaded = true
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("새로운 메시지") { openWindow(id: "compose", value: ComposeDraft()) }
                 .keyboardShortcut("n")
                 .disabled(!menu.signedIn)
+        }
+        CommandGroup(after: .sidebar) {
+            Toggle("대화별로 정리", isOn: $threaded)
+                .keyboardShortcut("t", modifiers: [.command, .option])
         }
         CommandMenu("메시지") {
             Button("답장") { compose(.reply) }

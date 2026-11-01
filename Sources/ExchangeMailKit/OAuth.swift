@@ -120,6 +120,14 @@ public enum GraphQuery {
     public static let listSelect = "id,conversationId,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments"
     public static let detailSelect = "id,internetMessageId,conversationId,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,isRead,hasAttachments,internetMessageHeaders"
     public static let pageSize = 50
+    /// 대화 보기의 한 줄에 필요한 값 (본문은 펼칠 때 따로 가져온다)
+    public static let threadSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments"
+
+    /// 대화 전체 요청 (S-025). `$orderby`와 함께 쓰면 Graph가 거절할 수 있어 정렬은 앱에서 한다.
+    public static func conversation(id: String, top: Int = 50) -> Request {
+        Request(query: ["$filter": Conversations.filter(conversationID: id), "$select": threadSelect, "$top": "\(top)"],
+                headers: [:])
+    }
 
     public struct Request: Equatable, Sendable {
         public var query: [String: String]

@@ -5,17 +5,32 @@ struct MessageListView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
+    /// 보기 > 대화별로 정리 (S-025)
+    @AppStorage("list.threaded") private var threaded = true
 
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedMessageID) {
-            ForEach(model.messages) { m in
-                MessageRow(message: m)
-                    .tag(m.id)
-                    .contextMenu { contextMenu(for: m) }
-                    .onAppear {
-                        if m.id == model.messages.last?.id { Task { await model.loadMore() } }
-                    }
+            if threaded {
+                // 대화 한 줄의 tag는 대화의 최근 메일 id다.
+                let conversations = model.conversations
+                ForEach(conversations) { c in
+                    ConversationRow(conversation: c, me: model.auth.email)
+                        .tag(c.latest.id)
+                        .contextMenu { contextMenu(for: c.latest) }
+                        .onAppear {
+                            if c.id == conversations.last?.id { Task { await model.loadMore() } }
+                        }
+                }
+            } else {
+                ForEach(model.messages) { m in
+                    MessageRow(message: m)
+                        .tag(m.id)
+                        .contextMenu { contextMenu(for: m) }
+                        .onAppear {
+                            if m.id == model.messages.last?.id { Task { await model.loadMore() } }
+                        }
+                }
             }
             if model.isLoadingMore {
                 HStack {
@@ -136,6 +151,56 @@ struct MessageRow: View {
                 Text(message.title)
                     .lineLimit(1)
                 Text(message.bodyPreview ?? "")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.vertical, Space.xs)
+    }
+}
+
+/// 대화 한 줄 (S-025): 참여자, 메일 수, 제목, 최근 메일 미리보기.
+struct ConversationRow: View {
+    let conversation: Conversation
+    let me: String?
+
+    var body: some View {
+        let latest = conversation.latest
+        HStack(alignment: .top, spacing: Space.sm) {
+            Circle()
+                .fill(conversation.isUnread ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
+                .frame(width: 8, height: 8)
+                .padding(.top, Space.xs)
+                .accessibilityLabel(conversation.isUnread ? "읽지 않음" : "")
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    Text(conversation.participants(me: me).joined(separator: ", "))
+                        .fontWeight(conversation.isUnread ? .semibold : .regular)
+                        .lineLimit(1)
+                    if conversation.count > 1 {
+                        Text("\(conversation.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Space.xs)
+                            .background(.quaternary, in: Capsule())
+                            .accessibilityLabel("메일 \(conversation.count)통")
+                    }
+                    Spacer(minLength: Space.xs)
+                    if conversation.hasAttachments {
+                        Image(systemName: "paperclip")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("첨부 있음")
+                    }
+                    Text(latest.receivedDateTime.map { MailDate.listLabel($0) } ?? "")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Text(latest.title)
+                    .lineLimit(1)
+                Text(latest.bodyPreview ?? "")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)

@@ -23,3 +23,4 @@
 | 이어서 쓰기 | `AppModel.resumeDraft` | 저장된 초안을 작성 창으로 다시 열기 (⌘O) |
 | 새 메일 알림 | `NewMailTracker`, `MailNotifier` | 지난 확인 이후 받은 편지함에 온 읽지 않은 메일 |
 | Dock 배지 | `DockBadge`, `AppModel.updateBadge` | 받은 편지함의 읽지 않은 수 |
+| 대화, 대화별로 정리 | `Conversation`, `AppModel.thread` | 같은 conversationId의 메일. 보기 메뉴에서 켜고 끔 (⌥⌘T) |

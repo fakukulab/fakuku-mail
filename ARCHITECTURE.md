@@ -41,6 +41,11 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   background. `NewMailTracker` (Kit) decides what is new; **seam `MailNotifier`** posts it:
   `SystemNotifier` (UserNotifications, Dock badge, notification-click delegate) or `RecordingNotifier`
   (demo and self-test). A click goes through `NotificationRouter` to `AppModel.openFromNotification`.
+- Conversations (S-025): `Conversations.group` (Kit) makes the list rows; `AppModel+Conversations` loads the
+  whole thread (`MailService.conversation`, all folders) and moves whole conversations. `selectedMessageID`
+  is the list row (latest message); `displayedMessageID` is the message open in the detail.
+- AppModel is split into `AppModel.swift` (folders, list, detail, moves) and extensions
+  `+Compose`, `+Notifications`, `+Conversations`.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 
