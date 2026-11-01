@@ -53,7 +53,7 @@ final class GraphAuth: NSObject {
         (UserDefaults.standard.string(forKey: "azureClientID") ?? "").trimmingCharacters(in: .whitespaces)
     }
     var tenant: String { UserDefaults.standard.string(forKey: "azureTenant") ?? "" }
-    private var bundleID: String { Bundle.main.bundleIdentifier ?? "com.example.exchangemail" }
+    private var bundleID: String { Bundle.main.bundleIdentifier ?? "com.fakukulab.fakukumail" }
     var redirectURI: String { OAuth.redirectURI(bundleID: bundleID) }
 
     // MARK: 로그인

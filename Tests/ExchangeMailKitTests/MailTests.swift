@@ -18,14 +18,14 @@ func verifierShape() {
 
 @Test("인증 URL에 필요한 값이 모두 들어간다")
 func authorizeURL() throws {
-    let url = try #require(OAuth.authorizeURL(tenant: "", clientID: "cid", redirectURI: OAuth.redirectURI(bundleID: "com.example.exchangemail"),
+    let url = try #require(OAuth.authorizeURL(tenant: "", clientID: "cid", redirectURI: OAuth.redirectURI(bundleID: "com.fakukulab.fakukumail"),
                                               challenge: "ch", state: "st"))
     let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
     func v(_ n: String) -> String? { items.first { $0.name == n }?.value }
     #expect(url.absoluteString.hasPrefix("https://login.microsoftonline.com/common/oauth2/v2.0/authorize"))
     #expect(v("client_id") == "cid")
     #expect(v("response_type") == "code")
-    #expect(v("redirect_uri") == "msauth.com.example.exchangemail://auth")
+    #expect(v("redirect_uri") == "msauth.com.fakukulab.fakukumail://auth")
     #expect(v("code_challenge") == "ch")
     #expect(v("code_challenge_method") == "S256")
     #expect(v("state") == "st")

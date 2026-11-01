@@ -17,7 +17,7 @@ settings in UserDefaults. UI language: Korean (`docs/GLOSSARY.md` for words).
 - `Sources/ExchangeMailKit/` rules with no SwiftUI: attachment fix (FilenameEncoder, HTMLProcessor, MIMEBuilder),
   Graph models, OAuth, reply drafts, mail content safety. Tests in `Tests/ExchangeMailKitTests/`.
 - `Package.swift` a Swift package. There is no Xcode project.
-- `build.sh` builds, signs, and installs `~/Applications/ExchangeMail.app`.
+- `build.sh` builds, signs, and installs `~/Applications/FAKUKU Mail.app` (executable `ExchangeMail`).
 - `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). `build.sh` compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
 - `docs/` the brief, the screen index, and the user stories, when they exist.
 

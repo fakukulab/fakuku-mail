@@ -7,7 +7,7 @@ app="$HOME/Applications/FAKUKU Mail.app/Contents/MacOS/ExchangeMail"
 store=/tmp/ExchangeMail-test
 shots=/tmp/ExchangeMail-shots
 # A crashed run leaves saved window state, and the next launch would wait on a "reopen windows?" alert.
-rm -rf ~/Library/Saved\ Application\ State/com.example.exchangemail.savedState
+rm -rf ~/Library/Saved\ Application\ State/com.fakukulab.fakukumail.savedState
 # Demo signatures are only seeded into an empty store, so start from nothing.
 rm -rf $store $shots
 APP_STORE=$store APP_SEED=1 APP_SNAPSHOT=$shots $app

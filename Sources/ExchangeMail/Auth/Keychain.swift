@@ -5,7 +5,7 @@ import Security
 enum Keychain {
     /// 테스트 실행(APP_STORE)은 실제 로그인과 다른 항목을 쓴다.
     private static var service: String {
-        let base = (Bundle.main.bundleIdentifier ?? "com.example.exchangemail") + ".tokens"
+        let base = (Bundle.main.bundleIdentifier ?? "com.fakukulab.fakukumail") + ".tokens"
         return Store.isOverridden ? base + ".test" : base
     }
 
