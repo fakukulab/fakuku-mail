@@ -42,6 +42,6 @@ Symptom: File > Print / Command-P printed the message body without the subject, 
 Cause: the menu item was enabled only with `hasMessage` (a list row selected and its detail loaded). When it was
 disabled, Command-P went down the responder chain to the body WKWebView, whose NSView `print(_:)` prints only the body.
 The header was also placed before a full HTML document's `<html>` instead of inside its `<body>`.
-Fix: `MailWebView` overrides `print(_:)` and calls the app's header print; the menu is enabled whenever a message
+Fix: `MailWebView` overrides `printView(_:)` (AppKit's `print:` as Swift names it) and calls the app's header print; the menu is enabled whenever a message
 is shown (`canPrint`); the header goes right inside `<body>`, and plain-text mail becomes HTML first.
-Rule: When a web view shows content the app prints, override `print(_:)` so every path prints the same thing.
+Rule: When a web view shows content the app prints, override `printView(_:)` so every path prints the same thing. AppKit's `print:` is `printView(_:)` in Swift.

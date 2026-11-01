@@ -86,7 +86,8 @@ final class PageScroller {
 final class MailWebView: WKWebView {
     var onPrint: (() -> Void)?
 
-    override func print(_ sender: Any?) {
-        if let onPrint { onPrint() } else { super.print(sender) }
+    // AppKit의 print: 동작은 Swift 전역 print와 겹치지 않게 printView(_:)로 들어온다.
+    override func printView(_ sender: Any?) {
+        if let onPrint { onPrint() } else { super.printView(sender) }
     }
 }
