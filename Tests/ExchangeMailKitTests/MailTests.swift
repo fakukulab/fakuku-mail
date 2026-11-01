@@ -401,3 +401,77 @@ func chronologicalThread() {
                 threadMessage("old", conv: "A", hoursAgo: 9, from: "b", address: "b@x.com")]
     #expect(Conversations.chronological(list).map(\.id) == ["old", "new"])
 }
+
+// S-026 오프라인 캐시
+
+func tempCacheRoot() -> URL {
+    FileManager.default.temporaryDirectory.appending(path: "mailcache-\(UUID().uuidString)", directoryHint: .isDirectory)
+}
+
+@Test("폴더, 목록, 본문, 첨부를 저장하고 다시 읽는다")
+func cacheRoundTrip() throws {
+    let base = tempCacheRoot()
+    defer { try? FileManager.default.removeItem(at: base) }
+    let cache = MailCache.forAccount("Me@Corp.com", base: base)
+    cache.saveFolders([MailFolder(id: "AAMk/+=", displayName: "받은 편지함", unreadItemCount: 3, wellKnownName: "inbox")])
+    #expect(cache.folders()?.first?.wellKnownName == "inbox")
+    #expect(cache.folders()?.first?.unreadItemCount == 3)
+
+    let when = Date(timeIntervalSince1970: 1_714_557_600)
+    let m = MailMessage(id: "id/with+slash", conversationId: "c1", subject: "견적", from: Recipient(name: "김민지", address: "m@x.com"),
+                        receivedDateTime: when, bodyPreview: "미리", isRead: false, hasAttachments: true,
+                        body: .init(contentType: "html", content: "<p>본문</p>"))
+    cache.saveList(folderID: "AAMk/+=", messages: [m], nextLink: "next")
+    let list = try #require(cache.list(folderID: "AAMk/+="))
+    #expect(list.messages == [m])
+    #expect(list.nextLink == "next")
+
+    cache.saveMessage(m)
+    let small = FileAttachment(id: "a1", name: "작은.pdf", contentType: "application/pdf", size: 10, isInline: false, contentBytes: "AQID")
+    let big = FileAttachment(id: "a2", name: "큰.zip", contentType: "application/zip", size: 5_000_000, isInline: false, contentBytes: "AQID")
+    let inline = FileAttachment(id: "a3", name: "logo.png", contentType: "image/png", size: 5_000_000, isInline: true,
+                                contentId: "logo", contentBytes: "AQID")
+    cache.saveAttachments([small, big, inline], messageID: m.id)
+    let saved = try #require(cache.message(id: m.id))
+    #expect(saved.message.body?.content == "<p>본문</p>")
+    #expect(saved.attachments?.map(\.contentBytes) == ["AQID", nil, "AQID"])
+    // 본문을 다시 저장해도 첨부는 남는다
+    cache.saveMessage(m)
+    #expect(cache.message(id: m.id)?.attachments?.count == 3)
+    // 계정이 다르면 따로
+    #expect(MailCache.forAccount("other@corp.com", base: base).folders() == nil)
+    #expect(MailCache.forAccount("me@corp.com", base: base).folders() != nil)
+    #expect(cache.sizeBytes() > 0)
+    cache.clear()
+    #expect(cache.folders() == nil)
+    #expect(cache.sizeBytes() == 0)
+}
+
+@Test("본문은 최근 것만 남긴다")
+func cachePrune() throws {
+    let base = tempCacheRoot()
+    defer { try? FileManager.default.removeItem(at: base) }
+    var cache = MailCache(root: base)
+    cache.maxMessages = 3
+    for i in 0..<5 {
+        cache.saveMessage(MailMessage(id: "m\(i)", subject: "s", from: nil, receivedDateTime: nil))
+        // 수정 시각이 겹치지 않게 조금 기다린다
+        Thread.sleep(forTimeInterval: 0.02)
+    }
+    let files = try FileManager.default.contentsOfDirectory(at: base.appending(path: "messages"), includingPropertiesForKeys: nil)
+    #expect(files.count == 3)
+    #expect(cache.message(id: "m4") != nil)
+    #expect(cache.message(id: "m0") == nil)
+}
+
+@Test("오프라인 오류 가르기", arguments: [
+    (URLError(.notConnectedToInternet) as Error, true),
+    (URLError(.timedOut) as Error, true),
+    (URLError(.cannotFindHost) as Error, true),
+    (URLError(.badServerResponse) as Error, false),
+    (OfflineError.unavailable("보낼") as Error, true),
+    (CancellationError() as Error, false),
+])
+func offlineClassification(_ error: Error, _ expected: Bool) {
+    #expect(OfflineError.isOffline(error) == expected)
+}

@@ -89,13 +89,40 @@ final class AppModel {
         let signatures = SignatureStore(url: Store.directory.appending(path: "signatures.json"))
         let addressBook = AddressBookStore(url: Store.directory.appending(path: "recipients.json"))
         let auth = GraphAuth(demoEmail: Store.isDemo ? DemoMailService.myAddress : nil)
+        let remote: any MailService
         if Store.isDemo {
             if signatures.signatures.isEmpty { DemoMailService.seedSignatures(into: signatures) }
-            return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: DemoMailService(),
-                            notifier: RecordingNotifier(), isDemo: true)
+            remote = DemoMailService()
+        } else {
+            remote = GraphMailService(auth: auth)
         }
-        return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: GraphMailService(auth: auth),
-                        notifier: SystemNotifier.shared, isDemo: false)
+        // 오프라인 캐시를 끼운다 (S-026). 데모도 같은 경로를 써서 셀프 테스트가 오프라인을 흉내 낸다.
+        let cached = CachedMailService(remote: remote, base: Store.directory.appending(path: "cache", directoryHint: .isDirectory),
+                                       account: { auth.email }, enabled: { AppModel.cacheEnabled })
+        let model = AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: cached,
+                             notifier: Store.isDemo ? RecordingNotifier() : SystemNotifier.shared, isDemo: Store.isDemo)
+        cached.onOfflineChange = { [weak model] offline in model?.isOffline = offline }
+        return model
+    }
+
+    // MARK: 오프라인 (S-026)
+
+    /// 네트워크가 없어 저장된 메일을 보여 주는 중
+    var isOffline = false
+    static var cacheEnabled: Bool { UserDefaults.standard.object(forKey: "cache.enabled") as? Bool ?? true }
+    var cachedService: CachedMailService? { service as? CachedMailService }
+    /// 데모 사서함 (스냅숏, 셀프 테스트)
+    var demoService: DemoMailService? { (cachedService?.remote ?? service) as? DemoMailService }
+
+    /// 오프라인 막대의 "다시 연결"
+    func retryConnection() async {
+        if await cachedService?.retry() == true { await refresh() }
+    }
+
+    /// 로그아웃: 이 계정의 저장된 메일을 지운 뒤 나간다.
+    func signOut() {
+        cachedService?.clearCache()
+        auth.signOut()
     }
 
     var isSignedIn: Bool { auth.isSignedIn }
@@ -139,6 +166,8 @@ final class AppModel {
     }
 
     func loadFolders() async {
+        // 처음에는 저장된 폴더를 먼저 보여 준다 (S-026).
+        if folders.isEmpty, let saved = cachedService?.cache?.folders() { folders = FolderOrder.sorted(saved) }
         do {
             folders = FolderOrder.sorted(try await service.folders())
             updateBadge()
@@ -150,6 +179,10 @@ final class AppModel {
     func loadMessages(keepSelection: Bool = false) async {
         guard let folderID = selectedFolderID else { return }
         let search = searchText.trimmingCharacters(in: .whitespaces)
+        // 비어 있으면 저장된 목록을 먼저 보여 주고 서버 응답으로 바꾼다 (S-026).
+        if messages.isEmpty, search.isEmpty, let saved = cachedService?.cache?.list(folderID: folderID) {
+            messages = saved.messages
+        }
         isLoading = true
         defer { isLoading = false }
         do {
@@ -298,7 +331,8 @@ final class AppModel {
             undoManager?.setActionName(undoName)
             await loadFolders()
         } catch {
-            report(error)
+            // 사람이 누른 동작이라 오프라인이어도 알린다.
+            report(error, quietIfOffline: false)
         }
     }
 
@@ -326,8 +360,15 @@ final class AppModel {
 
     // MARK: helpers
 
-    func report(_ error: Error) {
+    /// 오류를 알린다. 오프라인이면 막대가 이미 말해 주므로, 자동으로 일어난 일은 조용히 넘긴다 (S-026).
+    func report(_ error: Error, quietIfOffline: Bool = true) {
         if (error as? URLError)?.code == .cancelled || error is CancellationError { return }
+        if OfflineError.isOffline(error) {
+            isOffline = true
+            if quietIfOffline { return }
+            errorMessage = (error as? OfflineError)?.localizedDescription ?? OfflineError.unavailable("이 작업을 할").localizedDescription
+            return
+        }
         errorMessage = error.localizedDescription
     }
 

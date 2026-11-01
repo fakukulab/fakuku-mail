@@ -87,7 +87,7 @@ struct AccountSettings: View {
                         Text(email).foregroundStyle(.secondary)
                     }
                 }
-                Button("로그아웃", role: .destructive) { model.auth.signOut() }
+                Button("로그아웃", role: .destructive) { model.signOut() }
             } else {
                 Button("Microsoft로 로그인") { Task { await model.auth.signIn() } }
                     .disabled(clientID.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -97,6 +97,7 @@ struct AccountSettings: View {
                     .foregroundStyle(.red)
             }
         }
+        OfflineSettings()
         Section {
             TextField("클라이언트 ID", text: $clientID)
             TextField("테넌트", text: $tenant, prompt: Text("비우면 common"))
@@ -183,5 +184,41 @@ struct NotificationSettings: View {
         if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
             NSWorkspace.shared.open(url)
         }
+    }
+}
+
+/// 설정 > 계정 > 오프라인 (S-026)
+struct OfflineSettings: View {
+    @Environment(AppModel.self) private var model
+    @AppStorage("cache.enabled") private var enabled = true
+    @State private var size = 0
+
+    var body: some View {
+        Section {
+            Toggle("최근 메일을 이 Mac에 저장", isOn: $enabled)
+                .onChange(of: enabled) { _, on in
+                    if !on { clear() }
+                }
+            LabeledContent("저장된 메일") {
+                HStack(spacing: Space.sm) {
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Button("지우기") { clear() }
+                        .disabled(size == 0)
+                }
+            }
+        } header: {
+            Text("오프라인")
+        } footer: {
+            Text("네트워크가 없을 때 최근 목록과 열어 본 메일을 보여 줍니다. 로그아웃하면 지웁니다.")
+                .foregroundStyle(.secondary)
+        }
+        .task { size = model.cachedService?.cache?.sizeBytes() ?? 0 }
+    }
+
+    private func clear() {
+        model.cachedService?.clearCache()
+        size = 0
     }
 }

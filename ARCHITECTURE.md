@@ -28,6 +28,9 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   Owns `GraphAuth`, `SignatureStore`, `AddressBookStore`, a `MailService`, and the detail `PageScroller`.
 - **Seam: `MailService`** with two adapters: `GraphMailService` (Microsoft Graph over URLSession) and
   `DemoMailService` (in-memory sample mailbox for demo mode, snapshots, and the self-test).
+  Both are wrapped by `CachedMailService` (S-026): reads are saved to `MailCache` (Kit, files under
+  `Store.directory/cache/<account hash>/`) and served from it when offline; writes throw `OfflineError`.
+  `AppModel.isOffline` drives the offline bar; `AppModel.demoService` reaches the demo under the wrapper.
 - `GraphAuth`: OAuth PKCE via ASWebAuthenticationSession, tokens in the Keychain, single-flight refresh.
 - Compose: `ComposeModel` (@Observable: fields, attachments, signature swap, send, drafts),
   `ComposeView` (layout only), `RichTextController` (WKWebView editor),

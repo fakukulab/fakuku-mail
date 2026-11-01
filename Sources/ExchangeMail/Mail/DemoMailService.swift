@@ -6,6 +6,13 @@ import Foundation
 final class DemoMailService: MailService {
     static let myAddress = "me@contoso.co.kr"
 
+    /// 셀프 테스트가 네트워크가 끊긴 것처럼 만든다 (S-026).
+    var simulateOffline = false
+
+    private func checkOnline() throws {
+        if simulateOffline { throw URLError(.notConnectedToInternet) }
+    }
+
     private(set) var folderList: [MailFolder]
     private var store: [String: [MailMessage]]
     private var files: [String: [FileAttachment]] = [:]
@@ -150,9 +157,13 @@ final class DemoMailService: MailService {
 
     // MARK: MailService
 
-    func folders() async throws -> [MailFolder] { folderList }
+    func folders() async throws -> [MailFolder] {
+        try checkOnline()
+        return folderList
+    }
 
     func messages(folderID: String, search: String?) async throws -> MessagePage {
+        try checkOnline()
         var list = (store[folderID] ?? []).sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
         if let s = search?.lowercased(), !s.isEmpty {
             list = list.filter { m in
@@ -163,22 +174,31 @@ final class DemoMailService: MailService {
         return MessagePage(messages: list, nextLink: nil)
     }
 
-    func nextPage(_ link: String) async throws -> MessagePage { MessagePage(messages: [], nextLink: nil) }
+    func nextPage(_ link: String) async throws -> MessagePage {
+        try checkOnline()
+        return MessagePage(messages: [], nextLink: nil)
+    }
 
     func message(id: String) async throws -> MailMessage {
+        try checkOnline()
         guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
         return m
     }
 
-    func attachments(messageID: String) async throws -> [FileAttachment] { files[messageID] ?? [] }
+    func attachments(messageID: String) async throws -> [FileAttachment] {
+        try checkOnline()
+        return files[messageID] ?? []
+    }
 
     func setRead(id: String, read: Bool) async throws {
+        try checkOnline()
         guard let (folder, index) = find(id) else { return }
         store[folder]?[index].isRead = read
         recount()
     }
 
     func move(id: String, to destination: String) async throws -> String {
+        try checkOnline()
         guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
         let target = folderList.first { $0.id == destination || $0.wellKnownName == destination }?.id ?? destination
         store[folder]?.remove(at: index)
@@ -196,12 +216,14 @@ final class DemoMailService: MailService {
     }
 
     func sendMIME(_ mime: Data) async throws {
+        try checkOnline()
         sent.append(mime)
     }
 
     private(set) var draftCounter = 0
 
     func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String {
+        try checkOnline()
         if let oldID { try? await deleteMessage(id: oldID) }
         draftCounter += 1
         let id = "draft\(draftCounter)"
@@ -230,6 +252,7 @@ final class DemoMailService: MailService {
 
     func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,
                           progress: @escaping (Double) -> Void) async throws {
+        try checkOnline()
         guard find(id) != nil else { throw URLError(.fileDoesNotExist) }
         let total = attachment.data.count
         for range in UploadChunks.ranges(total: total) {
@@ -239,6 +262,7 @@ final class DemoMailService: MailService {
     }
 
     func conversation(id: String) async throws -> [MailMessage] {
+        try checkOnline()
         store.flatMap { folder, list in
             list.filter { $0.conversationId == id }.map { m -> MailMessage in
                 var copy = m
@@ -250,6 +274,7 @@ final class DemoMailService: MailService {
     }
 
     func sendDraft(id: String) async throws {
+        try checkOnline()
         guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
         store[folder]?.remove(at: index)
         store["sentitems", default: []].append(m)
@@ -258,6 +283,7 @@ final class DemoMailService: MailService {
     }
 
     func deleteMessage(id: String) async throws {
+        try checkOnline()
         guard let (folder, index) = find(id) else { return }
         store[folder]?.remove(at: index)
         files[id] = nil

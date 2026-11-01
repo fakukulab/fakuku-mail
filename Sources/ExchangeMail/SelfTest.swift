@@ -17,7 +17,7 @@ enum SelfTest {
         guard requested else { return }
         // Print each line at once, so a crash keeps the lines before it.
         setvbuf(stdout, nil, _IOLBF, 0)
-        guard Store.isDemo, let demo = model.service as? DemoMailService else {
+        guard Store.isDemo, let demo = model.demoService else {
             print("SELFTEST refused: set APP_STORE to a folder in /tmp")
             finish(code: 1)
             return
@@ -382,6 +382,49 @@ enum SelfTest {
                           && archived.filter { $0.conversationId == "conv-quote" }.count == 2)
             }
             if let savedThreaded { defaults.set(savedThreaded, forKey: "list.threaded") } else { defaults.removeObject(forKey: "list.threaded") }
+
+            // S-026: 오프라인에서 저장된 메일 읽기 (저장 설정은 잠깐 켜고 되돌린다)
+            let savedCacheSetting = UserDefaults.standard.object(forKey: "cache.enabled")
+            UserDefaults.standard.set(true, forKey: "cache.enabled")
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            await model.refresh()
+            let onlineIDs = model.messages.map(\.id)
+            if let first = onlineIDs.first {
+                await open(first)                 // 본문을 캐시에 남긴다
+                let onlineBody = model.detailBody?.content
+                demo.simulateOffline = true
+                model.selectedMessageID = nil
+                await model.refresh()
+                check("S-026 오프라인이면 표시가 켜진다", model.isOffline)
+                check("S-026 오프라인에서도 저장된 받은 편지함 목록이 보인다", model.messages.map(\.id) == onlineIDs)
+                await open(first)
+                check("S-026 오프라인에서도 열어 본 메일 본문이 보인다",
+                      model.detail?.id == first && model.detailBody?.content == onlineBody)
+                model.errorMessage = nil
+                await model.archiveSelected()
+                check("S-026 오프라인에서 보관은 하지 않고 이유를 알린다",
+                      model.messages.contains { $0.id == first } && (model.errorMessage?.contains("오프라인") ?? false))
+                model.errorMessage = nil
+                let offlineCompose = ComposeModel(draft: ComposeDraft())
+                await offlineCompose.setUp(app: model, fixDefault: true)
+                offlineCompose.to = "client@x.com"
+                let sentOffline = await offlineCompose.send(app: model)
+                check("S-026 오프라인에서 보내기는 하지 않고 이유를 알린다",
+                      !sentOffline && (offlineCompose.error?.contains("오프라인") ?? false))
+                demo.simulateOffline = false
+                await model.retryConnection()
+                check("S-026 다시 연결되면 오프라인 표시가 꺼진다", !model.isOffline)
+                let cacheSize = model.cachedService?.cache?.sizeBytes() ?? 0
+                model.cachedService?.clearCache()
+                check("S-026 저장된 메일을 지우면 캐시가 비워진다",
+                      cacheSize > 0 && (model.cachedService?.cache?.sizeBytes() ?? -1) == 0)
+            }
+            if let savedCacheSetting {
+                UserDefaults.standard.set(savedCacheSetting, forKey: "cache.enabled")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "cache.enabled")
+            }
 
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)

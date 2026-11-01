@@ -11,7 +11,7 @@ public struct GraphList<T: Decodable & Sendable>: Decodable, Sendable {
     }
 }
 
-public struct MailFolder: Decodable, Identifiable, Hashable, Sendable {
+public struct MailFolder: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let displayName: String
     public var unreadItemCount: Int?
@@ -19,7 +19,8 @@ public struct MailFolder: Decodable, Identifiable, Hashable, Sendable {
     /// Graph의 잘 알려진 폴더 이름 (inbox, drafts, sentitems, archive, junkemail, deleteditems). 서비스가 채운다.
     public var wellKnownName: String? = nil
 
-    enum CodingKeys: String, CodingKey { case id, displayName, unreadItemCount, totalItemCount }
+    // wellKnownName은 Graph JSON에는 없지만(없으면 nil) 오프라인 캐시에는 저장한다 (S-026).
+    enum CodingKeys: String, CodingKey { case id, displayName, unreadItemCount, totalItemCount, wellKnownName }
 
     public init(id: String, displayName: String, unreadItemCount: Int? = nil, totalItemCount: Int? = nil,
                 wellKnownName: String? = nil) {
@@ -111,8 +112,8 @@ public struct InternetHeader: Codable, Hashable, Sendable {
     }
 }
 
-public struct MailMessage: Decodable, Identifiable, Hashable, Sendable {
-    public struct Body: Decodable, Hashable, Sendable {
+public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
+    public struct Body: Codable, Hashable, Sendable {
         public let contentType: String
         public let content: String
 
@@ -176,7 +177,7 @@ public struct MailMessage: Decodable, Identifiable, Hashable, Sendable {
     }
 }
 
-public struct FileAttachment: Decodable, Identifiable, Hashable, Sendable {
+public struct FileAttachment: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let name: String
     public var contentType: String?

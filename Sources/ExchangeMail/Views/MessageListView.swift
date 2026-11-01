@@ -54,6 +54,10 @@ struct MessageListView: View {
             return .handled
         }
         .overlay { emptyState }
+        // 오프라인이면 목록 위에 안내 막대 (S-026)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if model.isOffline { OfflineBar() }
+        }
         .navigationTitle(model.selectedFolder?.displayName ?? "메일")
         .navigationSubtitle(subtitle)
         .toolbar {
@@ -207,5 +211,38 @@ struct ConversationRow: View {
             }
         }
         .padding(.vertical, Space.xs)
+    }
+}
+
+/// 오프라인 안내 (S-026): 경고가 아니라 안내라서 회색으로 둔다.
+struct OfflineBar: View {
+    @Environment(AppModel.self) private var model
+    @State private var retrying = false
+
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            Image(systemName: "wifi.slash")
+                .foregroundStyle(.secondary)
+            Text("오프라인 · 저장된 메일을 보여 줍니다")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: Space.xs)
+            Button {
+                Task {
+                    retrying = true
+                    await model.retryConnection()
+                    retrying = false
+                }
+            } label: {
+                if retrying { ProgressView().controlSize(.small) } else { Text("다시 연결") }
+            }
+            .controlSize(.small)
+            .disabled(retrying)
+        }
+        .padding(.horizontal, Space.md)
+        .padding(.vertical, Space.sm)
+        .background(.bar)
+        .accessibilityElement(children: .combine)
     }
 }

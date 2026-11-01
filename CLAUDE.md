@@ -5,8 +5,8 @@ Everything else keeps the code name `ExchangeMail`. Keep the bundle id: the Azur
 
 A native macOS mail client in SwiftUI for Microsoft Exchange Online.
 Mail stays on the server (Microsoft Graph). Local data: signatures in
-`~/Library/Application Support/ExchangeMail/signatures.json`, tokens in the Keychain,
-settings in UserDefaults. UI language: Korean (`docs/GLOSSARY.md` for words).
+`~/Library/Application Support/ExchangeMail/signatures.json`, an offline cache of recent mail in
+`.../ExchangeMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean (`docs/GLOSSARY.md` for words).
 
 ## Layout
 
