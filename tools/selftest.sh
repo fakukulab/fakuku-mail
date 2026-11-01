@@ -4,4 +4,4 @@ set -u
 rm -rf ~/Library/Saved\ Application\ State/com.example.exchangemail.savedState
 store=/tmp/ExchangeMail-self
 rm -rf $store
-APP_STORE=$store ~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail --selftest
+APP_STORE=$store "$HOME/Applications/FAKUKU Mail.app/Contents/MacOS/ExchangeMail" --selftest

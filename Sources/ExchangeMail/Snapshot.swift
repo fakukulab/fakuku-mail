@@ -4,7 +4,7 @@ import IOKit.pwr_mgt
 import SwiftUI
 
 /// Screenshot mode for agents (demo mailbox, no network).
-///   APP_STORE=/tmp/ExchangeMail-test APP_SEED=1 APP_SNAPSHOT=/tmp/shots ~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail
+///   APP_STORE=/tmp/ExchangeMail-test APP_SEED=1 APP_SNAPSHOT=/tmp/shots ~/Applications/FAKUKU\ Mail.app/Contents/MacOS/ExchangeMail
 /// writes <page>-light.png and <page>-dark.png for:
 ///   every well-known folder (inbox with the first message open, sentitems, drafts, archive, deleteditems),
 ///   signin (the sign-in page), compose (a reply window with a signature and a quote),

@@ -4,7 +4,7 @@ import Foundation
 
 /// Self-test for agents: runs the app's real functions on the demo mailbox and a /tmp store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
-///   APP_STORE=/tmp/ExchangeMail-self ~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail --selftest
+///   APP_STORE=/tmp/ExchangeMail-self ~/Applications/FAKUKU\ Mail.app/Contents/MacOS/ExchangeMail --selftest
 /// (tools/selftest.sh does this.) Add a check for every story with logic.
 enum SelfTest {
     static var requested: Bool { CommandLine.arguments.contains("--selftest") }

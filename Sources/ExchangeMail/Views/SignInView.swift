@@ -13,8 +13,10 @@ struct SignInView: View {
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
             VStack(spacing: Space.sm) {
+                Text("FAKUKU Mail")
+                    .font(.largeTitle.bold())
                 Text("Exchange 계정으로 시작하기")
-                    .font(.title2.bold())
+                    .font(.title3)
                 Text("Microsoft 365 / Exchange Online 계정으로 로그인합니다.\n처음 한 번만 Azure 앱의 클라이언트 ID를 넣으세요.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)

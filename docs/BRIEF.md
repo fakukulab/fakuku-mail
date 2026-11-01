@@ -1,4 +1,4 @@
-# ExchangeMail
+# FAKUKU Mail (code name: ExchangeMail)
 
 Microsoft Exchange Online 계정을 쓰는 한국 사용자를 위한 맥용 메일 클라이언트.
 맥 Mail처럼 생겼고, 한글 첨부 파일명과 본문 이미지 문제를 보내기 전에 바로잡는다.

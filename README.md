@@ -1,4 +1,6 @@
-# ExchangeMail — Exchange 연동 맥용 메일 클라이언트
+# FAKUKU Mail — Exchange 연동 맥용 메일 클라이언트
+
+코드 이름은 `ExchangeMail`입니다(폴더, Swift 모듈, 실행 파일, 데이터 폴더). 화면과 Dock에 보이는 이름은 **FAKUKU Mail**입니다.
 
 맥 Mail과 비슷한 3단 레이아웃(폴더 / 목록 / 본문)의 SwiftUI 앱입니다.
 [BAMA](https://github.com/daveebbelaar/bama) 템플릿(Swift Package, macOS 26, Swift 6.2)으로 다시 만들었고,
@@ -23,7 +25,7 @@
 ./build.sh --open
 ```
 
-`~/Applications/ExchangeMail.app`이 설치되고 열립니다. 확인 단계:
+`~/Applications/FAKUKU Mail.app`이 설치되고 열립니다. 예전 `ExchangeMail.app`은 지워집니다. 확인 단계:
 
 ```bash
 swift test --scratch-path ~/Library/Developer/ExchangeMail/test-build   # 단위 테스트 (ExchangeMailKit)
@@ -47,7 +49,7 @@ tools/demo.sh        # 로그인 없이 예시 메일로 앱 둘러보기
 
 ## 번들 ID 바꾸기
 
-기본값은 `com.example.exchangemail`입니다. 본인 값으로 바꾸려면 다음 두 곳을 같이 고치세요. Azure 리디렉션 URI와 Keychain 항목 이름이 이 값을 씁니다.
+기본값은 `com.example.exchangemail`입니다. 앱 이름을 바꿔도 번들 ID는 그대로라서 Azure 등록을 다시 할 필요가 없습니다. 본인 값으로 바꾸려면 다음 두 곳을 같이 고치세요. Azure 리디렉션 URI와 Keychain 항목 이름이 이 값을 씁니다.
 
 - `Info.plist.in`의 `CFBundleIdentifier`
 - `tools/snap.sh`, `tools/selftest.sh`의 `savedState` 경로

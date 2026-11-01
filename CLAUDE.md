@@ -1,4 +1,7 @@
-# ExchangeMail
+# FAKUKU Mail (code name: ExchangeMail)
+
+The visible name is "FAKUKU Mail" (`Info.plist.in`, `build.sh` `display`, window title).
+Everything else keeps the code name `ExchangeMail`. Keep the bundle id: the Azure redirect URI depends on it.
 
 A native macOS mail client in SwiftUI for Microsoft Exchange Online.
 Mail stays on the server (Microsoft Graph). Local data: signatures in

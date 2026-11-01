@@ -3,7 +3,7 @@
 # Usage: tools/snap.sh                              all pages
 #        APP_SNAPSHOT_PAGES=inbox,compose,settings tools/snap.sh
 set -u
-app=~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail
+app="$HOME/Applications/FAKUKU Mail.app/Contents/MacOS/ExchangeMail"
 store=/tmp/ExchangeMail-test
 shots=/tmp/ExchangeMail-shots
 # A crashed run leaves saved window state, and the next launch would wait on a "reopen windows?" alert.

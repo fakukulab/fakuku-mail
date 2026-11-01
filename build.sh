@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Builds ExchangeMail and installs it to ~/Applications/ExchangeMail.app.
+# Builds ExchangeMail (shown as "FAKUKU Mail") and installs it to ~/Applications/FAKUKU Mail.app.
 # Build products live in ~/Library/Developer/ExchangeMail, outside the repo
 # (and outside Dropbox or iCloud, which would try to sync them).
 #
@@ -8,7 +8,8 @@
 #        ./build.sh --open     install, then quit the running copy and open the new one
 set -euo pipefail
 here=${0:A:h}
-name="ExchangeMail"
+name="ExchangeMail"          # executable and build folder (code name)
+display="FAKUKU Mail"       # the app people see: bundle file, Dock, menu bar
 scratch="$HOME/Library/Developer/$name/build"
 config=release
 [[ " $* " == *" --debug "* ]] && config=debug
@@ -32,7 +33,9 @@ if [[ -n "$stale" ]]; then
   exit 1
 fi
 
-app="$HOME/Applications/$name.app"
+app="$HOME/Applications/$display.app"
+# Earlier builds were installed under the code name. Keep one copy.
+rm -rf "$HOME/Applications/$name.app"
 mkdir -p "$HOME/Applications"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -51,7 +54,7 @@ codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing si
 echo "installed $app (signed: ${identity})"
 
 if [[ " $* " == *" --open "* ]]; then
-  osascript -e "quit app \"$name\"" 2>/dev/null || true
+  osascript -e "quit app \"$display\"" 2>/dev/null || true
   sleep 0.5
   open "$app"
 fi

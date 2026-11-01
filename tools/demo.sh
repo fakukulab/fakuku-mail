@@ -3,4 +3,4 @@
 set -u
 store=/tmp/ExchangeMail-demo
 rm -rf $store
-APP_STORE=$store APP_SEED=1 ~/Applications/ExchangeMail.app/Contents/MacOS/ExchangeMail &
+APP_STORE=$store APP_SEED=1 "$HOME/Applications/FAKUKU Mail.app/Contents/MacOS/ExchangeMail" &

@@ -2,7 +2,7 @@ import AppKit
 import ExchangeMailKit
 import SwiftUI
 
-// ExchangeMail
+// FAKUKU Mail (code name ExchangeMail)
 //   ExchangeMail                       the app (Microsoft Graph, real account)
 //   APP_STORE=<dir> ExchangeMail       keep signatures in another folder (tests, experiments)
 //   APP_SEED=1 ExchangeMail            demo mode: sample folders and mail, no sign-in (needs APP_STORE in /tmp)
@@ -20,7 +20,7 @@ struct ExchangeMailApp: App {
     @ObservedObject private var menu = MenuState.shared
 
     var body: some Scene {
-        Window("메일", id: "main") {
+        Window("FAKUKU Mail", id: "main") {
             ContentView()
                 .environment(model)
                 .themed()
