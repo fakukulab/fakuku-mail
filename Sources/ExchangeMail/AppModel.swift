@@ -11,11 +11,11 @@ final class AppModel {
     let addressBook: AddressBookStore
     /// 새 메일 알림과 Dock 배지 (S-024)
     @ObservationIgnored let notifier: any MailNotifier
-    private(set) var notificationPermission = NotifyPermission.notAsked
-    @ObservationIgnored private var tracker = NewMailTracker()
-    @ObservationIgnored private var trackerLoaded = false
+    var notificationPermission = NotifyPermission.notAsked
+    @ObservationIgnored var tracker = NewMailTracker()
+    @ObservationIgnored var trackerLoaded = false
     /// 알림을 눌러 열 메일. 받은 편지함 목록이 오면 고른다.
-    @ObservationIgnored private var pendingOpenID: String?
+    @ObservationIgnored var pendingOpenID: String?
     let isDemo: Bool
     @ObservationIgnored let service: any MailService
     /// 본문 웹 보기 넘기기 (S-019)
@@ -292,123 +292,6 @@ final class AppModel {
     func allowRemoteContentForSelection() {
         allowRemoteFor = detail?.id
         updateMenu()
-    }
-
-    // MARK: 작성
-
-    /// 고른 메일에서 답장·전달 초안을 만든다. 새 메시지는 빈 초안.
-    func draft(_ kind: ComposeKind) -> ComposeDraft? {
-        guard kind != .new else { return ComposeDraft() }
-        guard let m = detail else { return nil }
-        let body = detailBody?.isHTML == true
-            ? detailBody?.content ?? ""
-            : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(detailBody?.content ?? ""))</pre>"
-        return ReplyBuilder.draft(kind: kind, message: m, bodyHTML: body, myAddress: auth.email)
-    }
-
-    // MARK: 새 메일 알림 (S-024)
-
-    static func setting(_ key: String) -> Bool {
-        UserDefaults.standard.object(forKey: key) as? Bool ?? true
-    }
-    var notifyNewMail: Bool { Self.setting("notify.newMail") }
-    var notifySound: Bool { Self.setting("notify.sound") }
-    var showBadge: Bool { Self.setting("notify.badge") }
-
-    /// 로그인한 뒤 한 번: 알림을 켜 두었으면 권한을 묻는다(처음일 때만).
-    func prepareNotifications() async {
-        guard isSignedIn else { return }
-        if notifyNewMail {
-            notificationPermission = await notifier.requestPermission()
-        } else {
-            notificationPermission = await notifier.permission()
-        }
-    }
-
-    func refreshNotificationPermission() async {
-        notificationPermission = await notifier.permission()
-    }
-
-    /// 받은 편지함을 보고 새 메일을 알린다. 앱이 뒤에 있어도 2분마다 불린다. 오류는 조용히 넘긴다.
-    func checkNewMail() async {
-        guard isSignedIn else { return }
-        loadTracker()
-        guard let page = try? await service.messages(folderID: "inbox", search: nil) else { return }
-        let fresh = tracker.take(page.messages)
-        saveTracker()
-        if notifyNewMail && notificationPermission == .allowed {
-            for n in MailNotification.make(for: fresh) { notifier.post(n, sound: notifySound) }
-        }
-        if !fresh.isEmpty {
-            await loadFolders()
-            if selectedFolder?.kind == "inbox" && searchText.isEmpty { await loadMessages(keepSelection: true) }
-        }
-    }
-
-    /// Dock 배지 = 받은 편지함의 읽지 않은 수. 설정에서 끄면 지운다.
-    func updateBadge() {
-        let unread = folders.first { $0.kind == "inbox" }?.unreadItemCount
-        notifier.setBadge(showBadge && isSignedIn ? DockBadge.label(unread: unread) : nil)
-    }
-
-    /// 알림을 눌렀을 때: 받은 편지함에서 그 메일을 연다. 요약 알림(id 없음)은 받은 편지함만 연다.
-    func openFromNotification(_ id: String?) async {
-        guard isSignedIn else { return }
-        let inboxID = folders.first { $0.kind == "inbox" }?.id ?? "inbox"
-        pendingOpenID = id
-        if selectedFolderID != inboxID {
-            selectedFolderID = inboxID   // didSet이 목록을 불러오고 pendingOpenID를 고른다
-        } else {
-            searchText = ""
-            await loadMessages(keepSelection: true)
-        }
-    }
-
-    /// 새 메일 기준은 계정마다 UserDefaults에 둔다. 테스트 실행(APP_STORE)은 메모리에만.
-    private var trackerKey: String { "newMail.tracker.\((auth.email ?? "").lowercased())" }
-
-    private func loadTracker() {
-        guard !trackerLoaded else { return }
-        trackerLoaded = true
-        guard !Store.isOverridden, let data = UserDefaults.standard.data(forKey: trackerKey),
-              let saved = try? JSONDecoder().decode(NewMailTracker.self, from: data) else { return }
-        tracker = saved
-    }
-
-    private func saveTracker() {
-        guard !Store.isOverridden, let data = try? JSONEncoder().encode(tracker) else { return }
-        UserDefaults.standard.set(data, forKey: trackerKey)
-    }
-
-    // MARK: 초안 (S-022)
-
-    var isDraftSelected: Bool { selectedFolder?.kind == "drafts" && detail != nil }
-
-    /// 임시 보관함의 고른 초안을 이어서 쓰는 시작 값.
-    func resumeDraft() -> ComposeDraft? {
-        guard isDraftSelected, let m = detail else { return nil }
-        return ReplyBuilder.resume(draft: m, bodyHTML: detailBody?.content ?? "")
-    }
-
-    /// 초안을 저장하거나 지운 뒤: 폴더 수를 고치고, 임시 보관함을 보고 있으면 목록을 다시 읽는다.
-    func draftsChanged() async {
-        await loadFolders()
-        if selectedFolder?.kind == "drafts" { await loadMessages(keepSelection: true) }
-    }
-
-    func save(attachment: FileAttachment) {
-        guard let data = attachment.data else {
-            errorMessage = "이 첨부는 파일이 아니라서 저장할 수 없습니다. Outlook 웹에서 열어 주세요."
-            return
-        }
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = FilenameEncoder.normalize(attachment.name)
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try data.write(to: url)
-        } catch {
-            report(error)
-        }
     }
 
     // MARK: helpers
