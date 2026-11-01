@@ -2,56 +2,47 @@ import AppKit
 import ExchangeMailKit
 import SwiftUI
 
-/// 작성 창: 새 메시지, 답장, 전체 답장, 전달.
+/// 작성 창: 새 메시지, 답장, 전체 답장, 전달. 상태와 동작은 ComposeModel에 있다.
 struct ComposeView: View {
-    let draft: ComposeDraft
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("fixEnabled") private var fixDefault = true
     @AppStorage("fixImagesAsAttachments") private var imagesAsAttachments = true
 
-    @State private var editor = RichTextController()
-    @State private var to = ""
-    @State private var cc = ""
-    @State private var bcc = ""
-    @State private var showBcc = false
-    @State private var subject = ""
-    @State private var files: [URL] = []
-    @State private var forwarded: [FileAttachment] = []
-    @State private var signatureID: UUID?
-    @State private var fixEnabled = true
-    @State private var sending = false
-    @State private var error: String?
-    @State private var errorTitle = "보낼 수 없습니다"
-    @State private var didSetUp = false
+    @State private var compose: ComposeModel
     @State private var dropTargeted = false
     @FocusState private var focus: Field?
 
     private enum Field { case to, cc, bcc, subject }
 
+    init(draft: ComposeDraft) {
+        _compose = State(initialValue: ComposeModel(draft: draft))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
-            FormatToolbar(controller: editor)
+            FormatToolbar(controller: compose.editor)
             Divider()
-            RichTextEditor(controller: editor)
-            if !files.isEmpty || !forwarded.isEmpty || movedImageCount > 0 {
+            RichTextEditor(controller: compose.editor)
+            if !compose.files.isEmpty || !compose.forwarded.isEmpty || movedImageCount > 0 {
                 Divider()
                 attachmentBar
             }
         }
-        .navigationTitle(subject.isEmpty ? draft.kind.label : subject)
+        .navigationTitle(compose.windowTitle)
         .toolbar { toolbar }
-        .alert(errorTitle, isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+        .alert(compose.errorTitle, isPresented: Binding(get: { compose.error != nil },
+                                                         set: { if !$0 { compose.error = nil } })) {
             Button("확인", role: .cancel) {}
         } message: {
-            Text(error ?? "")
+            Text(compose.error ?? "")
         }
         // 창 어디에 놓아도 첨부가 된다 (S-017). 편집기 위도 여기로 온다 (RichTextController.makeWebView).
         .dropDestination(for: URL.self) { urls, _ in
-            addFiles(urls.filter(\.isFileURL))
+            compose.addFiles(urls.filter(\.isFileURL))
             return true
         } isTargeted: { dropTargeted = $0 }
         .overlay {
@@ -63,27 +54,35 @@ struct ComposeView: View {
                     .accessibilityHidden(true)
             }
         }
-        .task { await setUp() }
+        .task {
+            await compose.setUp(app: model, fixDefault: fixDefault)
+            if compose.draft.to.isEmpty {
+                focus = .to
+            } else {
+                compose.editor.focusStart()
+            }
+        }
     }
 
     // MARK: 머리글
 
     private var header: some View {
-        VStack(spacing: 0) {
+        @Bindable var compose = compose
+        return VStack(spacing: 0) {
             row("받는 사람:") {
-                TextField("받는 사람", text: $to, prompt: Text("이름 <주소>, 주소…"))
+                TextField("받는 사람", text: $compose.to, prompt: Text("이름 <주소>, 주소…"))
                     .focused($focus, equals: .to)
-                    .addressSuggestions(for: to, from: model.addressBook)
+                    .addressSuggestions(for: compose.to, from: model.addressBook)
             }
             Divider()
             row("참조:") {
                 HStack(spacing: Space.sm) {
-                    TextField("참조", text: $cc)
+                    TextField("참조", text: $compose.cc)
                         .focused($focus, equals: .cc)
-                        .addressSuggestions(for: cc, from: model.addressBook)
-                    if !showBcc {
+                        .addressSuggestions(for: compose.cc, from: model.addressBook)
+                    if !compose.showBcc {
                         Button("숨은 참조") {
-                            showBcc = true
+                            compose.showBcc = true
                             focus = .bcc
                         }
                         .buttonStyle(.borderless)
@@ -91,22 +90,22 @@ struct ComposeView: View {
                     }
                 }
             }
-            if showBcc {
+            if compose.showBcc {
                 Divider()
                 row("숨은 참조:") {
-                    TextField("숨은 참조", text: $bcc)
+                    TextField("숨은 참조", text: $compose.bcc)
                         .focused($focus, equals: .bcc)
-                        .addressSuggestions(for: bcc, from: model.addressBook)
+                        .addressSuggestions(for: compose.bcc, from: model.addressBook)
                 }
             }
             Divider()
             row("제목:") {
-                TextField("제목", text: $subject)
+                TextField("제목", text: $compose.subject)
                     .focused($focus, equals: .subject)
             }
             Divider()
             HStack(spacing: Space.lg) {
-                Picker("서명:", selection: $signatureID) {
+                Picker("서명:", selection: $compose.signatureID) {
                     Text("없음").tag(UUID?.none)
                     if !model.signatures.signatures.isEmpty { Divider() }
                     ForEach(model.signatures.signatures) { s in
@@ -114,12 +113,9 @@ struct ComposeView: View {
                     }
                 }
                 .fixedSize()
-                .onChange(of: signatureID) { _, id in
-                    guard didSetUp else { return }
-                    editor.replaceSignature(blockHTML: SignatureComposer.block(for: model.signatures.signature(id: id)))
-                }
+                .onChange(of: compose.signatureID) { _, _ in compose.signatureChanged(app: model) }
                 Spacer()
-                Toggle("첨부 보정", isOn: $fixEnabled)
+                Toggle("첨부 보정", isOn: $compose.fixEnabled)
                     .toggleStyle(.checkbox)
                     .help("본문 그림을 일반 첨부로 보내고, 한글 파일명을 Windows·Outlook에서 읽히게 기록합니다. 이 메일에만 적용됩니다.")
             }
@@ -142,24 +138,22 @@ struct ComposeView: View {
 
     // MARK: 첨부 막대
 
-    private var movedImageCount: Int {
-        fixEnabled && imagesAsAttachments ? HTMLProcessor.bodyImageCount(in: editor.html) : 0
-    }
+    private var movedImageCount: Int { compose.movedImageCount(imagesAsAttachments: imagesAsAttachments) }
 
     private var attachmentBar: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            if !files.isEmpty || !forwarded.isEmpty {
+            if !compose.files.isEmpty || !compose.forwarded.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing: Space.sm) {
-                        ForEach(files, id: \.self) { url in
+                        ForEach(compose.files, id: \.self) { url in
                             AttachmentChip(name: FilenameEncoder.normalize(url.lastPathComponent),
                                            size: (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil) {
-                                files.removeAll { $0 == url }
+                                compose.removeFile(url)
                             }
                         }
-                        ForEach(forwarded) { a in
+                        ForEach(compose.forwarded) { a in
                             AttachmentChip(name: FilenameEncoder.normalize(a.name), size: a.size) {
-                                forwarded.removeAll { $0.id == a.id }
+                                compose.removeForwarded(a)
                             }
                         }
                     }
@@ -189,58 +183,18 @@ struct ComposeView: View {
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
-                Task { await send() }
+                Task { if await compose.send(app: model) { dismiss() } }
             } label: {
-                if sending {
+                if compose.sending {
                     ProgressView().controlSize(.small)
                 } else {
                     Label("보내기", systemImage: "paperplane.fill")
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(sending)
+            .disabled(compose.sending)
             .keyboardShortcut("d", modifiers: [.command, .shift])
             .help("보내기 (⇧⌘D)")
-        }
-    }
-
-    // MARK: 동작
-
-    private func setUp() async {
-        guard !didSetUp else { return }
-        to = draft.to
-        cc = draft.cc
-        bcc = draft.bcc
-        showBcc = !draft.bcc.isEmpty
-        subject = draft.subject
-        fixEnabled = fixDefault
-        let sig = model.signatures.defaultSignature(kind: draft.kind, account: model.auth.email)
-        signatureID = sig?.id
-        editor.setHTML("<div><br></div>" + SignatureComposer.block(for: sig) + draft.quoteHTML)
-        editor.onFileDrop = { urls in addFiles(urls) }
-        didSetUp = true
-        if draft.to.isEmpty {
-            focus = .to
-        } else {
-            editor.focusStart()
-        }
-        if let source = draft.forwardAttachmentsFrom {
-            do {
-                forwarded = try await model.service.attachments(messageID: source).filter { $0.isListed && $0.isFile }
-            } catch {
-                errorTitle = "첨부를 가져오지 못했습니다"
-                self.error = "원본 첨부를 가져오지 못했습니다: \(error.localizedDescription)"
-            }
-        }
-    }
-
-    /// 파일 선택 창과 끌어다 놓기가 같이 쓴다. 같은 파일은 한 번만, 폴더는 건너뛴다.
-    private func addFiles(_ urls: [URL]) {
-        let result = AttachmentList.merge(files, adding: urls)
-        files = result.files
-        if !result.skipped.isEmpty {
-            errorTitle = "첨부할 수 없습니다"
-            error = "폴더는 첨부할 수 없습니다: \(result.skipped.joined(separator: ", ")). 압축한 뒤 첨부하세요."
         }
     }
 
@@ -249,30 +203,7 @@ struct ComposeView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         if panel.runModal() == .OK {
-            addFiles(panel.urls)
-        }
-    }
-
-    private func send() async {
-        errorTitle = "보낼 수 없습니다"
-        sending = true
-        defer { sending = false }
-        let input = ComposeSender.Input(
-            from: MailAddress(name: model.auth.displayName, address: model.auth.email ?? ""),
-            to: to, cc: cc, bcc: showBcc ? bcc : "", subject: subject, bodyHTML: editor.html,
-            files: files,
-            extraAttachments: forwarded.compactMap { a in
-                a.data.map { OutgoingAttachment(filename: a.name, mimeType: a.contentType ?? "application/octet-stream", data: $0) }
-            },
-            draft: draft, fixEnabled: fixEnabled)
-        do {
-            let mime = try ComposeSender.build(input, options: ComposeSender.defaultOptions())
-            try await model.service.sendMIME(mime)
-            let sentTo = [to, cc, showBcc ? bcc : ""].flatMap { AddressParser.parse($0).valid }
-            model.addressBook.noteSent(sentTo, me: model.auth.email)
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
+            compose.addFiles(panel.urls)
         }
     }
 }
