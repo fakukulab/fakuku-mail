@@ -264,8 +264,9 @@ final class AppModel {
         await setRead(id: m.id, m.isUnread)
     }
 
-    func archiveSelected() async {
-        await moveSelected(to: "archive", undoManager: nil, undoName: "보관")
+    /// 보관도 지우기처럼 ⌘Z로 되돌린다 (창의 되돌리기 관리자를 넘긴다).
+    func archiveSelected(undoManager: UndoManager? = nil) async {
+        await moveSelected(to: "archive", undoManager: undoManager, undoName: "보관")
     }
 
     func deleteSelected(undoManager: UndoManager?) async {

@@ -101,7 +101,7 @@ struct MessageListView: View {
         Divider()
         Button("보관") {
             model.selectedMessageID = m.id
-            Task { await model.archiveSelected() }
+            Task { await model.archiveSelected(undoManager: undoManager) }
         }
         Button("지우기", role: .destructive) {
             model.selectedMessageID = m.id

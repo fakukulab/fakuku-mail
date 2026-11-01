@@ -191,15 +191,31 @@ enum SelfTest {
             undo.endUndoGrouping()
             check("S-012 지우면 목록에서 사라진다", model.messages.count == countBefore - 2)
             check("S-012 되돌리기가 등록된다", undo.canUndo)
+            undo.undo()
+            try? await Task.sleep(for: .seconds(0.8))
+            check("S-012 ⌘Z로 지운 메일이 돌아온다", model.messages.count == countBefore - 1)
+
+            // S-011: 보관도 ⌘Z로 되돌린다
+            let archiveUndo = UndoManager()
+            archiveUndo.groupsByEvent = false
+            let beforeArchive = model.messages.count
+            archiveUndo.beginUndoGrouping()
+            await model.archiveSelected(undoManager: archiveUndo)
+            archiveUndo.endUndoGrouping()
+            check("S-011 보관하면 되돌리기가 등록된다", archiveUndo.canUndo && model.messages.count < beforeArchive)
+            archiveUndo.undo()
+            try? await Task.sleep(for: .seconds(0.8))
+            check("S-011 ⌘Z로 보관한 메일이 돌아온다", model.messages.count == beforeArchive)
 
             // S-014
+            let listCount = model.messages.count
             model.searchText = "견적"
             await model.loadMessages()
             check("S-014 검색은 맞는 메일만 보인다",
                   !model.messages.isEmpty && model.messages.allSatisfy { $0.title.contains("견적") })
             model.searchText = ""
             await model.loadMessages()
-            check("S-014 검색어를 지우면 원래 목록", model.messages.count == countBefore - 2)
+            check("S-014 검색어를 지우면 원래 목록", model.messages.count == listCount)
 
             // S-015
             if let keep = model.messages.first?.id {

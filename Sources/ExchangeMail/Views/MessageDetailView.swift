@@ -83,7 +83,7 @@ struct MessageDetailView: View {
         // 선택한 메일에 대한 동작은 본문 열 위에, 오른쪽으로 민다.
         ToolbarSpacer(.flexible)
         ToolbarItemGroup {
-            Button("보관", systemImage: "archivebox") { Task { await model.archiveSelected() } }
+            Button("보관", systemImage: "archivebox") { Task { await model.archiveSelected(undoManager: undoManager) } }
                 .help("보관 (⌃⌘A)")
                 .disabled(model.detail == nil)
             Button("지우기", systemImage: "trash") { Task { await model.deleteSelected(undoManager: undoManager) } }

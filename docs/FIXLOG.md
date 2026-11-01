@@ -13,3 +13,18 @@ Symptom: build warning in GraphAuth.swift.
 Cause: the macOS 26 SDK already marks the protocol `@MainActor`.
 Fix: plain conformance; the main-actor method is the witness.
 Rule: Before adding `@preconcurrency` or `nonisolated` to an AppKit or WebKit delegate, check whether the SDK already marks it `@MainActor`.
+
+## 2026-11-01 Archive could not be undone with Command-Z
+
+Symptom: after Archive (menu, toolbar, or context menu), Command-Z did nothing.
+Cause: `archiveSelected()` passed `undoManager: nil` to `moveSelected`; only Delete registered an undo.
+Fix: every Archive caller passes the window's undo manager; the self-test now undoes both Archive and Delete.
+Rule: Every destructive or moving action takes the window's UndoManager, and the self-test calls `undo()` on it.
+
+## 2026-11-01 View > Organize by Conversation shortcut did nothing
+
+Symptom: Option-Command-T did not toggle conversations.
+Cause: Option-Command-T is macOS's Show/Hide Toolbar (from `ToolbarCommands`), which wins. The toggle also kept
+`@AppStorage` inside `Commands`, which does not redraw the menu.
+Fix: Control-Command-T; the App owns `@AppStorage("list.threaded")` and passes a binding to `MailCommands`.
+Rule: Before picking a menu shortcut, check the standard View, Edit, and Window menu shortcuts; keep menu state in the App.

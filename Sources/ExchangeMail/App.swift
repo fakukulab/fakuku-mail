@@ -19,6 +19,8 @@ struct ExchangeMailApp: App {
     @State private var model = AppModel.make()
     /// SwiftUI Commands do not observe @Observable models. MenuState mirrors what the menus need.
     @ObservedObject private var menu = MenuState.shared
+    /// 보기 > 대화별로 정리. App이 들고 있어야 바꿀 때 메뉴(체크 표시)가 다시 그려진다.
+    @AppStorage("list.threaded") private var threaded = true
 
     var body: some Scene {
         Window("FAKUKU Mail", id: "main") {
@@ -33,7 +35,7 @@ struct ExchangeMailApp: App {
         .commands {
             SidebarCommands()
             ToolbarCommands()
-            MailCommands(model: model, menu: menu.snapshot)
+            MailCommands(model: model, menu: menu.snapshot, threaded: $threaded)
         }
 
         WindowGroup("새로운 메시지", id: "compose", for: ComposeDraft.self) { $draft in
@@ -76,7 +78,7 @@ struct MailCommands: Commands {
     let model: AppModel
     let menu: MenuSnapshot
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("list.threaded") private var threaded = true
+    @Binding var threaded: Bool
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -85,8 +87,9 @@ struct MailCommands: Commands {
                 .disabled(!menu.signedIn)
         }
         CommandGroup(after: .sidebar) {
+            // ⌥⌘T는 macOS의 "도구 막대 가리기"라 쓰지 않는다.
             Toggle("대화별로 정리", isOn: $threaded)
-                .keyboardShortcut("t", modifiers: [.command, .option])
+                .keyboardShortcut("t", modifiers: [.command, .control])
         }
         CommandMenu("메시지") {
             Button("답장") { compose(.reply) }
@@ -102,7 +105,7 @@ struct MailCommands: Commands {
                 .keyboardShortcut("o")
                 .disabled(!menu.isDraft)
             Divider()
-            Button("보관") { Task { await model.archiveSelected() } }
+            Button("보관") { Task { await model.archiveSelected(undoManager: NSApp.keyWindow?.undoManager) } }
                 .keyboardShortcut("a", modifiers: [.command, .control])
                 .disabled(!menu.hasMessage)
             // Delete 키는 목록의 onDeleteCommand가 맡는다 (메뉴 단축키로 쓰면 글자 입력 중에도 지워진다).
