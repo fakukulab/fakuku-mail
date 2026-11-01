@@ -126,6 +126,15 @@ enum SelfTest {
                 try? FileManager.default.removeItem(at: nfdFile)
             }
 
+            // S-018: 읽은 메일의 주소로 자동완성
+            let found = model.addressBook.suggestions(for: "민지")
+            check("S-018 읽은 메일의 주소가 자동완성에 나온다", found.first?.address == "minji.kim@fabrikam.com")
+            check("S-018 내 주소는 자동완성에 없다",
+                  model.addressBook.suggestions(for: "me@").allSatisfy { $0.address != DemoMailService.myAddress })
+            check("S-018 고르면 마지막 항목이 주소로 바뀐다",
+                  AddressBook.complete("a@b.com, 민지", with: MailAddress(name: "김민지", address: "minji.kim@fabrikam.com"))
+                      == "a@b.com, 김민지 <minji.kim@fabrikam.com>, ")
+
             // S-017: 끌어다 놓기와 파일 선택이 같이 쓰는 규칙 (실제 파일로)
             let dropDir = FileManager.default.temporaryDirectory.appending(path: "selftest-drop", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: dropDir.appending(path: "폴더"), withIntermediateDirectories: true)

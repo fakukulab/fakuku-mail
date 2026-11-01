@@ -8,6 +8,7 @@ import SwiftUI
 final class AppModel {
     let auth: GraphAuth
     let signatures: SignatureStore
+    let addressBook: AddressBookStore
     let isDemo: Bool
     @ObservationIgnored let service: any MailService
 
@@ -54,7 +55,8 @@ final class AppModel {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
     }
 
-    init(auth: GraphAuth, signatures: SignatureStore, service: any MailService, isDemo: Bool) {
+    init(auth: GraphAuth, signatures: SignatureStore, addressBook: AddressBookStore, service: any MailService, isDemo: Bool) {
+        self.addressBook = addressBook
         self.auth = auth
         self.signatures = signatures
         self.service = service
@@ -63,12 +65,13 @@ final class AppModel {
 
     static func make() -> AppModel {
         let signatures = SignatureStore(url: Store.directory.appending(path: "signatures.json"))
+        let addressBook = AddressBookStore(url: Store.directory.appending(path: "recipients.json"))
         let auth = GraphAuth(demoEmail: Store.isDemo ? DemoMailService.myAddress : nil)
         if Store.isDemo {
             if signatures.signatures.isEmpty { DemoMailService.seedSignatures(into: signatures) }
-            return AppModel(auth: auth, signatures: signatures, service: DemoMailService(), isDemo: true)
+            return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: DemoMailService(), isDemo: true)
         }
-        return AppModel(auth: auth, signatures: signatures, service: GraphMailService(auth: auth), isDemo: false)
+        return AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: GraphMailService(auth: auth), isDemo: false)
     }
 
     var isSignedIn: Bool { auth.isSignedIn }
@@ -125,6 +128,7 @@ final class AppModel {
             // 기다리는 사이 폴더나 검색어가 바뀌었으면 버린다.
             guard folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) else { return }
             messages = page.messages
+            addressBook.noteSeen(page.messages, me: auth.email)
             nextLink = page.nextLink
             if !(keepSelection && messages.contains { $0.id == selectedMessageID }) {
                 selectedMessageID = nil
@@ -164,6 +168,7 @@ final class AppModel {
             }
             guard id == selectedMessageID else { return }
             detail = m
+            addressBook.noteSeen([m], me: auth.email)
             detailAttachments = attachments
             if let body = m.body {
                 detailBody = body.isHTML

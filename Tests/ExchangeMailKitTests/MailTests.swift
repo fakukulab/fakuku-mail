@@ -223,3 +223,41 @@ func signatureReplace() {
     let added = SignatureComposer.replace(in: "<p>hi</p>" + quote, with: s1)
     #expect(added.range(of: "data-signature")!.lowerBound < added.range(of: "data-quote")!.lowerBound)
 }
+
+// S-018 받는 사람 자동완성
+
+@Test("자동완성은 마지막 항목을 이름이나 주소로 찾고, 칸에 있는 주소와 내 주소는 뺀다")
+func addressSuggestions() {
+    var book = AddressBook()
+    let minji = MailAddress(name: "김민지", address: "minji.kim@fabrikam.com")
+    let min = MailAddress(name: "민경호", address: "kh.min@contoso.co.kr")
+    let me = MailAddress(name: "나", address: "me@contoso.co.kr")
+    book.noteSeen([minji, min, me], me: "ME@contoso.co.kr")
+    #expect(book.entries.count == 2)
+    #expect(book.suggestions(for: "민").map(\.address) == ["kh.min@contoso.co.kr", "minji.kim@fabrikam.com"])
+    #expect(book.suggestions(for: "min").count == 2)
+    #expect(book.suggestions(for: "김민지 <minji.kim@fabrikam.com>, 민").map(\.address) == ["kh.min@contoso.co.kr"])
+    #expect(book.suggestions(for: "").isEmpty)
+    #expect(book.suggestions(for: "a, ").isEmpty)
+}
+
+@Test("많이 보낸 사람이 위로 온다")
+func sentRanksHigher() {
+    var book = AddressBook()
+    let a = MailAddress(name: "박서준", address: "seojun.park@fabrikam.com")
+    let b = MailAddress(name: "박서연", address: "seoyeon.park@fabrikam.com")
+    book.noteSeen([a, b], me: nil)
+    book.noteSeen([a], me: nil)
+    book.noteSent([b], me: nil)
+    #expect(book.suggestions(for: "박").first?.address == "seoyeon.park@fabrikam.com")
+}
+
+@Test("고른 주소로 마지막 항목을 바꾼다", arguments: [
+    ("민", "김민지 <minji.kim@fabrikam.com>, "),
+    ("a@b.com, 민", "a@b.com, 김민지 <minji.kim@fabrikam.com>, "),
+    ("\"Kim, Lee\" <kl@y.co.kr>; 민", "\"Kim, Lee\" <kl@y.co.kr>; 김민지 <minji.kim@fabrikam.com>, "),
+])
+func completeAddress(_ input: String, _ expected: String) {
+    let minji = MailAddress(name: "김민지", address: "minji.kim@fabrikam.com")
+    #expect(AddressBook.complete(input, with: minji) == expected)
+}

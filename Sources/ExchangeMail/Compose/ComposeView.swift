@@ -73,12 +73,14 @@ struct ComposeView: View {
             row("받는 사람:") {
                 TextField("받는 사람", text: $to, prompt: Text("이름 <주소>, 주소…"))
                     .focused($focus, equals: .to)
+                    .addressSuggestions(for: to, from: model.addressBook)
             }
             Divider()
             row("참조:") {
                 HStack(spacing: Space.sm) {
                     TextField("참조", text: $cc)
                         .focused($focus, equals: .cc)
+                        .addressSuggestions(for: cc, from: model.addressBook)
                     if !showBcc {
                         Button("숨은 참조") {
                             showBcc = true
@@ -94,6 +96,7 @@ struct ComposeView: View {
                 row("숨은 참조:") {
                     TextField("숨은 참조", text: $bcc)
                         .focused($focus, equals: .bcc)
+                        .addressSuggestions(for: bcc, from: model.addressBook)
                 }
             }
             Divider()
@@ -265,6 +268,8 @@ struct ComposeView: View {
         do {
             let mime = try ComposeSender.build(input, options: ComposeSender.defaultOptions())
             try await model.service.sendMIME(mime)
+            let sentTo = [to, cc, showBcc ? bcc : ""].flatMap { AddressParser.parse($0).valid }
+            model.addressBook.noteSent(sentTo, me: model.auth.email)
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -298,5 +303,21 @@ struct AttachmentChip: View {
         .padding(.horizontal, Space.sm)
         .padding(.vertical, Space.xs)
         .background(.quaternary, in: Capsule())
+    }
+}
+
+extension View {
+    /// 받는 사람 칸 자동완성 (S-018). 마지막 항목으로 주소록을 찾고, 고르면 그 항목을 주소로 바꾼다.
+    func addressSuggestions(for text: String, from book: AddressBookStore) -> some View {
+        textInputSuggestions {
+            ForEach(book.suggestions(for: text), id: \.self) { address in
+                Label {
+                    Text(address.editable)
+                } icon: {
+                    Image(systemName: "person.crop.circle")
+                }
+                .textInputCompletion(AddressBook.complete(text, with: address))
+            }
+        }
     }
 }

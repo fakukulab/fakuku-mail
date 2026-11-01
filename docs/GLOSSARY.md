@@ -14,7 +14,8 @@
 | 첨부 보정 | `FixOptions` | 본문 이미지 → 첨부, 한글 파일명 인코딩 |
 | 본문 이미지 | `ExtractedImage` (`contentID == nil`) | 서명 밖에 넣은 이미지. 보정 시 일반 첨부가 됨 |
 | 인라인 이미지 | `ExtractedImage` (`contentID != nil`) | 서명 안 이미지. `cid:`로 본문에 남음 |
-| 원격 이미지 | `RemoteContentPolicy` | http(s)에서 불러오는 이미지. 기본은 차단 |
+| 원격 이미지 | `MailContent.hasRemoteContent` | http(s)에서 불러오는 이미지. 기본은 차단 |
+| 주소록 | `AddressBook`, `AddressBookStore` | 자동완성용, 주고받은 메일에서 모은 주소 (`recipients.json`) |
 | 보관 | `MailService.move(to: "archive")` | |
 | 지우기 | `MailService.move(to: "deleteditems")` | 완전 삭제가 아니라 지운 편지함으로 옮김 |
 | 데모 모드 | `DemoMailService` | 로그인 없이 예시 메일로 도는 모드 (`APP_SEED=1`) |
