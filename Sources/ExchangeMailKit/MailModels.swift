@@ -131,6 +131,7 @@ public struct MailMessage: Decodable, Identifiable, Hashable, Sendable {
     public var from: Recipient?
     public var toRecipients: [Recipient]?
     public var ccRecipients: [Recipient]?
+    public var bccRecipients: [Recipient]?
     public var receivedDateTime: Date?
     public var bodyPreview: String?
     public var isRead: Bool?
@@ -150,6 +151,7 @@ public struct MailMessage: Decodable, Identifiable, Hashable, Sendable {
         self.from = from
         self.toRecipients = toRecipients
         self.ccRecipients = ccRecipients
+        self.bccRecipients = nil
         self.receivedDateTime = receivedDateTime
         self.bodyPreview = bodyPreview
         self.isRead = isRead

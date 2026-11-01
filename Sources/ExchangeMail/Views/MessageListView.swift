@@ -27,6 +27,12 @@ struct MessageListView: View {
         }
         .onDeleteCommand { Task { await model.deleteSelected(undoManager: undoManager) } }
         // ↑↓는 List가 처리한다. Space/⇧Space는 본문을 넘기고, 끝에서 다음/이전 메일로 (S-019).
+        // 임시 보관함에서 Return은 초안을 이어서 쓴다 (S-022).
+        .onKeyPress(.return) {
+            guard let d = model.resumeDraft() else { return .ignored }
+            openWindow(id: "compose", value: d)
+            return .handled
+        }
         .onKeyPress(.space, phases: .down) { press in
             let down = !press.modifiers.contains(.shift)
             Task { await model.pageOrAdvance(down: down) }

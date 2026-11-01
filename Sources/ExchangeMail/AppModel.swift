@@ -286,6 +286,22 @@ final class AppModel {
         return ReplyBuilder.draft(kind: kind, message: m, bodyHTML: body, myAddress: auth.email)
     }
 
+    // MARK: 초안 (S-022)
+
+    var isDraftSelected: Bool { selectedFolder?.kind == "drafts" && detail != nil }
+
+    /// 임시 보관함의 고른 초안을 이어서 쓰는 시작 값.
+    func resumeDraft() -> ComposeDraft? {
+        guard isDraftSelected, let m = detail else { return nil }
+        return ReplyBuilder.resume(draft: m, bodyHTML: detailBody?.content ?? "")
+    }
+
+    /// 초안을 저장하거나 지운 뒤: 폴더 수를 고치고, 임시 보관함을 보고 있으면 목록을 다시 읽는다.
+    func draftsChanged() async {
+        await loadFolders()
+        if selectedFolder?.kind == "drafts" { await loadMessages(keepSelection: true) }
+    }
+
     func save(attachment: FileAttachment) {
         guard let data = attachment.data else {
             errorMessage = "이 첨부는 파일이 아니라서 저장할 수 없습니다. Outlook 웹에서 열어 주세요."
@@ -313,6 +329,7 @@ final class AppModel {
             signedIn: isSignedIn,
             hasMessage: detail != nil && selectedMessageID != nil,
             isUnread: selectedMessage?.isUnread ?? false,
+            isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed))
     }
 }

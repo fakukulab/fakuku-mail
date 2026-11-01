@@ -13,8 +13,12 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
     /// 답장하는 원본의 Message-ID
     public var inReplyTo: String?
     public var references: [String] = []
-    /// 전달할 때 첨부를 가져올 원본 메시지 id (Graph id)
+    /// 전달할 때(또는 초안을 다시 열 때) 첨부를 가져올 메시지 id (Graph id)
     public var forwardAttachmentsFrom: String?
+    /// 다시 연 초안의 id. 다시 저장하거나 보내면 이 초안을 지운다 (S-022).
+    public var draftMessageID: String?
+    /// 다시 연 초안의 본문 전체. 있으면 서명과 인용문을 새로 넣지 않는다.
+    public var bodyHTML: String?
 
     public init(kind: ComposeKind = .new, to: String = "", subject: String = "") {
         self.kind = kind
@@ -101,6 +105,25 @@ public enum ReplyBuilder {
         let rest = html[open.upperBound...]
         let close = rest.range(of: "</body>", options: .caseInsensitive)?.lowerBound ?? rest.endIndex
         return String(rest[..<close])
+    }
+
+    /// 임시 보관함의 초안을 이어서 쓰는 시작 값 (S-022). 받는 사람, 제목, 본문, 첨부를 그대로 옮긴다.
+    public static func resume(draft m: MailMessage, bodyHTML: String) -> ComposeDraft {
+        var d = ComposeDraft(kind: .new)
+        func list(_ r: [Recipient]?) -> String { AddressParser.format((r ?? []).compactMap { $0.emailAddress.mailAddress }) }
+        d.to = list(m.toRecipients)
+        d.cc = list(m.ccRecipients)
+        d.bcc = list(m.bccRecipients)
+        d.subject = m.subject ?? ""
+        d.bodyHTML = extractBody(bodyHTML)
+        d.draftMessageID = m.id
+        d.forwardAttachmentsFrom = (m.hasAttachments ?? false) ? m.id : nil
+        // 답장 초안이면 저장된 References로 스레드를 잇는다.
+        if !m.referenceIDs.isEmpty {
+            d.references = m.referenceIDs
+            d.inReplyTo = m.referenceIDs.last
+        }
+        return d
     }
 
     /// 원본 메시지에서 작성 창 시작 값을 만든다.

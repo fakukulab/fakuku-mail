@@ -58,6 +58,7 @@ struct MenuSnapshot: Equatable {
     var signedIn = false
     var hasMessage = false
     var isUnread = false
+    var isDraft = false
     var hasRemoteContent = false
 }
 
@@ -91,6 +92,9 @@ struct MailCommands: Commands {
             Button("전달") { compose(.forward) }
                 .keyboardShortcut("f", modifiers: [.command, .shift])
                 .disabled(!menu.hasMessage)
+            Button("초안 이어서 쓰기") { if let d = model.resumeDraft() { openWindow(id: "compose", value: d) } }
+                .keyboardShortcut("o")
+                .disabled(!menu.isDraft)
             Divider()
             Button("보관") { Task { await model.archiveSelected() } }
                 .keyboardShortcut("a", modifiers: [.command, .control])

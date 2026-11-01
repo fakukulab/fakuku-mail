@@ -50,25 +50,40 @@ struct ComposeSender {
     }
 
     static func build(_ input: Input, options: FixOptions, date: Date = Date()) throws -> Data {
+        let message = try outgoing(input, validate: true)
+        return try finish(message, from: input.from, options: input.fixEnabled ? options : .off, date: date)
+    }
+
+    /// 초안 저장용 MIME (S-022). 받는 사람이 비었거나 틀려도 저장하고(읽을 수 있는 주소만 헤더에),
+    /// 보정은 하지 않는다: 다시 열었을 때 그림이 본문 자리에 그대로 있어야 한다. 보낼 때 보정한다.
+    static func buildDraft(_ input: Input, date: Date = Date()) throws -> Data {
+        let message = try outgoing(input, validate: false)
+        return try finish(message, from: input.from, options: .off, date: date)
+    }
+
+    private static func outgoing(_ input: Input, validate: Bool) throws -> OutgoingMessage {
         let to = AddressParser.parse(input.to)
         let cc = AddressParser.parse(input.cc)
         let bcc = AddressParser.parse(input.bcc)
-        let invalid = to.invalid + cc.invalid + bcc.invalid
-        guard invalid.isEmpty else { throw Problem.invalidAddresses(invalid) }
-        guard !(to.valid + cc.valid + bcc.valid).isEmpty else { throw Problem.noRecipients }
+        if validate {
+            let invalid = to.invalid + cc.invalid + bcc.invalid
+            guard invalid.isEmpty else { throw Problem.invalidAddresses(invalid) }
+            guard !(to.valid + cc.valid + bcc.valid).isEmpty else { throw Problem.noRecipients }
+        }
 
         var attachments = input.extraAttachments
         for url in input.files {
             guard let data = try? Data(contentsOf: url) else { throw Problem.unreadableFile(url.lastPathComponent) }
             attachments.append(OutgoingAttachment(filename: url.lastPathComponent, mimeType: mimeType(for: url), data: data))
         }
+        return OutgoingMessage(from: input.from, to: to.valid, cc: cc.valid, bcc: bcc.valid,
+                               subject: input.subject, html: wrap(input.bodyHTML), attachments: attachments,
+                               inReplyTo: input.draft.inReplyTo, references: input.draft.references)
+    }
 
-        let message = OutgoingMessage(from: input.from, to: to.valid, cc: cc.valid, bcc: bcc.valid,
-                                      subject: input.subject, html: wrap(input.bodyHTML), attachments: attachments,
-                                      inReplyTo: input.draft.inReplyTo, references: input.draft.references)
-        let domain = input.from.address.split(separator: "@").last.map(String.init) ?? "exchangemail.local"
-        let mime = MIMEBuilder.build(message, options: input.fixEnabled ? options : .off,
-                                     messageID: "\(UUID().uuidString)@\(domain)", date: date)
+    private static func finish(_ message: OutgoingMessage, from: MailAddress, options: FixOptions, date: Date) throws -> Data {
+        let domain = from.address.split(separator: "@").last.map(String.init) ?? "exchangemail.local"
+        let mime = MIMEBuilder.build(message, options: options, messageID: "\(UUID().uuidString)@\(domain)", date: date)
         let requestSize = MIMEBuilder.graphRequestSize(forMIMEBytes: mime.count)
         guard requestSize <= MIMEBuilder.graphRequestLimit else { throw Problem.tooLarge(requestSize) }
         return mime

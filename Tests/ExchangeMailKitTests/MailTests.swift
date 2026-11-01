@@ -287,3 +287,24 @@ func accountRuleChoices() {
     rules.setChoice(.inherit, kind: .new, account: nil)
     #expect(rules.choice(kind: .new, account: nil) == RuleChoice.none)
 }
+
+// S-022 초안 이어서 쓰기
+
+@Test("초안을 다시 열면 받는 사람·제목·본문·첨부를 그대로 옮긴다")
+func resumeDraft() {
+    var m = MailMessage(id: "d1", subject: "견적 초안", from: nil,
+                        toRecipients: [Recipient(name: "고객", address: "client@x.com")],
+                        ccRecipients: [Recipient(name: nil, address: "lead@corp.com")],
+                        receivedDateTime: nil, hasAttachments: true,
+                        internetMessageHeaders: [InternetHeader(name: "References", value: "<root@x> <orig@x>")])
+    m.bccRecipients = [Recipient(name: nil, address: "hidden@corp.com")]
+    let d = ReplyBuilder.resume(draft: m, bodyHTML: "<html><body><p>쓰던 글</p></body></html>")
+    #expect(d.to == "고객 <client@x.com>")
+    #expect(d.cc == "lead@corp.com")
+    #expect(d.bcc == "hidden@corp.com")
+    #expect(d.subject == "견적 초안")
+    #expect(d.bodyHTML == "<p>쓰던 글</p>")
+    #expect(d.draftMessageID == "d1")
+    #expect(d.forwardAttachmentsFrom == "d1")
+    #expect(d.inReplyTo == "<orig@x>")
+}

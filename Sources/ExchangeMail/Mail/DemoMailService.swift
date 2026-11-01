@@ -186,4 +186,29 @@ final class DemoMailService: MailService {
     func sendMIME(_ mime: Data) async throws {
         sent.append(mime)
     }
+
+    private(set) var draftCounter = 0
+
+    func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String {
+        if let oldID { try? await deleteMessage(id: oldID) }
+        draftCounter += 1
+        let id = "draft\(draftCounter)"
+        func people(_ list: [MailAddress]) -> [Recipient] { list.map { Recipient(name: $0.name, address: $0.address) } }
+        let message = MailMessage(id: id, internetMessageId: "<\(id)@contoso.co.kr>", subject: preview.subject,
+                                  from: Recipient(name: "데모 사용자", address: Self.myAddress),
+                                  toRecipients: people(preview.to), ccRecipients: people(preview.cc),
+                                  receivedDateTime: Date(), bodyPreview: HTMLProcessor.plainText(from: preview.bodyHTML),
+                                  isRead: true, hasAttachments: false,
+                                  body: .init(contentType: "html", content: preview.bodyHTML))
+        store["drafts", default: []].append(message)
+        recount()
+        return id
+    }
+
+    func deleteMessage(id: String) async throws {
+        guard let (folder, index) = find(id) else { return }
+        store[folder]?.remove(at: index)
+        files[id] = nil
+        recount()
+    }
 }

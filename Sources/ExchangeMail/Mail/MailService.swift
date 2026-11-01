@@ -1,6 +1,14 @@
 import ExchangeMailKit
 import Foundation
 
+/// 초안 목록에 보일 요약. Graph는 MIME에서 읽으므로 쓰지 않고, 데모 서비스가 쓴다.
+struct DraftPreview {
+    var subject: String
+    var to: [MailAddress]
+    var cc: [MailAddress]
+    var bodyHTML: String
+}
+
 struct MessagePage {
     var messages: [MailMessage]
     var nextLink: String?
@@ -18,6 +26,10 @@ protocol MailService: AnyObject {
     func move(id: String, to destination: String) async throws -> String
     /// 보정이 끝난 MIME을 그대로 보낸다.
     func sendMIME(_ mime: Data) async throws
+    /// MIME을 임시 보관함에 새 초안으로 저장하고, `replacing`이 있으면 그 초안을 지운다. 새 초안 id (S-022).
+    func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String
+    /// 메시지를 지운다 (초안 버리기, 보낸 뒤 초안 정리).
+    func deleteMessage(id: String) async throws
 }
 
 struct GraphError: LocalizedError {
@@ -153,5 +165,19 @@ final class GraphMailService: MailService {
     /// Graph는 `Content-Type: text/plain` + base64 MIME 본문을 받는다. 파일명 인코딩이 그대로 보존된다.
     func sendMIME(_ mime: Data) async throws {
         _ = try await request("POST", "/me/sendMail", body: mime.base64EncodedData(), contentType: "text/plain")
+    }
+
+    /// `POST /me/messages`에 MIME을 보내면 임시 보관함에 초안이 생긴다. 고치기(PATCH)는 MIME을 받지 않으므로
+    /// 새로 만들고 예전 초안을 지운다.
+    func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String {
+        struct IDOnly: Decodable { let id: String }
+        let data = try await request("POST", "/me/messages", body: mime.base64EncodedData(), contentType: "text/plain")
+        let newID = try decoder.decode(IDOnly.self, from: data).id
+        if let oldID, oldID != newID { try? await deleteMessage(id: oldID) }
+        return newID
+    }
+
+    func deleteMessage(id: String) async throws {
+        _ = try await request("DELETE", "/me/messages/\(id)")
     }
 }

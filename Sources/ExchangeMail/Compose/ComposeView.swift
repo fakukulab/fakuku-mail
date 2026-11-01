@@ -33,6 +33,7 @@ struct ComposeView: View {
             }
         }
         .navigationTitle(compose.windowTitle)
+        .navigationSubtitle(draftStatus)
         .toolbar { toolbar }
         .alert(compose.errorTitle, isPresented: Binding(get: { compose.error != nil },
                                                          set: { if !$0 { compose.error = nil } })) {
@@ -61,6 +62,17 @@ struct ComposeView: View {
             } else {
                 compose.editor.focusStart()
             }
+            // 쓰는 동안 30초마다 초안을 저장한다 (S-022). 바뀐 것이 없으면 아무것도 하지 않는다.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                if Task.isCancelled { break }
+                await compose.saveDraft(app: model)
+            }
+        }
+        // 창을 닫으면 쓰던 것을 초안으로 남긴다. 창이 사라져도 저장은 끝까지 간다.
+        .onDisappear {
+            let compose = compose, app = model
+            Task { await compose.windowClosed(app: app) }
         }
     }
 
@@ -174,8 +186,32 @@ struct ComposeView: View {
 
     // MARK: 툴바
 
+    /// 창 제목 아래: 초안 저장 상태.
+    private var draftStatus: String {
+        if compose.savingDraft { return "초안 저장 중…" }
+        if let date = compose.lastDraftSave {
+            return "초안 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Locale(identifier: "ko_KR"))))"
+        }
+        return compose.savedDraftID != nil ? "임시 보관함의 초안" : ""
+    }
+
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        ToolbarItemGroup {
+            Button("삭제", systemImage: "trash") {
+                Task {
+                    await compose.discard(app: model)
+                    dismiss()
+                }
+            }
+            .help("이 메일과 저장된 초안을 버립니다")
+            Button("초안 저장", systemImage: "square.and.arrow.down") {
+                Task { await compose.saveDraft(app: model, force: true) }
+            }
+            .keyboardShortcut("s")
+            .disabled(compose.savingDraft)
+            .help("임시 보관함에 저장 (⌘S)")
+        }
         ToolbarItem {
             Button("파일 첨부", systemImage: "paperclip") { attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])

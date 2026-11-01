@@ -19,3 +19,5 @@
 | 보관 | `MailService.move(to: "archive")` | |
 | 지우기 | `MailService.move(to: "deleteditems")` | 완전 삭제가 아니라 지운 편지함으로 옮김 |
 | 데모 모드 | `DemoMailService` | 로그인 없이 예시 메일로 도는 모드 (`APP_SEED=1`) |
+| 초안, 임시 보관함 | `ComposeModel.saveDraft`, `MailService.saveDraft` | 쓰던 메일. ⌘S, 30초마다, 창을 닫을 때 저장 |
+| 이어서 쓰기 | `AppModel.resumeDraft` | 저장된 초안을 작성 창으로 다시 열기 (⌘O) |

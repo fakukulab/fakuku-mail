@@ -11,6 +11,9 @@ struct MessageDetailView: View {
             if let m = model.detail, m.id == model.selectedMessageID {
                 VStack(alignment: .leading, spacing: 0) {
                     MessageHeader(message: m)
+                    if model.isDraftSelected {
+                        draftBar
+                    }
                     if model.detailHasRemoteContent && !model.remoteContentAllowed {
                         remoteBar
                     }
@@ -32,6 +35,26 @@ struct MessageDetailView: View {
             }
         }
         .toolbar { toolbar }
+    }
+
+    /// 임시 보관함의 초안: 이어서 쓰기 (S-022)
+    private var draftBar: some View {
+        HStack(spacing: Space.sm) {
+            Image(systemName: "pencil.and.list.clipboard")
+                .foregroundStyle(.secondary)
+            Text("저장된 초안입니다.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("이어서 쓰기") {
+                if let d = model.resumeDraft() { openWindow(id: "compose", value: d) }
+            }
+            .controlSize(.small)
+            .help("작성 창에서 이어서 씁니다 (⌘O)")
+        }
+        .padding(.horizontal, Space.margin)
+        .padding(.vertical, Space.sm)
+        .background(.bar)
     }
 
     private var remoteBar: some View {

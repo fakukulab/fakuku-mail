@@ -207,6 +207,52 @@ enum SelfTest {
                 store.setChoice(.inherit, kind: .forward, account: me)
             }
 
+            // S-022: 초안 저장, 이어서 쓰기, 보내면 정리, 버리기
+            func draftCount() async -> Int {
+                (try? await model.service.messages(folderID: "drafts", search: nil).messages.count) ?? -1
+            }
+            let draftsBefore = await draftCount()
+            let c = ComposeModel(draft: ComposeDraft())
+            await c.setUp(app: model, fixDefault: true)
+            check("S-022 아무것도 안 쓴 창은 저장할 것이 없다", !c.hasUnsavedChanges)
+            c.to = "잘못된 주소"
+            c.subject = "초안 테스트"
+            check("S-022 고치면 저장할 것이 생긴다", c.hasUnsavedChanges)
+            let firstSave = await c.saveDraft(app: model)
+            let afterFirst = await draftCount()
+            check("S-022 주소가 틀려도 초안으로 저장된다",
+                  firstSave && c.savedDraftID != nil && afterFirst == draftsBefore + 1)
+            c.subject = "초안 테스트 2"
+            await c.saveDraft(app: model)
+            let afterSecond = await draftCount()
+            check("S-022 다시 저장하면 초안을 바꾸고 늘리지 않는다", afterSecond == draftsBefore + 1)
+            check("S-022 저장한 뒤에는 저장할 것이 없다", !c.hasUnsavedChanges)
+
+            model.selectedFolderID = "drafts"
+            try? await Task.sleep(for: .seconds(0.5))
+            if let savedID = c.savedDraftID {
+                await open(savedID)
+                let resumed = model.resumeDraft()
+                check("S-022 초안을 이어서 쓰면 제목과 초안 id가 이어진다",
+                      resumed?.subject == "초안 테스트 2" && resumed?.draftMessageID == savedID)
+                if let resumed {
+                    let r = ComposeModel(draft: resumed)
+                    await r.setUp(app: model, fixDefault: true)
+                    r.to = "client@x.com"
+                    let sentOK = await r.send(app: model)
+                    let afterSend = await draftCount()
+                    check("S-022 이어 쓴 초안을 보내면 임시 보관함에서 지워진다", sentOK && afterSend == draftsBefore)
+                }
+            }
+            let thrown = ComposeModel(draft: ComposeDraft())
+            await thrown.setUp(app: model, fixDefault: true)
+            thrown.subject = "버릴 메일"
+            await thrown.saveDraft(app: model)
+            await thrown.discard(app: model)
+            let afterDiscard = await draftCount()
+            check("S-022 삭제하면 저장된 초안도 지우고 다시 저장하지 않는다",
+                  afterDiscard == draftsBefore && !thrown.hasUnsavedChanges)
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }
