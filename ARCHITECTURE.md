@@ -34,6 +34,9 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   `ComposeSender` (fields to fixed MIME for sending, unfixed MIME for drafts).
 - Drafts: `MailService.saveDraft` creates a new draft from MIME and deletes the old one
   (Graph cannot PATCH a message with MIME); `AppModel.resumeDraft` reopens one.
+- Large mail (S-023): `MIMEBuilder.buildForGraph` moves the largest attachments out until the MIME request
+  fits 4 MB. Those go through `MailService.uploadAttachment` (upload sessions, `UploadChunks`) on a draft,
+  then `sendDraft`. `ComposeModel.sendLarge` deletes the draft if any step fails.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 
