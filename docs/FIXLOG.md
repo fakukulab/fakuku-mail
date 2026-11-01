@@ -35,3 +35,13 @@ Symptom: "missing return in instance method expected to return '[MailMessage]'" 
 Cause: adding `try checkOnline()` as a first line turned a single-expression body into two statements, so the implicit return was gone.
 Fix: `return store.flatMap { ... }`; checked every value-returning demo method has an explicit return.
 Rule: When adding a line to a single-expression function body, add `return` to the expression.
+
+## 2026-11-01 Printed mail had no header
+
+Symptom: File > Print / Command-P printed the message body without the subject, from, to, and date header.
+Cause: the menu item was enabled only with `hasMessage` (a list row selected and its detail loaded). When it was
+disabled, Command-P went down the responder chain to the body WKWebView, whose NSView `print(_:)` prints only the body.
+The header was also placed before a full HTML document's `<html>` instead of inside its `<body>`.
+Fix: `MailWebView` overrides `print(_:)` and calls the app's header print; the menu is enabled whenever a message
+is shown (`canPrint`); the header goes right inside `<body>`, and plain-text mail becomes HTML first.
+Rule: When a web view shows content the app prints, override `print(_:)` so every path prints the same thing.

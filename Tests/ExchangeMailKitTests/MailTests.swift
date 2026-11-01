@@ -542,3 +542,17 @@ func printPage() throws {
     let body = try #require(html.range(of: "<p>본문</p>"))
     #expect(head.lowerBound < body.lowerBound)
 }
+
+@Test("인쇄 머리글은 본문 문서의 <body> 안에, 평문은 이스케이프한 본문 앞에")
+func printPageInsideBody() throws {
+    let m = MailMessage(id: "p", subject: "제목", from: nil, receivedDateTime: nil)
+    let full = MailContent.printPage(message: m, body: .init(contentType: "html",
+                                     content: "<html><head><style>p{}</style></head><body class=\"x\"><p>본문</p></body></html>"),
+                                     allowRemote: false)
+    let bodyTag = try #require(full.range(of: "<body class=\"x\">"))
+    let head = try #require(full.range(of: "print-head\"><h1>제목</h1>"))
+    #expect(bodyTag.upperBound <= head.lowerBound)
+    let plain = MailContent.printPage(message: m, body: .init(contentType: "text", content: "<b>평문</b>"), allowRemote: false)
+    #expect(plain.contains("print-head\"><h1>제목</h1>"))
+    #expect(plain.contains("&lt;b&gt;평문&lt;/b&gt;"))
+}

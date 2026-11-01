@@ -440,6 +440,7 @@ final class AppModel {
             isFlagged: !messages.filter { selectedIDs.contains($0.id) }.contains { !$0.isFlagged },
             inJunk: selectedFolder?.kind == "junkemail",
             hasAttachments: !listedAttachments.isEmpty,
+            canPrint: detail != nil && multipleSelectionCount == 0,
             isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed))
     }

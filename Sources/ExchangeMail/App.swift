@@ -66,6 +66,8 @@ struct MenuSnapshot: Equatable {
     var isFlagged = false
     var inJunk = false
     var hasAttachments = false
+    /// 본문이 보이면 인쇄할 수 있다 (대화 안의 다른 메일을 펼쳤을 때도)
+    var canPrint = false
     var isDraft = false
     var hasRemoteContent = false
 }
@@ -99,7 +101,7 @@ struct MailCommands: Commands {
         CommandGroup(replacing: .printItem) {
             Button("인쇄…") { model.printDisplayed() }
                 .keyboardShortcut("p")
-                .disabled(!menu.hasMessage)
+                .disabled(!menu.canPrint)
         }
         CommandMenu("사서함") {
             Button("새 폴더…") {

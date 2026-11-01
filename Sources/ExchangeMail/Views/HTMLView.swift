@@ -7,21 +7,25 @@ struct HTMLView: NSViewRepresentable {
     let html: String
     /// 목록에서 Space로 본문을 넘길 때 쓴다 (S-019).
     var scroller: PageScroller? = nil
+    /// 이 웹 보기에 인쇄 명령이 오면 대신 부른다 (머리글이 붙은 인쇄, S-034).
+    var onPrint: (() -> Void)? = nil
     var onMailto: (URL) -> Void = { _ in }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         config.websiteDataStore = .nonPersistent()
-        let wv = WKWebView(frame: .zero, configuration: config)
+        let wv = MailWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
         wv.setValue(false, forKey: "drawsBackground")
+        wv.onPrint = onPrint
         scroller?.webView = wv
         return wv
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
         context.coordinator.onMailto = onMailto
+        (nsView as? MailWebView)?.onPrint = onPrint
         scroller?.webView = nsView
         guard context.coordinator.lastHTML != html else { return }
         context.coordinator.lastHTML = html
@@ -74,5 +78,15 @@ final class PageScroller {
         } catch {
             return false
         }
+    }
+}
+
+/// 본문 웹 보기. ⌘P나 인쇄 명령이 메뉴를 지나 이 보기까지 오면 NSView 기본 인쇄(본문만)가 아니라
+/// 머리글이 붙은 앱의 인쇄로 보낸다 (S-034).
+final class MailWebView: WKWebView {
+    var onPrint: (() -> Void)?
+
+    override func print(_ sender: Any?) {
+        if let onPrint { onPrint() } else { super.print(sender) }
     }
 }

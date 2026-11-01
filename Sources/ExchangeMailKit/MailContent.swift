@@ -79,12 +79,20 @@ extension MailContent {
         padding-right:12px;vertical-align:top;white-space:nowrap}.print-head td,.print-head th{font-size:12px}</style>\
         <div class="print-head"><h1>\(HTMLProcessor.escape(m.title))</h1><table>\(rows)</table></div>
         """
-        // page()가 CSP meta를 맨 앞에 두므로 머리글은 그 뒤, 본문 앞에 넣는다.
-        let content = page(body: body, allowRemote: allowRemote)
-        guard let styleEnd = content.range(of: "</style>") else { return header + content }
-        var result = content
-        result.insert(contentsOf: header, at: styleEnd.upperBound)
-        return result
+        // 머리글은 본문 문서 안에 넣는다: <body> 태그가 있으면 그 바로 안쪽, 없으면 맨 앞.
+        // 평문 메일은 HTML로 바꿔 머리글이 글자로 찍히지 않게 한다. CSP meta는 page()가 맨 앞에 둔다.
+        var html: String
+        if let body, body.isHTML {
+            html = body.content
+            if let open = html.range(of: #"<body\b[^>]*>"#, options: [.regularExpression, .caseInsensitive]) {
+                html.insert(contentsOf: header, at: open.upperBound)
+            } else {
+                html = header + html
+            }
+        } else {
+            html = header + "<pre style=\"white-space:pre-wrap;font:inherit\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
+        }
+        return page(body: .init(contentType: "html", content: html), allowRemote: allowRemote)
     }
 }
 
