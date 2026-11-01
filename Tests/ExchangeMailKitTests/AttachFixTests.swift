@@ -185,3 +185,52 @@ func mergeAttachments() {
     #expect(r.files == [a, nfd])
     #expect(r.skipped == ["사진"])
 }
+
+// S-023 4MB가 넘는 메일
+
+@Test("요청이 4MB를 넘으면 가장 큰 첨부부터 업로드로 옮긴다")
+func graphPlanMovesLargest() {
+    let big = OutgoingAttachment(filename: "큰파일.pdf", mimeType: "application/pdf", data: Data(count: 5_000_000))
+    let mid = OutgoingAttachment(filename: "중간.zip", mimeType: "application/zip", data: Data(count: 2_500_000))
+    let small = OutgoingAttachment(filename: "작은.txt", mimeType: "text/plain", data: Data(count: 10_000))
+    let msg = OutgoingMessage(from: MailAddress(address: "a@b.com"), to: [MailAddress(address: "c@d.com")],
+                              subject: "큰 메일", html: "<p>본문</p>", attachments: [mid, big, small])
+    let plan = MIMEBuilder.buildForGraph(msg, messageID: "x@test")
+    #expect(plan.uploads.map(\.filename) == ["큰파일.pdf", "중간.zip"])
+    #expect(!plan.mimeTooLarge)
+    #expect(MIMEBuilder.graphRequestSize(forMIMEBytes: plan.mime.count) <= MIMEBuilder.graphRequestLimit)
+    let text = String(decoding: plan.mime, as: UTF8.self)
+    #expect(text.contains("filename*=UTF-8''%EC%9E%91%EC%9D%80.txt"))
+    #expect(!text.contains("%ED%81%B0%ED%8C%8C%EC%9D%BC"))
+}
+
+@Test("작은 메일은 업로드 없이 MIME 하나로 보낸다")
+func graphPlanSmall() {
+    let msg = OutgoingMessage(from: MailAddress(address: "a@b.com"), to: [MailAddress(address: "c@d.com")],
+                              subject: "작은 메일", html: "<p>본문</p>",
+                              attachments: [OutgoingAttachment(filename: "a.txt", mimeType: "text/plain", data: Data(count: 100))])
+    let plan = MIMEBuilder.buildForGraph(msg)
+    #expect(plan.uploads.isEmpty)
+    #expect(!plan.mimeTooLarge)
+}
+
+@Test("본문 안 그림만으로 한도를 넘으면 알 수 있다")
+func graphPlanInlineTooLarge() {
+    let huge = Data(count: 3_500_000).base64EncodedString()
+    let msg = OutgoingMessage(from: MailAddress(address: "a@b.com"), to: [MailAddress(address: "c@d.com")],
+                              subject: "x", html: "<div data-signature=\"s\"><img src=\"data:image/png;base64,\(huge)\"></div>")
+    #expect(MIMEBuilder.buildForGraph(msg).mimeTooLarge)
+}
+
+@Test("업로드 조각은 320 KiB의 배수이고 끝까지 이어진다")
+func uploadChunks() {
+    let total = 10_000_000
+    let ranges = UploadChunks.ranges(total: total)
+    #expect(UploadChunks.defaultChunk % UploadChunks.unit == 0)
+    #expect(ranges.first?.lowerBound == 0)
+    #expect(ranges.last?.upperBound == total)
+    #expect(zip(ranges, ranges.dropFirst()).allSatisfy { $0.upperBound == $1.lowerBound })
+    #expect(ranges.dropLast().allSatisfy { $0.count == UploadChunks.defaultChunk })
+    #expect(UploadChunks.contentRange(ranges[0], total: total) == "bytes 0-3276799/10000000")
+    #expect(UploadChunks.ranges(total: 0).isEmpty)
+}

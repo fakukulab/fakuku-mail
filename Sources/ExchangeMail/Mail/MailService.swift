@@ -30,6 +30,11 @@ protocol MailService: AnyObject {
     func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String
     /// 메시지를 지운다 (초안 버리기, 보낸 뒤 초안 정리).
     func deleteMessage(id: String) async throws
+    /// 큰 첨부를 초안에 조각으로 올린다 (S-023). `progress`는 0...1.
+    func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,
+                          progress: @escaping (Double) -> Void) async throws
+    /// 초안을 보낸다 (S-023).
+    func sendDraft(id: String) async throws
 }
 
 struct GraphError: LocalizedError {
@@ -41,9 +46,12 @@ struct GraphError: LocalizedError {
         switch status {
         case 401: "Microsoft 계정 인증이 거절되었습니다. 다시 로그인하세요."
         case 403: "이 작업에 필요한 권한이 없습니다 (Mail.ReadWrite, Mail.Send). 관리자 동의가 필요할 수 있습니다."
-        case 413: "메일이 너무 큽니다. 첨부를 줄여 4MB 이하로 보내세요."
+        case 413: "메일이 너무 큽니다. 조직의 메일 크기 한도를 넘었을 수 있습니다."
         case 429: "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요."
-        default: "메일 서버 오류 (\(status)): \(message)"
+        default:
+            code == "ErrorMessageSizeExceeded"
+                ? "메일이 조직의 크기 한도를 넘었습니다. 첨부를 줄이거나 OneDrive 링크로 보내세요."
+                : "메일 서버 오류 (\(status)): \(message)"
         }
     }
 }
@@ -179,5 +187,58 @@ final class GraphMailService: MailService {
 
     func deleteMessage(id: String) async throws {
         _ = try await request("DELETE", "/me/messages/\(id)")
+    }
+
+    /// 업로드 세션: 세션을 만들고, 받은 uploadUrl에 조각을 PUT한다. uploadUrl은 미리 인증된 주소라
+    /// Authorization 헤더를 붙이면 안 된다 (붙이면 401).
+    func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,
+                          progress: @escaping (Double) -> Void) async throws {
+        struct Session: Decodable { let uploadUrl: String }
+        let total = attachment.data.count
+        let item: [String: Any] = [
+            "attachmentType": "file",
+            "name": FilenameEncoder.normalize(attachment.filename),
+            "size": total,
+            "contentType": attachment.mimeType,
+            "isInline": false,
+        ]
+        let data = try await request("POST", "/me/messages/\(id)/attachments/createUploadSession",
+                                     body: try json(["AttachmentItem": item]))
+        let session = try decoder.decode(Session.self, from: data)
+        guard let url = URL(string: session.uploadUrl) else { throw URLError(.badURL) }
+
+        for range in UploadChunks.ranges(total: total) {
+            var req = URLRequest(url: url)
+            req.httpMethod = "PUT"
+            req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+            req.setValue(UploadChunks.contentRange(range, total: total), forHTTPHeaderField: "Content-Range")
+            let chunk = attachment.data.subdata(in: range)
+            var attempt = 0
+            while true {
+                attempt += 1
+                do {
+                    let (body, response) = try await URLSession.shared.upload(for: req, from: chunk)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    guard (200..<300).contains(status) else {
+                        let e = try? JSONDecoder().decode(ErrorBody.self, from: body)
+                        throw GraphError(status: status, code: e?.error.code,
+                                         message: e?.error.message ?? String(decoding: body, as: UTF8.self))
+                    }
+                    break
+                } catch let error as GraphError where error.status < 500 {
+                    throw error
+                } catch {
+                    // 네트워크 끊김이나 5xx: 같은 조각을 두 번까지 다시 보낸다.
+                    if attempt >= 3 { throw error }
+                    try await Task.sleep(for: .seconds(attempt * 2))
+                }
+            }
+            progress(Double(range.upperBound) / Double(total))
+        }
+    }
+
+    func sendDraft(id: String) async throws {
+        // 본문이 없는 POST도 Content-Length: 0이 있어야 한다.
+        _ = try await request("POST", "/me/messages/\(id)/send", body: Data())
     }
 }

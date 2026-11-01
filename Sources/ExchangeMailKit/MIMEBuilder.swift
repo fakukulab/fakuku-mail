@@ -59,6 +59,34 @@ public struct FixOptions: Equatable, Sendable {
     public static let off = FixOptions(imagesAsAttachments: false, eucKRFilenames: false, minAttachmentBytes: 0)
 }
 
+/// MIME 하나와, 따로 올릴 큰 첨부들 (S-023).
+public struct GraphMailPlan: Sendable {
+    public var mime: Data
+    /// 업로드 세션으로 올릴 첨부. 비어 있으면 `sendMail` 한 번으로 보낸다.
+    public var uploads: [OutgoingAttachment]
+    /// 첨부를 다 빼도 MIME가 한도를 넘는다 (본문 안 그림이 너무 크다).
+    public var mimeTooLarge: Bool
+}
+
+/// Graph 업로드 세션 규칙 (S-023).
+public enum UploadChunks {
+    /// 조각은 320 KiB의 배수여야 한다. 10배 = 3.125 MiB.
+    public static let unit = 320 * 1024
+    public static let defaultChunk = unit * 10
+    /// 첨부 하나의 최대 크기 (Graph 업로드 세션)
+    public static let maxAttachmentBytes = 150 * 1024 * 1024
+
+    public static func ranges(total: Int, chunk: Int = defaultChunk) -> [Range<Int>] {
+        guard total > 0 else { return [] }
+        return stride(from: 0, to: total, by: chunk).map { $0..<min($0 + chunk, total) }
+    }
+
+    /// `Content-Range` 값: `bytes 0-3276799/20000000`
+    public static func contentRange(_ r: Range<Int>, total: Int) -> String {
+        "bytes \(r.lowerBound)-\(r.upperBound - 1)/\(total)"
+    }
+}
+
 /// 보정이 적용된 RFC 5322 메시지를 만든다.
 /// 구조: mixed( related( alternative(plain, html), 인라인 이미지… ), 첨부… ). 필요 없는 층은 생략한다.
 public enum MIMEBuilder {
@@ -111,13 +139,42 @@ public enum MIMEBuilder {
 
     public static func build(_ msg: OutgoingMessage, options: FixOptions = FixOptions(),
                              messageID: String? = nil, date: Date = Date()) -> Data {
+        let (processed, attachments) = prepare(msg, options: options)
+        return assemble(msg, processed: processed, attachments: attachments, options: options,
+                        messageID: messageID, date: date)
+    }
+
+    /// Graph로 보낼 계획 (S-023): MIME 요청이 4MB 안에 들 때까지 가장 큰 첨부부터 업로드 쪽으로 옮긴다.
+    /// `uploads`가 비어 있으면 MIME 하나로 보낸다. 다 옮겨도 넘으면 `mimeTooLarge`가 true다.
+    public static func buildForGraph(_ msg: OutgoingMessage, options: FixOptions = FixOptions(),
+                                     messageID: String? = nil, date: Date = Date(),
+                                     requestLimit: Int = graphRequestLimit) -> GraphMailPlan {
+        let (processed, all) = prepare(msg, options: options)
+        var kept = all
+        var uploads: [OutgoingAttachment] = []
+        var mime = assemble(msg, processed: processed, attachments: kept, options: options, messageID: messageID, date: date)
+        while graphRequestSize(forMIMEBytes: mime.count) > requestLimit,
+              let largest = kept.indices.max(by: { kept[$0].data.count < kept[$1].data.count }) {
+            uploads.append(kept.remove(at: largest))
+            mime = assemble(msg, processed: processed, attachments: kept, options: options, messageID: messageID, date: date)
+        }
+        return GraphMailPlan(mime: mime, uploads: uploads,
+                             mimeTooLarge: graphRequestSize(forMIMEBytes: mime.count) > requestLimit)
+    }
+
+    /// 본문 그림을 나누고(인라인 / 첨부로 옮길 것), 보낼 첨부 목록을 만든다.
+    static func prepare(_ msg: OutgoingMessage, options: FixOptions) -> (HTMLProcessResult, [OutgoingAttachment]) {
         let processed = HTMLProcessor.process(html: msg.html,
                                               convertBodyImagesToAttachments: options.imagesAsAttachments,
                                               minInlineBytes: options.minAttachmentBytes)
-        let inline = processed.images.filter { $0.contentID != nil }
         let moved = processed.images.filter { $0.contentID == nil }
             .map { OutgoingAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data) }
-        let attachments = msg.attachments + moved
+        return (processed, msg.attachments + moved)
+    }
+
+    static func assemble(_ msg: OutgoingMessage, processed: HTMLProcessResult, attachments: [OutgoingAttachment],
+                         options: FixOptions, messageID: String?, date: Date) -> Data {
+        let inline = processed.images.filter { $0.contentID != nil }
 
         var h = "MIME-Version: 1.0\r\n"
         h += "Date: \(rfc5322Date(date))\r\n"

@@ -27,7 +27,7 @@ struct ComposeView: View {
             FormatToolbar(controller: compose.editor)
             Divider()
             RichTextEditor(controller: compose.editor)
-            if !compose.files.isEmpty || !compose.forwarded.isEmpty || movedImageCount > 0 {
+            if !compose.files.isEmpty || !compose.forwarded.isEmpty || movedImageCount > 0 || compose.uploadFraction != nil {
                 Divider()
                 attachmentBar
             }
@@ -172,6 +172,17 @@ struct ComposeView: View {
                 }
                 .scrollIndicators(.never)
             }
+            if let fraction = compose.uploadFraction {
+                ProgressView(value: fraction) {
+                    Text(compose.uploadStatus ?? "큰 첨부 올리는 중")
+                        .font(.callout)
+                }
+            } else if compose.hasLargeAttachments {
+                Label("큰 첨부는 따로 올려 보냅니다. 보내기를 누른 뒤 창 제목 아래에서 진행률을 볼 수 있습니다.",
+                      systemImage: "icloud.and.arrow.up")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
             if movedImageCount > 0 {
                 Label("본문 그림 \(movedImageCount)개가 일반 첨부로 나갑니다. 서명 그림은 본문에 남습니다.",
                       systemImage: "photo.on.rectangle")
@@ -188,6 +199,9 @@ struct ComposeView: View {
 
     /// 창 제목 아래: 초안 저장 상태.
     private var draftStatus: String {
+        if let status = compose.uploadStatus {
+            return compose.uploadFraction.map { "\(status) · \(Int(($0 * 100).rounded()))%" } ?? status
+        }
         if compose.savingDraft { return "초안 저장 중…" }
         if let date = compose.lastDraftSave {
             return "초안 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Locale(identifier: "ko_KR"))))"

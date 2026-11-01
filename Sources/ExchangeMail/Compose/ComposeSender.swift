@@ -22,6 +22,8 @@ struct ComposeSender {
         case invalidAddresses([String])
         case unreadableFile(String)
         case tooLarge(Int)
+        case attachmentTooLarge(String)
+        case inlineImagesTooLarge
 
         var errorDescription: String? {
             switch self {
@@ -30,6 +32,10 @@ struct ComposeSender {
             case .unreadableFile(let name): "첨부 파일을 읽을 수 없습니다: \(name)"
             case .tooLarge(let bytes):
                 "메일이 \(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))라서 보낼 수 없습니다. Exchange는 한 번에 4MB까지 받습니다. 첨부를 줄여 주세요."
+            case .attachmentTooLarge(let name):
+                "\(name)이(가) 150MB를 넘어 첨부할 수 없습니다. OneDrive 링크로 보내 주세요."
+            case .inlineImagesTooLarge:
+                "본문 안 그림(서명, 인용문 포함)이 너무 커서 보낼 수 없습니다. 그림을 줄이거나 \"첨부 보정\"을 켜서 첨부로 보내세요."
             }
         }
     }
@@ -59,6 +65,20 @@ struct ComposeSender {
     static func buildDraft(_ input: Input, date: Date = Date()) throws -> Data {
         let message = try outgoing(input, validate: false)
         return try finish(message, from: input.from, options: .off, date: date)
+    }
+
+    /// Graph로 보낼 준비 (S-023). 4MB를 넘으면 큰 첨부를 `uploads`로 뺀다.
+    /// 초안이면 보정 없이(그림은 본문에), 보낼 때는 첨부 보정을 적용한다.
+    static func prepare(_ input: Input, options: FixOptions, forDraft: Bool, date: Date = Date()) throws -> GraphMailPlan {
+        let message = try outgoing(input, validate: !forDraft)
+        let fix = forDraft ? FixOptions.off : (input.fixEnabled ? options : .off)
+        let domain = input.from.address.split(separator: "@").last.map(String.init) ?? "exchangemail.local"
+        let plan = MIMEBuilder.buildForGraph(message, options: fix, messageID: "\(UUID().uuidString)@\(domain)", date: date)
+        if let big = plan.uploads.first(where: { $0.data.count > UploadChunks.maxAttachmentBytes }) {
+            throw Problem.attachmentTooLarge(FilenameEncoder.normalize(big.filename))
+        }
+        if plan.mimeTooLarge { throw Problem.inlineImagesTooLarge }
+        return plan
     }
 
     private static func outgoing(_ input: Input, validate: Bool) throws -> OutgoingMessage {

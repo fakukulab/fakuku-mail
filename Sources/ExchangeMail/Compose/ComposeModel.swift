@@ -20,6 +20,9 @@ final class ComposeModel {
     var fixEnabled = true
 
     private(set) var sending = false
+    /// 큰 첨부를 올리는 동안 (S-023): "큰 첨부 올리는 중 1/2"와 전체 진행률 0...1
+    private(set) var uploadStatus: String?
+    private(set) var uploadFraction: Double?
     private(set) var didSetUp = false
 
     // 초안 (S-022)
@@ -127,8 +130,12 @@ final class ComposeModel {
         sending = true
         defer { sending = false }
         do {
-            let mime = try ComposeSender.build(input(app: app), options: ComposeSender.defaultOptions())
-            try await app.service.sendMIME(mime)
+            let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false)
+            if plan.uploads.isEmpty {
+                try await app.service.sendMIME(plan.mime)
+            } else {
+                try await sendLarge(plan, app: app)
+            }
             finished = true
             let sentTo = [to, cc, showBcc ? bcc : ""].flatMap { AddressParser.parse($0).valid }
             app.addressBook.noteSent(sentTo, me: app.auth.email)
@@ -167,11 +174,10 @@ final class ComposeModel {
         defer { savingDraft = false }
         let draftInput = input(app: app)
         do {
-            let mime = try ComposeSender.buildDraft(draftInput)
-            let preview = DraftPreview(subject: subject,
-                                       to: AddressParser.parse(to).valid, cc: AddressParser.parse(cc).valid,
-                                       bodyHTML: editor.html)
-            savedDraftID = try await app.service.saveDraft(mime, preview: preview, replacing: savedDraftID)
+            let plan = try ComposeSender.prepare(draftInput, options: .off, forDraft: true)
+            let newID = try await app.service.saveDraft(plan.mime, preview: preview, replacing: savedDraftID)
+            savedDraftID = newID
+            if !plan.uploads.isEmpty { try await upload(plan.uploads, to: newID, app: app) }
             savedFingerprint = snapshot
             lastDraftSave = Date()
             await app.draftsChanged()
@@ -206,5 +212,47 @@ final class ComposeModel {
         else { return nil }
         let value = html[match].dropFirst("data-signature=\"".count).dropLast()
         return UUID(uuidString: String(value)).flatMap { app.signatures.signature(id: $0)?.id }
+    }
+
+    // MARK: 큰 메일 (S-023)
+
+    private var preview: DraftPreview {
+        DraftPreview(subject: subject, to: AddressParser.parse(to).valid, cc: AddressParser.parse(cc).valid,
+                     bodyHTML: editor.html)
+    }
+
+    /// 4MB를 넘는 메일: 작은 부분으로 초안을 만들고, 큰 첨부를 올린 뒤, 그 초안을 보낸다.
+    /// 중간에 실패하면 만든 초안을 지워 임시 보관함에 반쪽짜리가 남지 않게 한다.
+    private func sendLarge(_ plan: GraphMailPlan, app: AppModel) async throws {
+        let id = try await app.service.saveDraft(plan.mime, preview: preview, replacing: nil)
+        do {
+            try await upload(plan.uploads, to: id, app: app)
+            uploadStatus = "보내는 중"
+            try await app.service.sendDraft(id: id)
+            uploadStatus = nil
+        } catch {
+            try? await app.service.deleteMessage(id: id)
+            throw error
+        }
+    }
+
+    private func upload(_ list: [OutgoingAttachment], to id: String, app: AppModel) async throws {
+        defer {
+            uploadStatus = nil
+            uploadFraction = nil
+        }
+        for (index, attachment) in list.enumerated() {
+            uploadStatus = "큰 첨부 올리는 중 \(index + 1)/\(list.count)"
+            uploadFraction = Double(index) / Double(list.count)
+            try await app.service.uploadAttachment(attachment, toMessage: id) { [weak self] part in
+                self?.uploadFraction = (Double(index) + part) / Double(list.count)
+            }
+        }
+    }
+
+    /// 첨부 막대 안내: 큰 첨부는 따로 올려 보낸다 (대략 2MB부터).
+    var hasLargeAttachments: Bool {
+        let fileSizes = files.compactMap { (try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil }
+        return (fileSizes + forwarded.compactMap(\.size)).contains { $0 >= 2 * 1024 * 1024 }
     }
 }

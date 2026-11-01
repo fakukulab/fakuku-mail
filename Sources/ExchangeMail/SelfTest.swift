@@ -254,6 +254,39 @@ enum SelfTest {
             check("S-022 삭제하면 저장된 초안도 지우고 다시 저장하지 않는다",
                   afterDiscard == draftsBefore && !thrown.hasUnsavedChanges)
 
+            // S-023: 4MB가 넘는 메일 (5MB 첨부)
+            let bigDir = FileManager.default.temporaryDirectory.appending(path: "selftest-big", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: bigDir, withIntermediateDirectories: true)
+            let bigFile = bigDir.appending(path: "현장 보고서.pdf".decomposedStringWithCanonicalMapping)
+            try? Data(count: 5 * 1024 * 1024).write(to: bigFile)
+            let draftsBeforeBig = await draftCount()
+            let uploadsBefore = demo.uploaded.count
+            let big = ComposeModel(draft: ComposeDraft())
+            await big.setUp(app: model, fixDefault: true)
+            big.to = "client@x.com"
+            big.subject = "큰 첨부"
+            big.addFiles([bigFile])
+            check("S-023 큰 첨부를 넣으면 안내가 보인다", big.hasLargeAttachments)
+            let bigSent = await big.send(app: model)
+            let draftsAfterBig = await draftCount()
+            check("S-023 5MB 첨부가 있는 메일이 보내진다", bigSent, big.error ?? "")
+            check("S-023 큰 첨부는 NFC 이름으로 업로드된다",
+                  demo.uploaded.count == uploadsBefore + 1 && demo.uploaded.last?.name == "현장 보고서.pdf"
+                      && demo.uploaded.last?.size == 5 * 1024 * 1024)
+            check("S-023 업로드한 초안은 보내지고 임시 보관함에 남지 않는다",
+                  demo.sentDrafts.count == 1 && draftsAfterBig == draftsBeforeBig)
+            check("S-023 보낸 뒤 진행 표시가 사라진다", big.uploadFraction == nil && big.uploadStatus == nil)
+
+            let bigDraft = ComposeModel(draft: ComposeDraft())
+            await bigDraft.setUp(app: model, fixDefault: true)
+            bigDraft.subject = "큰 첨부 초안"
+            bigDraft.addFiles([bigFile])
+            let bigSaved = await bigDraft.saveDraft(app: model)
+            check("S-023 큰 첨부가 있는 메일도 초안으로 저장된다",
+                  bigSaved && bigDraft.savedDraftID != nil && demo.uploaded.count == uploadsBefore + 2)
+            await bigDraft.discard(app: model)
+            try? FileManager.default.removeItem(at: bigDir)
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

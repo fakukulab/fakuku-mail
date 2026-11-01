@@ -205,6 +205,29 @@ final class DemoMailService: MailService {
         return id
     }
 
+    /// 올린 큰 첨부 (메시지 id, 파일 이름, 크기). 셀프 테스트가 읽는다.
+    private(set) var uploaded: [(message: String, name: String, size: Int)] = []
+    /// 초안으로 보낸 메시지 id
+    private(set) var sentDrafts: [String] = []
+
+    func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,
+                          progress: @escaping (Double) -> Void) async throws {
+        guard find(id) != nil else { throw URLError(.fileDoesNotExist) }
+        let total = attachment.data.count
+        for range in UploadChunks.ranges(total: total) {
+            progress(Double(range.upperBound) / Double(total))
+        }
+        uploaded.append((id, FilenameEncoder.normalize(attachment.filename), total))
+    }
+
+    func sendDraft(id: String) async throws {
+        guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
+        store[folder]?.remove(at: index)
+        store["sentitems", default: []].append(m)
+        sentDrafts.append(id)
+        recount()
+    }
+
     func deleteMessage(id: String) async throws {
         guard let (folder, index) = find(id) else { return }
         store[folder]?.remove(at: index)
