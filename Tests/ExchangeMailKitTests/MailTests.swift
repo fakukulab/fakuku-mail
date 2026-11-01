@@ -261,3 +261,29 @@ func completeAddress(_ input: String, _ expected: String) {
     let minji = MailAddress(name: "김민지", address: "minji.kim@fabrikam.com")
     #expect(AddressBook.complete(input, with: minji) == expected)
 }
+
+// S-021 계정별 기본 서명
+
+@Test("계정 규칙은 따르기·없음·서명을 고를 수 있고, 따르기는 전역 규칙으로 돌아간다")
+func accountRuleChoices() {
+    let a = UUID(), b = UUID()
+    var rules = SignatureRules()
+    rules.setChoice(.signature(a), kind: .reply, account: nil)
+    #expect(rules.choice(kind: .reply, account: nil) == .signature(a))
+    #expect(rules.choice(kind: .reply, account: "Me@x.com") == .inherit)
+    #expect(rules.signatureID(kind: .replyAll, account: "me@x.com") == a)
+
+    rules.setChoice(.signature(b), kind: .reply, account: "Me@x.com")
+    #expect(rules.choice(kind: .replyAll, account: "me@x.com") == .signature(b))
+    #expect(rules.signatureID(kind: .reply, account: "me@x.com") == b)
+
+    rules.setChoice(.none, kind: .reply, account: "me@x.com")
+    #expect(rules.signatureID(kind: .reply, account: "me@x.com") == nil)
+
+    rules.setChoice(.inherit, kind: .reply, account: "me@x.com")
+    #expect(rules.perAccount["me@x.com"] == nil)
+    #expect(rules.signatureID(kind: .reply, account: "me@x.com") == a)
+
+    rules.setChoice(.inherit, kind: .new, account: nil)
+    #expect(rules.choice(kind: .new, account: nil) == RuleChoice.none)
+}

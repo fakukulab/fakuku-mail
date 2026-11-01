@@ -10,6 +10,9 @@ struct SignatureSettings: View {
     @State private var source = ""
     /// 편집기에 지금 들어 있는 서명. 사람이 고친 내용은 이 서명에만 저장한다.
     @State private var loadedID: UUID?
+    @State private var ruleScope = RuleScope.all
+
+    private enum RuleScope { case all, account }
 
     private var store: SignatureStore { model.signatures }
 
@@ -70,23 +73,40 @@ struct SignatureSettings: View {
         }
     }
 
+    /// 기본 서명 규칙 (S-010, S-021). 로그인한 계정이 있으면 "이 계정"만의 규칙을 따로 정할 수 있다.
     private var rules: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Text("기본 서명")
                 .font(.headline)
+            if let email = model.auth.email {
+                Picker("적용 범위", selection: $ruleScope) {
+                    Text("모든 계정").tag(RuleScope.all)
+                    Text("이 계정").tag(RuleScope.account)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .help(ruleScope == .account ? "\(email)에만 적용됩니다" : "계정 규칙이 없으면 이 규칙을 씁니다")
+            }
+            let account = ruleScope == .account ? model.auth.email : nil
             ForEach(ComposeKind.ruleKinds) { kind in
                 Picker(kind.ruleLabel, selection: Binding(
-                    get: { store.ruleSelection(kind) },
-                    set: { store.setRule(kind, to: $0) })) {
-                    Text("없음").tag(UUID?.none)
+                    get: { store.choice(kind, account: account) },
+                    set: { store.setChoice($0, kind: kind, account: account) })) {
+                    if account != nil {
+                        Text("모든 계정 설정 따르기").tag(RuleChoice.inherit)
+                    }
+                    Text("없음").tag(RuleChoice.none)
+                    if !store.signatures.isEmpty { Divider() }
                     ForEach(store.signatures) { s in
-                        Text(s.name).tag(UUID?.some(s.id))
+                        Text(s.name).tag(RuleChoice.signature(s.id))
                     }
                 }
             }
-            Text("작성 창에서 언제든 다른 서명으로 바꿀 수 있습니다.")
+            Text(account.map { "\($0)에서 쓸 때만 적용됩니다. 작성 창에서 언제든 바꿀 수 있습니다." }
+                 ?? "작성 창에서 언제든 다른 서명으로 바꿀 수 있습니다.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

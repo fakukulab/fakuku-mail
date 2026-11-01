@@ -210,8 +210,15 @@ Acceptance:
 Status: doing (레이어와 icon.json 완료, 맥에서 actool 컴파일과 검토 대기. 미리보기: docs/design/icon-preview.png)
 
 ### S-021 계정별 서명 규칙 화면
-As the user, 설정 > 서명에서 계정마다 다른 기본 서명을 정한다 (모델 `SignatureRules.perAccount`는 있음).
-Status: todo
+As the user, 설정 > 서명의 "기본 서명"에서 "이 계정"을 골라, 로그인한 계정에서만 쓸 기본 서명을 정한다.
+Screens: settings-signatures
+Depends: S-010
+Acceptance:
+- [snap] 로그인했으면 "모든 계정 / 이 계정" 선택이 보이고, "이 계정"에는 "모든 계정 설정 따르기"가 있다.
+- [unit] 계정 규칙이 앞서고, "따르기"를 고르면 계정 규칙이 지워져 모든 계정 규칙으로 돌아간다.
+- [self] 계정에서 "없음"을 고르면 그 종류의 메일에 서명을 넣지 않는다.
+UX: 범위는 분할 컨트롤. 아래 설명 줄이 지금 어느 범위를 고치는지 말한다.
+Status: doing (코드 완료, 맥 빌드·스냅숏 대기)
 
 ### S-022 초안 저장
 As the user, 작성 창을 닫을 때 "초안으로 저장"을 골라 임시 보관함에 남긴다.

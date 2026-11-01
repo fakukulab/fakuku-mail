@@ -88,4 +88,15 @@ final class SignatureStore {
     func setRule(_ kind: ComposeKind, to id: UUID?) {
         rules.defaults[kind.ruleKind.rawValue] = id ?? SignatureRules.noneID
     }
+
+    /// 규칙 한 줄 (S-021). `account`가 nil이면 모든 계정. 지워진 서명을 가리키면 "없음"으로 보인다.
+    func choice(_ kind: ComposeKind, account: String?) -> RuleChoice {
+        let c = rules.choice(kind: kind, account: account)
+        if case .signature(let id) = c, signature(id: id) == nil { return .none }
+        return c
+    }
+
+    func setChoice(_ choice: RuleChoice, kind: ComposeKind, account: String?) {
+        rules.setChoice(choice, kind: kind, account: account)
+    }
 }

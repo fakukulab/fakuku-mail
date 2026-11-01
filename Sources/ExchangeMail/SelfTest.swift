@@ -193,6 +193,20 @@ enum SelfTest {
             check("S-009 지운 서명은 기본 규칙에서도 빠진다", store.ruleSelection(.forward) == nil)
             check("S-009 서명은 파일로 저장된다", store.fileExists)
 
+            // S-021: 이 계정만의 기본 서명
+            let me = model.auth.email
+            let short = store.signatures.first { $0.name == "간단 서명" }
+            if let short {
+                store.setChoice(.signature(short.id), kind: .new, account: me)
+                check("S-021 계정 규칙이 모든 계정 규칙보다 앞선다", store.defaultSignature(kind: .new, account: me)?.id == short.id)
+                store.setChoice(.inherit, kind: .new, account: me)
+                check("S-021 따르기를 고르면 모든 계정 규칙으로 돌아간다",
+                      store.defaultSignature(kind: .new, account: me)?.name == "회사 서명")
+                store.setChoice(.none, kind: .forward, account: me)
+                check("S-021 계정에서 없음을 고르면 서명을 넣지 않는다", store.defaultSignature(kind: .forward, account: me) == nil)
+                store.setChoice(.inherit, kind: .forward, account: me)
+            }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

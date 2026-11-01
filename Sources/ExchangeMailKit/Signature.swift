@@ -66,6 +66,37 @@ public struct SignatureRules: Codable, Equatable, Sendable {
         return nil
     }
 
+    /// 설정 화면의 한 줄 값. `account`가 nil이면 모든 계정(전역) 규칙.
+    public func choice(kind: ComposeKind, account: String?) -> RuleChoice {
+        let key = kind.ruleKind.rawValue
+        let raw: UUID?
+        if let acc = account?.lowercased() {
+            raw = perAccount[acc]?[key]
+            if raw == nil { return .inherit }
+        } else {
+            raw = defaults[key]
+        }
+        guard let raw, raw != Self.noneID else { return .none }
+        return .signature(raw)
+    }
+
+    /// 설정 화면에서 고른 값을 저장한다. 전역 규칙에는 `.inherit`가 없으므로 `.none`으로 친다.
+    public mutating func setChoice(_ choice: RuleChoice, kind: ComposeKind, account: String?) {
+        let key = kind.ruleKind.rawValue
+        let value: UUID? = switch choice {
+        case .inherit: nil
+        case .none: Self.noneID
+        case .signature(let id): id
+        }
+        if let acc = account?.lowercased() {
+            var map = perAccount[acc] ?? [:]
+            map[key] = value
+            perAccount[acc] = map.isEmpty ? nil : map
+        } else {
+            defaults[key] = value ?? Self.noneID
+        }
+    }
+
     /// 지운 서명을 가리키던 규칙을 모두 지운다.
     public mutating func forget(_ id: UUID) {
         for (k, v) in defaults where v == id { defaults[k] = nil }
@@ -73,6 +104,15 @@ public struct SignatureRules: Codable, Equatable, Sendable {
             perAccount[acc] = map.filter { $0.value != id }
         }
     }
+}
+
+/// 기본 서명 규칙 한 줄의 값.
+public enum RuleChoice: Hashable, Sendable {
+    /// 계정 규칙에서만: 모든 계정 규칙을 따른다
+    case inherit
+    /// 서명 없음
+    case none
+    case signature(UUID)
 }
 
 public enum SignatureComposer {
