@@ -5,12 +5,13 @@
   "groups" : [
     {
       "layers" : [
-        { "glass" : true, "image-name" : "front.svg", "name" : "clip" },
-        { "glass" : true, "image-name" : "middle.svg", "name" : "flap", "opacity" : 0.5 },
-        { "glass" : true, "image-name" : "back.svg", "name" : "envelope", "opacity" : 0.75 }
+        { "glass" : true, "image-name" : "tile.svg", "name" : "F tile" },
+        { "glass" : true, "image-name" : "pocket.svg", "name" : "pocket" },
+        { "glass" : true, "image-name" : "letter.svg", "name" : "letter" },
+        { "glass" : true, "image-name" : "flap.svg", "name" : "flap", "opacity" : 0.55 }
       ],
       "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "translucency" : { "enabled" : true, "value" : 0.5 }
+      "translucency" : { "enabled" : true, "value" : 0.4 }
     }
   ],
   "supported-platforms" : { "squares" : [ "macOS" ] }

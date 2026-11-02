@@ -1,4 +1,4 @@
-"""Draws the FAKUKU Mail icon layers (envelope, flap, paperclip) as filled SVG shapes.
+"""(예전 아이콘: 봉투+클립. 지금 아이콘은 tools/icon_fakuku.py.) Draws the old FAKUKU Mail icon layers as filled SVG shapes.
 Needs: pip install shapely
 Usage (the values in the current icon):
   python3 tools/icon_layers.py Icon/AppIcon.icon/Assets \
