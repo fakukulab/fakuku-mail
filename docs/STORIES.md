@@ -375,14 +375,14 @@ As the user, 본문 머리글의 첨부 칩을 Finder나 데스크톱으로 끌�
 Acceptance:
 - [self] 첨부 칩을 끌면 NFC 이름의 파일을 넘긴다.
 - [manual] Finder나 데스크톱에 놓으면 그 자리에 파일이 생긴다.
-Status: doing (코드 완료, 맥 빌드·확인 대기)
+Status: done (맥에서 확인 2026-11-02)
 
 ### S-036 보내기 취소
 As the user, 보내기를 누른 뒤 정해 둔 몇 초(설정: 끔·5·10·20초) 안에 "보내기 취소"를 눌러 작성 창으로 돌아온다.
 Acceptance:
 - [self] 보내기를 누르면 남은 초를 세고, 그 사이 "보내기 취소"(Esc)를 누르면 보내지 않고 창에 남는다. 다 지나면 보낸다.
 - [manual] 설정 > 보내기에서 끔·5·10·20초를 고른다 (기본 10초).
-Status: doing (코드 완료, 맥 빌드·확인 대기)
+Status: done (맥에서 확인 2026-11-02)
 
 ### S-037 예약 보내기
 As the user, 보내기 버튼의 메뉴에서 "나중에 보내기…"로 날짜와 시각을 골라 Exchange가 그때 보내게 한다.
@@ -390,7 +390,7 @@ Acceptance:
 - [unit] 지연 발송 속성은 `SystemTime 0x3FEF`에 UTC 시각이다. 프리셋은 오늘 오후 6시(5분 넘게 남았을 때), 내일 오전 9시, 다음 월요일 오전 9시.
 - [self] 예약하면 초안 → 시각 붙이기 → 보내기 순서로 처리된다. 1분 안의 시각은 예약하지 않는다.
 - [manual] 실제 계정에서 예약한 메일이 그 시각에 받는 사람에게 도착한다.
-Status: doing (코드 완료, 맥 빌드·확인 대기)
+Status: done (맥에서 확인 2026-11-02)
 
 ### S-038 회의 초대에 답하기
 As the user, 회의 초대 메일에서 일시·장소를 보고 수락·미정·거절로 답한다 (Calendars.ReadWrite 권한).
@@ -398,12 +398,12 @@ Acceptance:
 - [unit] `@odata.type`이 eventMessageRequest면 회의 초대이고, 일정 시각은 UTC·IANA 시간대로 읽는다.
 - [self] 회의 초대를 열면 일시·장소가 보이고, 수락하면 "수락함"이 보인다.
 - [manual] 실제 계정에서 수락하면 Outlook 일정에 들어가고 보낸 사람에게 응답이 간다 (Calendars.ReadWrite 권한).
-Status: doing (코드 완료, 맥 빌드·확인 대기)
+Status: todo (보류: 같은 회사 Teams 초대에서 "수락함"은 떴지만 Outlook 일정에 반영되지 않고 미정으로도 바뀌지 않음. 응답 뒤 서버 상태를 다시 읽도록 고친 c73eb3a로 다시 확인해 원인을 좁힐 것. docs/FIXLOG.md 참고)
 
 ## M12 Mailbox settings
 
 ### S-039 규칙
-As the user, 설정 > 규칙에서 "보낸 사람/제목에 ~가 있으면 → 폴더로 이동·읽음·깃발·지우기" 규칙을 만들고 켜고 끄고 지운다 (서버 규칙, MailboxSettings.ReadWrite).
+As the user, 설정 > 규칙에서 "보낸 사람/제목에 ~가 있으면 → 폴더로 이동·읽음·중요도 높음·지우기" 규칙을 만들고 켜고 끄고 지운다 (서버 규칙, MailboxSettings.ReadWrite). Graph 규칙에는 깃발 동작이 없어 중요도 높음으로 바꿨다.
 Status: todo
 
 ### S-040 부재중 자동 응답
