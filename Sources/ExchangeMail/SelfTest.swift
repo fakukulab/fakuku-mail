@@ -817,10 +817,10 @@ enum SelfTest {
             check("M17 정크 메일 지우기", junkLeft == 0)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.3))
-            let order = model.sidebarOrder
+            let mailboxOrder = model.sidebarOrder
             model.selectAdjacentMailbox(1)
             check("M17 다음 메일상자로 이동",
-                  order.firstIndex(of: model.selectedFolderID ?? "") == (order.firstIndex(of: "inbox") ?? 0) + 1)
+                  mailboxOrder.firstIndex(of: model.selectedFolderID ?? "") == (mailboxOrder.firstIndex(of: "inbox") ?? 0) + 1)
             model.selectAdjacentMailbox(-1)
             check("M17 이전 메일상자로 이동", model.selectedFolderID == "inbox")
             let base = SmartMailbox(name: "복제 시험", conditions: [.init(field: .unread)])
