@@ -1,15 +1,13 @@
 import SwiftUI
 
-/// 설정 > 모양: 강조 색. 밝은/어두운 모드는 Mac 설정을 따른다.
+/// 설정 > 일반 > 강조 색. 밝은/어두운 모드는 Mac 설정을 따른다.
 struct AppearanceSettings: View {
     @Bindable private var store = ThemeStore.shared
 
     var body: some View {
         Section {
-            AccentPreview()
-                .padding(.vertical, Space.xs)
-            LabeledContent("강조 색") {
-                VStack(alignment: .trailing, spacing: Space.xs) {
+            LabeledContent("강조 색:") {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     HStack(spacing: Space.sm) {
                         ForEach(Theme.all) { theme in
                             AccentSwatch(theme: theme, selected: store.themeID == theme.id) {
@@ -20,6 +18,8 @@ struct AppearanceSettings: View {
                     Text(store.theme.name)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    AccentPreview()
+                        .frame(width: 360)
                 }
             }
         }

@@ -75,7 +75,7 @@ final class MessageReader {
 
     func print(model: AppModel) {
         guard let message else { return }
-        model.printMessage(message, body: body, allowRemote: allowRemote)
+        model.printMessage(message, body: body, remote: model.remoteMode(for: message, allowed: allowRemote))
     }
 
     func toggleFlag(model: AppModel) async {

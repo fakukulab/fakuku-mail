@@ -64,6 +64,12 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   `mailboxes.json`. `AppModel+Mailboxes.loadVirtual` fills the list: VIP mail by KQL `from:` search
   (`MailService.messages(fromSender:)`), smart mailboxes by `collectMessages` (recent 100, server `$filter` for the
   "all" parts) and then `SmartMailbox.matches` in the app.
+- Mail activity protection (S-047): `TrackingProtection` (Kit) removes tracking pixels and known tracker hosts and
+  rewrites remote images to `fakuku-proxy://image?u=…`; the CSP then allows only that scheme. `ProxyImageLoader`
+  (`AppModel+Privacy.swift`, a `WKURLSchemeHandler`) fetches them with an ephemeral session, no cookies, no referer,
+  images only. `AppModel.remoteMode` picks blocked / proxied / allowed per message (junk is always blocked);
+  `protectedPage` caches the rewritten page. The IP address is not hidden (that needs a relay server).
+- Settings (S-048): Mail's tab order; most tabs are `.formStyle(.columns)`.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 

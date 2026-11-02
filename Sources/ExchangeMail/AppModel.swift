@@ -92,6 +92,31 @@ final class AppModel {
     /// 열린 스마트 메일상자 편집 시트
     var editingSmart: SmartMailbox?
 
+    // 개인정보 보호 (S-047). 설정 > 보기, 설정 > 정크 메일. 테스트·스냅숏은 저장하지 않는다.
+    /// 메일 활동 보호: 추적기를 막고 원격 그림은 앱이 대신 받는다
+    var protectMailActivity = AppModel.savedFlag("privacy.protect", default: true) {
+        didSet { saveFlag("privacy.protect", protectMailActivity); updateMenu() }
+    }
+    /// 메일 활동 보호를 끈 경우: 원격 콘텐츠를 막을지
+    var blockAllRemote = AppModel.savedFlag("privacy.blockAll", default: true) {
+        didSet { saveFlag("privacy.blockAll", blockAllRemote); updateMenu() }
+    }
+    /// 정크 메일 폴더의 원격 그림은 항상 막기
+    var junkBlocksRemote = AppModel.savedFlag("junk.blockRemote", default: true) {
+        didSet { saveFlag("junk.blockRemote", junkBlocksRemote); updateMenu() }
+    }
+    /// 본문 문서 캐시: 추적기 바꾸기는 정규식이라 같은 메일을 다시 그릴 때마다 하지 않는다.
+    @ObservationIgnored var pageCache: [String: ProtectedPage] = [:]
+
+    static func savedFlag(_ key: String, default value: Bool) -> Bool {
+        guard !Store.isOverridden, UserDefaults.standard.object(forKey: key) != nil else { return value }
+        return UserDefaults.standard.bool(forKey: key)
+    }
+
+    func saveFlag(_ key: String, _ value: Bool) {
+        if !Store.isOverridden { UserDefaults.standard.set(value, forKey: key) }
+    }
+
     static func savedSort() -> MailSort {
         guard !Store.isOverridden, let data = UserDefaults.standard.data(forKey: "list.sort"),
               let sort = try? JSONDecoder().decode(MailSort.self, from: data) else { return MailSort() }
@@ -142,7 +167,7 @@ final class AppModel {
     var previewSignIn = false
 
     /// Settings reopens on the last tab. Test and snapshot runs leave it alone.
-    var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .account {
+    var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
     }
 
@@ -525,7 +550,7 @@ final class AppModel {
             sortDescending: listSort.descending,
             filterActive: listFilter.isActive,
             isDraft: isDraftSelected,
-            hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed,
+            hasRemoteContent: detailHasRemoteContent && detailRemote != .allowed,
             senderIsVIP: detail.flatMap { mailboxes.vip(for: $0) } != nil))
     }
 }

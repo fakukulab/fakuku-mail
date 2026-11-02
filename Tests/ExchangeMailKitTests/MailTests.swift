@@ -790,3 +790,33 @@ func vipAndVirtualIDs() {
     let data = try? JSONEncoder().encode(saved)
     #expect(data.flatMap { try? JSONDecoder().decode(LocalMailboxes.self, from: $0) } == saved)
 }
+
+@Test("메일 활동 보호: 추적기는 빼고 원격 그림은 대신 받는 주소로")
+func trackingProtection() {
+    let html = """
+    <p><img src="https://cdn.shop.com/hero.jpg" srcset="https://cdn.shop.com/hero@2x.jpg 2x" width="600"></p>
+    <img src="https://shop.list-manage.com/track/open.php?u=1" width="600">
+    <img src='https://news.example.com/o.png?id=9' width="1" height="1">
+    <img src="//cdn.shop.com/logo.png" style="display:none">
+    <img src="data:image/png;base64,AAAA">
+    <td background="https://cdn.shop.com/bg.png" style="background-image:url('https://cdn.shop.com/bg2.png')">
+    <div style="background:url(https://mailtrack.io/trace/mail/1.png)"></div>
+    """
+    let r = TrackingProtection.rewrite(html: html)
+    #expect(r.blocked == 4)        // list-manage, 1×1 픽셀, 숨긴 그림, mailtrack.io
+    #expect(r.proxied == 3)        // hero, background 속성, url()
+    #expect(!r.html.contains("list-manage") && !r.html.contains("mailtrack") && !r.html.contains("o.png"))
+    #expect(!r.html.contains("srcset"))
+    #expect(r.html.contains("data:image/png;base64,AAAA"))
+    #expect(!r.html.contains("src=\"https://") && !r.html.contains("background=\"https://"))
+
+    let proxy = TrackingProtection.proxyURL(for: URL(string: "https://cdn.shop.com/hero.jpg?w=600&h=300")!)
+    #expect(proxy.hasPrefix("fakuku-proxy://image?u="))
+    #expect(TrackingProtection.originalURL(from: URL(string: proxy))?.absoluteString == "https://cdn.shop.com/hero.jpg?w=600&h=300")
+    #expect(TrackingProtection.originalURL(from: URL(string: "fakuku-proxy://image?u=file%3A%2F%2F%2Fetc%2Fpasswd")) == nil)
+
+    let page = MailContent.page(body: .init(contentType: "html", content: html), remote: .proxied)
+    #expect(page.contains("img-src data: fakuku-proxy:;"))
+    #expect(!page.contains("list-manage"))
+    #expect(MailContent.page(body: .init(contentType: "html", content: html), remote: .blocked).contains("list-manage"))
+}

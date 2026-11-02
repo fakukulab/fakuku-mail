@@ -58,6 +58,32 @@ enum SelfTest {
             await open("m2")
             check("S-016 다른 메일로 옮기면 다시 차단된다", !model.remoteContentAllowed)
 
+            // S-047 메일 활동 보호 (테스트 저장소라 설정은 저장하지 않는다)
+            await open("m3")
+            model.protectMailActivity = true
+            check("S-047 메일 활동 보호가 켜져 있으면 원격 그림을 앱이 대신 받는다", model.detailRemote == .proxied)
+            let shielded = model.protectedPage(id: "m3", body: model.detailBody, remote: .proxied)
+            check("S-047 추적 픽셀은 빼고 나머지 그림은 대신 받는 주소로",
+                  shielded.blockedTrackers == 1 && shielded.html.contains("\(TrackingProtection.scheme)://image?u=")
+                      && !shielded.html.contains("wf/open") && !shielded.html.contains("src=\"https://news.example.com/banner.png"))
+            check("S-047 대신 받는 주소만 허용하는 보안 정책",
+                  shielded.html.contains("img-src data: \(TrackingProtection.scheme):"))
+            model.protectMailActivity = false
+            model.blockAllRemote = true
+            check("S-047 보호를 끄고 모든 원격 콘텐츠 차단을 켜면 막는다", model.detailRemote == .blocked)
+            model.blockAllRemote = false
+            check("S-047 둘 다 끄면 원래 서버에서 불러온다", model.detailRemote == .allowed)
+            model.protectMailActivity = true
+            model.blockAllRemote = true
+            var junkMail = MailMessage(id: "junk-test", subject: "x", from: nil, receivedDateTime: Date())
+            junkMail.parentFolderId = "junkemail"
+            check("S-047 정크 메일의 원격 그림은 보호를 켜도 막는다", model.remoteMode(for: junkMail, allowed: false) == .blocked)
+            check("S-047 불러오기를 누른 메일은 그대로 불러온다", model.remoteMode(for: junkMail, allowed: true) == .allowed)
+
+            // S-048 맥 Mail 같은 설정 탭
+            check("S-048 설정 탭이 맥 Mail 순서로 나뉜다",
+                  SettingsTab.allCases.map(\.title) == ["일반", "계정", "정크 메일", "보기", "작성", "서명", "규칙", "자동 응답", "알림"])
+
             // S-013
             // 열면 읽음이 되므로, 한 번 바꾸면 읽지 않음, 다시 바꾸면 읽음.
             let unreadOpen = model.selectedFolder?.unreadItemCount ?? 0

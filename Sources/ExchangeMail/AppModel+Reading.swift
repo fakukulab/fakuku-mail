@@ -55,12 +55,12 @@ extension AppModel {
     /// 지금 보는 메일을 머리글과 함께 인쇄한다. 인쇄 창에서 PDF로 저장할 수도 있다.
     func printDisplayed() {
         guard let m = detail else { return }
-        printMessage(m, body: detailBody, allowRemote: remoteContentAllowed)
+        printMessage(m, body: detailBody, remote: detailRemote)
     }
 
-    /// 메일 한 통을 인쇄한다 (본문 열 또는 메시지 창, S-043).
-    func printMessage(_ m: MailMessage, body: MailMessage.Body?, allowRemote: Bool) {
-        let html = MailContent.printPage(message: m, body: body, allowRemote: allowRemote)
+    /// 메일 한 통을 인쇄한다 (본문 열 또는 메시지 창, S-043). 원격 그림은 화면과 같은 방식으로 (S-047).
+    func printMessage(_ m: MailMessage, body: MailMessage.Body?, remote: RemoteContent) {
+        let html = MailContent.printPage(message: m, body: body, remote: remote)
         let printer = MailPrinter()
         self.printer = printer
         printer.print(html: html, title: m.title) { [weak self] in self?.printer = nil }
@@ -79,6 +79,7 @@ final class MailPrinter: NSObject, WKNavigationDelegate {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         config.websiteDataStore = .nonPersistent()
+        config.setURLSchemeHandler(ProxyImageLoader.shared, forURLScheme: TrackingProtection.scheme)
         // A4 폭쯤. 인쇄 작업이 쪽 나누기를 다시 한다.
         let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 760, height: 1000), configuration: config)
         wv.navigationDelegate = self

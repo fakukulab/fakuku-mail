@@ -18,11 +18,13 @@ struct MessageWindow: View {
             if let m = reader.message {
                 VStack(alignment: .leading, spacing: 0) {
                     MessageHeader(message: m, attachments: reader.listedAttachments) { reader.preview($0, model: model) }
-                    if reader.hasRemoteContent && !reader.allowRemote {
-                        RemoteContentBar { reader.allowRemoteContent() }
+                    let remote = model.remoteMode(for: m, allowed: reader.allowRemote)
+                    let page = model.protectedPage(id: m.id, body: reader.body, remote: remote)
+                    if reader.hasRemoteContent {
+                        RemoteContentBar(remote: remote, blockedTrackers: page.blockedTrackers) { reader.allowRemoteContent() }
                     }
                     Divider()
-                    HTMLView(html: MailContent.page(body: reader.body, allowRemote: reader.allowRemote),
+                    HTMLView(html: page.html,
                              scroller: reader.pageScroller, onPrint: { reader.print(model: model) }) { url in
                         openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }

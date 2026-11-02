@@ -43,21 +43,33 @@ public enum MailContent {
 
     /// 콘텐츠 보안 정책. 스크립트는 WKWebView 설정으로도 꺼 두지만 여기서도 막는다.
     public static func contentSecurityPolicy(allowRemote: Bool) -> String {
-        allowRemote
-            ? "default-src 'none'; img-src * data:; style-src * 'unsafe-inline'; font-src * data:; media-src * data:"
-            : "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:"
+        contentSecurityPolicy(allowRemote ? .allowed : .blocked)
+    }
+
+    /// 메일 활동 보호(proxied)면 그림은 앱이 대신 받는 주소만 허용한다 (S-047).
+    public static func contentSecurityPolicy(_ remote: RemoteContent) -> String {
+        switch remote {
+        case .allowed: "default-src 'none'; img-src * data:; style-src * 'unsafe-inline'; font-src * data:; media-src * data:"
+        case .proxied: "default-src 'none'; img-src data: \(TrackingProtection.scheme):; style-src 'unsafe-inline'; font-src data:"
+        case .blocked: "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:"
+        }
     }
 
     /// 웹 보기용 문서. CSP meta는 맨 앞에 두어 메일 HTML보다 먼저 적용되게 한다.
     public static func page(body: MailMessage.Body?, allowRemote: Bool) -> String {
+        page(body: body, remote: allowRemote ? .allowed : .blocked)
+    }
+
+    /// 웹 보기용 문서 (S-047). proxied면 추적기를 빼고 원격 그림을 대신 받는 주소로 바꾼다.
+    public static func page(body: MailMessage.Body?, remote: RemoteContent) -> String {
         let content: String
         if let body, body.isHTML {
-            content = body.content
+            content = remote == .proxied ? TrackingProtection.rewrite(html: body.content).html : body.content
         } else {
             content = "<pre style=\"white-space:pre-wrap;font:inherit\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
         }
         return """
-        <meta http-equiv="Content-Security-Policy" content="\(contentSecurityPolicy(allowRemote: allowRemote))">\
+        <meta http-equiv="Content-Security-Policy" content="\(contentSecurityPolicy(remote))">\
         <meta name="color-scheme" content="light dark">\
         <style>html,body{margin:0}body{font:14px -apple-system,'Apple SD Gothic Neo',sans-serif;padding:16px 20px;\
         word-wrap:break-word}img{max-width:100%;height:auto}blockquote[type=cite]{margin-left:0;padding-left:10px;\
@@ -69,6 +81,11 @@ public enum MailContent {
 extension MailContent {
     /// 인쇄용 문서 (S-034): 머리글(제목, 보낸 사람, 받는 사람, 참조, 날짜) + 본문. 본문 안전 규칙(CSP)은 그대로.
     public static func printPage(message m: MailMessage, body: MailMessage.Body?, allowRemote: Bool,
+                                 timeZone: TimeZone = .current) -> String {
+        printPage(message: m, body: body, remote: allowRemote ? .allowed : .blocked, timeZone: timeZone)
+    }
+
+    public static func printPage(message m: MailMessage, body: MailMessage.Body?, remote: RemoteContent,
                                  timeZone: TimeZone = .current) -> String {
         func people(_ list: [Recipient]?) -> String {
             HTMLProcessor.escape(AddressParser.format((list ?? []).compactMap { $0.emailAddress.mailAddress }))
@@ -99,7 +116,7 @@ extension MailContent {
         } else {
             html = header + "<pre style=\"white-space:pre-wrap;font:inherit\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
         }
-        return page(body: .init(contentType: "html", content: html), allowRemote: allowRemote)
+        return page(body: .init(contentType: "html", content: html), remote: remote)
     }
 }
 

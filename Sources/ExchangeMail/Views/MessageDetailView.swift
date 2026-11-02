@@ -27,11 +27,15 @@ struct MessageDetailView: View {
                     if m.isMeetingRequest, let event = m.event {
                         MeetingBar(event: event)
                     }
-                    if model.detailHasRemoteContent && !model.remoteContentAllowed {
-                        RemoteContentBar { model.allowRemoteContentForSelection() }
+                    let remote = model.detailRemote
+                    let page = model.protectedPage(id: m.id, body: model.detailBody, remote: remote)
+                    if model.detailHasRemoteContent {
+                        RemoteContentBar(remote: remote, blockedTrackers: page.blockedTrackers) {
+                            model.allowRemoteContentForSelection()
+                        }
                     }
                     Divider()
-                    HTMLView(html: MailContent.page(body: model.detailBody, allowRemote: model.remoteContentAllowed),
+                    HTMLView(html: page.html,
                              scroller: model.pageScroller, onPrint: { model.printDisplayed() }) { url in
                         openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }
@@ -70,21 +74,43 @@ struct MessageDetailView: View {
     }
 }
 
-/// 원격 이미지를 막았다는 안내와 불러오기 (본문 열과 메시지 창)
+/// 원격 콘텐츠 안내 (본문 열과 메시지 창, S-016, S-047).
+/// 막았으면 불러오기를, 메일 활동 보호로 추적기를 뺐으면 그 수를 보인다. 그대로 불러왔으면 아무것도 보이지 않는다.
 struct RemoteContentBar: View {
+    let remote: RemoteContent
+    let blockedTrackers: Int
     let allow: () -> Void
 
     var body: some View {
+        switch remote {
+        case .blocked:
+            bar(symbol: "photo.badge.exclamationmark",
+                text: "원격 이미지를 차단했습니다. 보낸 사람이 메일을 열었는지 알 수 없게 합니다.") {
+                Button("불러오기", action: allow)
+                    .controlSize(.small)
+                    .help("이 메일의 원격 이미지를 원래 서버에서 불러옵니다 (⇧⌘I)")
+            }
+        case .proxied where blockedTrackers > 0:
+            bar(symbol: "hand.raised",
+                text: "메일 활동 보호: 추적기 \(blockedTrackers)개를 막았습니다. 그림은 앱이 대신 받았습니다.") {
+                Button("원래대로 불러오기", action: allow)
+                    .controlSize(.small)
+                    .help("추적기를 포함해 원래 서버에서 그대로 불러옵니다. 보낸 사람이 열람을 알 수 있습니다 (⇧⌘I)")
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func bar<Action: View>(symbol: String, text: String, @ViewBuilder action: () -> Action) -> some View {
         HStack(spacing: Space.sm) {
-            Image(systemName: "photo.badge.exclamationmark")
+            Image(systemName: symbol)
                 .foregroundStyle(.secondary)
-            Text("원격 이미지를 차단했습니다. 보낸 사람이 메일을 열었는지 알 수 없게 합니다.")
+            Text(text)
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("불러오기", action: allow)
-                .controlSize(.small)
-                .help("이 메일의 원격 이미지를 불러옵니다 (⇧⌘I)")
+            action()
         }
         .padding(.horizontal, Space.margin)
         .padding(.vertical, Space.sm)

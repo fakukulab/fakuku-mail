@@ -66,6 +66,7 @@ final class DemoMailService: MailService {
                         bodyPreview: "이번 달 주요 소식을 전해 드립니다.", isRead: true, hasAttachments: false,
                         body: .init(contentType: "html", content: """
                         <p><img src="https://news.example.com/banner.png" alt="배너" width="600"></p>\
+                        <img src="https://news.example.com/wf/open?u=demo123" width="1" height="1" alt="">\
                         <h2>11월 업계 소식</h2><p>이번 달 주요 소식을 전해 드립니다. \
                         <a href="https://news.example.com/2024-11">전체 기사 보기</a></p>
                         """)),

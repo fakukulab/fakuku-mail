@@ -6,6 +6,8 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
+    /// 설정 > 일반 > 새 메일 확인 (분, 0이면 수동)
+    @AppStorage("refresh.minutes") private var refreshMinutes = 2
 
     var body: some View {
         @Bindable var model = model
@@ -21,7 +23,7 @@ struct ContentView: View {
             Snapshot.runIfRequested(model: model, openSettings: openSettings, openWindow: openWindow)
         }
         .task(id: model.isSignedIn) { await model.reloadAll() }
-        .task(id: model.isSignedIn) { await autoRefresh() }
+        .task(id: "\(model.isSignedIn)-\(refreshMinutes)") { await autoRefresh() }
         .task(id: model.isSignedIn) {
             NotificationRouter.shared.open = { id in Task { await model.openFromNotification(id) } }
             await model.prepareNotifications()
@@ -34,12 +36,14 @@ struct ContentView: View {
         }
     }
 
-    /// 2분마다: 앱이 앞에 있으면 화면을 새로 고치고(S-015), 뒤에 있어도 새 메일을 확인해 알린다(S-024).
+    /// 설정한 간격마다(기본 2분): 앱이 앞에 있으면 화면을 새로 고치고(S-015), 뒤에 있어도 새 메일을 확인해 알린다(S-024).
+    /// 수동이면 받은 메일 가져오기(⇧⌘N)를 누를 때만.
     private func autoRefresh() async {
         guard model.isSignedIn, !model.isDemo else { return }
         await model.checkNewMail()   // 처음 한 번: 새 메일 기준을 정한다
+        guard refreshMinutes > 0 else { return }
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(120))
+            try? await Task.sleep(for: .seconds(Double(refreshMinutes) * 60))
             if Task.isCancelled { break }
             if NSApp.isActive { await model.refresh() }
             await model.checkNewMail()

@@ -15,6 +15,8 @@ struct HTMLView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         config.websiteDataStore = .nonPersistent()
+        // 메일 활동 보호: 원격 그림을 앱이 쿠키·리퍼러 없이 대신 받는다 (S-047)
+        config.setURLSchemeHandler(ProxyImageLoader.shared, forURLScheme: TrackingProtection.scheme)
         let wv = MailWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
         wv.setValue(false, forKey: "drawsBackground")
