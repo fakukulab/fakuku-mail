@@ -98,3 +98,11 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인: macOS 메뉴는 Label의 아이콘을 기본으로 숨기고(`.labelStyle(.titleAndIcon)` 필요), SF Symbol 그림은 모양만 써서 강조색으로 덧칠한다.
 - 고침: 색 깃발을 비트맵(NSBitmapImageRep)으로 한 번 그려 `Image(nsImage:)`로 넘긴다 (`FlagColor.flagImage`).
 - 규칙: 메뉴에서 색이 남아야 하는 아이콘은 기호가 아닌 비트맵으로 넘긴다.
+
+## 2026-11-03 Siri 명령(App Intents) 메타데이터를 swift build로 만들기
+- 증상: 빌드는 되지만 Siri·단축어에 명령이 안 보임. Metadata.appintents가 앱에 없었다.
+- 원인 1: `-emit-const-values`만 주면 전체 모듈 최적화 빌드에서 .swiftconstvalues가 생기지 않는다 → `-emit-const-values-path`로 자리를 정한다.
+- 원인 2: `appintentsmetadataprocessor`는 링커의 dependency_info로 AppIntents.framework 링크 여부를 본다 → `-Xlinker -dependency_info`.
+- 원인 3: 빌드 결과 폴더는 심볼릭 링크라 `find -L`로 찾는다.
+- 고침: build.sh가 위 옵션으로 빌드하고 tools/make_intents.sh가 메타데이터를 만든다 (Xcode 27B52에서 확인).
+- 규칙: 매개변수(@Parameter)가 있는 인텐트는 nonisolated struct로 둘 수 없다 → `@preconcurrency AppIntent`.

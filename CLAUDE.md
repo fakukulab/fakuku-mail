@@ -18,6 +18,8 @@ Mail stays on the server (Microsoft Graph). Local data: signatures in
   Graph models, OAuth, reply drafts, mail content safety. Tests in `Tests/ExchangeMailKitTests/`.
 - `Package.swift` a Swift package. There is no Xcode project.
 - `build.sh` builds, signs, and installs `~/Applications/FAKUKU Mail.app` (executable `ExchangeMail`).
+  It also writes the Siri/Shortcuts metadata (`Contents/Resources/Metadata.appintents`) with `tools/make_intents.sh`;
+  intents live in `Sources/ExchangeMail/Intents/MailIntents.swift`.
 - `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). `build.sh` compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
 - `docs/` the brief, the screen index, and the user stories, when they exist.
 
