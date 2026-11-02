@@ -69,3 +69,6 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   `@Environment(AppModel.self)`로 모델을 읽어, 환경에 모델이 없어 멈췄다.
 - 고침: `FilterMenu(model:)`, `SortMenu(model:)`로 모델을 직접 넘긴다. 도구 막대 항목 안의 뷰는 환경 객체를 읽지 않는다.
 - 이전 단계: 열마다 따로 단 `.toolbar`는 창 전체의 사용자화를 껐다 → NavigationSplitView에 `.toolbar(id:)` 하나.
+- 다시 꺼짐 (충돌 보고서): `NSToolbarConfigPanel`이 항목을 스냅숏할 때 `NSSearchToolbarItemView _updateWidthConstraints`가
+  제약 예외를 던졌다. 앞의 원인 추정(환경 객체)은 틀렸다. 고침: `.searchable(placement: .sidebar)`로 검색 칸을 도구 막대에서 뺐다.
+  규칙: 사용자화 도구 막대가 있는 창에는 `.searchable(placement: .toolbar)`를 쓰지 않는다.

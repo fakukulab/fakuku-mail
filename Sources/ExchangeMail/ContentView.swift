@@ -64,7 +64,9 @@ struct MailSplitView: View {
             MessageDetailView()
         }
         .toolbar(id: "mail") { mailToolbar }
-        .searchable(text: $model.searchText, placement: .toolbar, prompt: "검색")
+        // 검색 칸은 사이드바 위에 둔다. 도구 막대에 두면 사용자화 시트가 검색 칸을 그리다 AppKit 예외로
+        // 앱이 꺼진다 (macOS 27, NSSearchToolbarItemView 제약 오류).
+        .searchable(text: $model.searchText, placement: .sidebar, prompt: "검색")
         // 검색 범위: 이 폴더 / 모든 폴더 (S-033)
         .searchScopes($model.searchScope) {
             Text("이 폴더").tag(SearchScope.folder)
