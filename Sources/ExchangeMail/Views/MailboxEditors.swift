@@ -56,25 +56,25 @@ struct VIPEditor: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("주소", value: vip.address)
-                TextField("표시 이름", text: $vip.name, prompt: Text(vip.address))
+                LabeledContent(L("주소"), value: vip.address)
+                TextField(L("표시 이름"), text: $vip.name, prompt: Text(vip.address))
             } footer: {
-                Text("사이드바 VIP 아래에 이 이름으로 보입니다. 메일의 보낸 사람 이름은 바뀌지 않습니다.")
+                Text(L("사이드바 VIP 아래에 이 이름으로 보입니다. 메일의 보낸 사람 이름은 바뀌지 않습니다."))
             }
-            Section("아이콘") {
+            Section(L("아이콘")) {
                 SymbolPicker(symbol: $vip.symbol)
             }
         }
         .formStyle(.grouped)
         .frame(width: 400)
         .fitsContent()
-        .navigationTitle(isNew ? "VIP로 지정" : "VIP 변경")
+        .navigationTitle(isNew ? L("VIP로 지정") : L("VIP 변경"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("취소") { model.editingVIP = nil }
+                Button(L("취소")) { model.editingVIP = nil }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(isNew ? "지정" : "저장") { model.saveVIP(vip) }
+                Button(isNew ? L("지정") : L("저장")) { model.saveVIP(vip) }
             }
         }
         .noInitialFocus()
@@ -95,10 +95,10 @@ struct SmartMailboxEditor: View {
     var body: some View {
         Form {
             Section {
-                TextField("이름", text: $box.name, prompt: Text("예: 오늘 받은 첨부"))
-                Picker("다음 조건을", selection: $box.matchAll) {
-                    Text("모두 만족").tag(true)
-                    Text("하나라도 만족").tag(false)
+                TextField(L("이름"), text: $box.name, prompt: Text(L("예: 오늘 받은 첨부")))
+                Picker(L("다음 조건을"), selection: $box.matchAll) {
+                    Text(L("모두 만족")).tag(true)
+                    Text(L("하나라도 만족")).tag(false)
                 }
             }
             Section {
@@ -107,28 +107,28 @@ struct SmartMailboxEditor: View {
                         box.conditions.removeAll { $0.id == condition.id }
                     }
                 }
-                Button("조건 추가", systemImage: "plus") {
+                Button(L("조건 추가"), systemImage: "plus") {
                     box.conditions.append(.init(field: .sender))
                 }
             } header: {
-                Text("조건")
+                Text(L("조건"))
             } footer: {
-                Text("모든 폴더의 최근 메일 100통에서 찾습니다. 폴더 조건이 없으면 지운 편지함과 정크 메일은 뺍니다.")
+                Text(L("모든 폴더의 최근 메일 100통에서 찾습니다. 폴더 조건이 없으면 지운 편지함과 정크 메일은 뺍니다."))
             }
-            Section("아이콘") {
+            Section(L("아이콘")) {
                 SymbolPicker(symbol: $box.symbol)
             }
         }
         .formStyle(.grouped)
         .frame(width: 480)
         .fitsContent()
-        .navigationTitle(isNew ? "새 스마트 메일상자" : "스마트 메일상자 변경")
+        .navigationTitle(isNew ? L("새 스마트 메일상자") : L("스마트 메일상자 변경"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("취소") { model.editingSmart = nil }
+                Button(L("취소")) { model.editingSmart = nil }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(isNew ? "만들기" : "저장") { model.saveSmart(box) }
+                Button(isNew ? L("만들기") : L("저장")) { model.saveSmart(box) }
                     .disabled(!box.isValid)
             }
         }
@@ -144,35 +144,35 @@ private struct ConditionRow: View {
 
     var body: some View {
         HStack(spacing: Space.sm) {
-            Picker("조건", selection: $condition.field) {
+            Picker(L("조건"), selection: $condition.field) {
                 ForEach(SmartMailbox.Field.allCases, id: \.self) { Text($0.label).tag($0) }
             }
             .labelsHidden()
             .fixedSize()
             switch condition.field {
             case .sender, .subject:
-                TextField("글자", text: $condition.value, prompt: Text(condition.field == .sender ? "이름 또는 주소" : "찾을 글자"))
+                TextField(L("글자"), text: $condition.value, prompt: Text(condition.field == .sender ? L("이름 또는 주소") : L("찾을 글자")))
                     .labelsHidden()
             case .receivedWithinDays:
-                TextField("일수", text: $condition.value, prompt: Text("7"))
+                TextField(L("일수"), text: $condition.value, prompt: Text("7"))
                     .labelsHidden()
                     .frame(width: 64)
-                Text("일")
+                Text(L("일"))
                     .foregroundStyle(.secondary)
                 Spacer()
             case .folder:
-                Picker("폴더", selection: $condition.value) {
-                    Text("폴더 고르기").tag("")
+                Picker(L("폴더"), selection: $condition.value) {
+                    Text(L("폴더 고르기")).tag("")
                     ForEach(folders) { Text($0.displayName).tag($0.id) }
                 }
                 .labelsHidden()
             default:
                 Spacer()
             }
-            Button("조건 빼기", systemImage: "minus.circle", action: remove)
+            Button(L("조건 빼기"), systemImage: "minus.circle", action: remove)
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .help("이 조건을 뺍니다")
+                .help(L("이 조건을 뺍니다"))
         }
     }
 }

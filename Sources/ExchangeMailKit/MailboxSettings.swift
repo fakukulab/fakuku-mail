@@ -69,16 +69,16 @@ public struct MessageRule: Codable, Identifiable, Hashable, Sendable {
     /// 목록에 보일 한 줄 설명: "보낸 사람에 'x' 포함 → 프로젝트로 이동"
     public func summary(folderName: (String) -> String?) -> String {
         var parts: [String] = []
-        if let s = conditions?.senderContains, !s.isEmpty { parts.append("보낸 사람에 '\(s.joined(separator: "', '"))' 포함") }
-        if let s = conditions?.subjectContains, !s.isEmpty { parts.append("제목에 '\(s.joined(separator: "', '"))' 포함") }
-        let when = parts.isEmpty ? "모든 메일" : parts.joined(separator: " 또는 ")
+        if let s = conditions?.senderContains, !s.isEmpty { parts.append(L("보낸 사람에 '\(s.joined(separator: "', '"))' 포함")) }
+        if let s = conditions?.subjectContains, !s.isEmpty { parts.append(L("제목에 '\(s.joined(separator: "', '"))' 포함")) }
+        let when = parts.isEmpty ? L("모든 메일") : parts.joined(separator: L(" 또는 "))
         var does: [String] = []
-        if let f = actions?.moveToFolder { does.append("\(folderName(f) ?? "다른 폴더")로 이동") }
-        if actions?.markAsRead == true { does.append("읽음으로 표시") }
-        if actions?.markImportance == "high" { does.append("중요도 높음") }
-        if actions?.delete == true { does.append("지우기") }
-        if let c = actions?.assignCategories, !c.isEmpty { does.append("범주 '\(c.joined(separator: "', '"))'") }
-        return "\(when) → \(does.isEmpty ? "(Outlook에서 만든 동작)" : does.joined(separator: ", "))"
+        if let f = actions?.moveToFolder { does.append(L("\(folderName(f) ?? L("다른 폴더"))로 이동")) }
+        if actions?.markAsRead == true { does.append(L("읽음으로 표시")) }
+        if actions?.markImportance == "high" { does.append(L("중요도 높음")) }
+        if actions?.delete == true { does.append(L("지우기")) }
+        if let c = actions?.assignCategories, !c.isEmpty { does.append(L("범주 '\(c.joined(separator: "', '"))'")) }
+        return "\(when) → \(does.isEmpty ? L("(Outlook에서 만든 동작)") : does.joined(separator: ", "))"
     }
 }
 
@@ -186,8 +186,8 @@ public struct AutomaticReplies: Codable, Equatable, Sendable {
 
 /// Graph v1.0에는 차단 목록 API가 없어 받은 편지함 서버 규칙 하나로 둔다. 앱이 꺼져 있어도 Exchange가 적용한다.
 public enum BlockedSenders {
-    public static let ruleName = "FAKUKU 차단된 보낸 사람"
-    public static let category = "차단됨"
+    public static let ruleName = "FAKUKU 차단된 보낸 사람"  // l10n: data
+    public static let category = "차단됨"  // l10n: data
 
     public enum Mode: String, CaseIterable, Sendable {
         /// 지운 편지함으로 이동

@@ -28,7 +28,7 @@ public struct Conversation: Identifiable, Equatable, Sendable {
         var names: [String] = []
         for m in (messages + related).sorted(by: { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }) {
             let address = m.from?.emailAddress.address?.lowercased()
-            let name = address != nil && address == myKey ? "나" : (m.from?.emailAddress.display ?? "")
+            let name = address != nil && address == myKey ? L("나") : (m.from?.emailAddress.display ?? "")
             if !name.isEmpty && !names.contains(name) { names.append(name) }
         }
         return names
@@ -36,7 +36,7 @@ public struct Conversation: Identifiable, Equatable, Sendable {
 }
 
 public enum Conversations {
-    static let replyPrefixes = ["re:", "fw:", "fwd:", "회신:", "전달:", "답장:", "aw:", "sv:", "wg:", "tr:", "rv:"]
+    static let replyPrefixes = ["re:", "fw:", "fwd:", "회신:", "전달:", "답장:", "aw:", "sv:", "wg:", "tr:", "rv:"]  // l10n: data
 
     /// 대화 비교용 제목: 앞의 RE:, FW:, 회신: 등을 모두 떼고, 공백을 하나로, 소문자로.
     public static func normalizedSubject(_ subject: String?) -> (base: String, wasReply: Bool) {

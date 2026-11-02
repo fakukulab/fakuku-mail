@@ -25,8 +25,8 @@ struct MessageDetailView: View {
     var body: some View {
         Group {
             if model.multipleSelectionCount > 0 {
-                ContentUnavailableView("메시지 \(model.multipleSelectionCount)개 선택됨", systemImage: "tray.full",
-                                       description: Text("보관, 지우기, 이동, 읽음, 깃발을 한 번에 할 수 있습니다."))
+                ContentUnavailableView(L("메시지 \(model.multipleSelectionCount)개 선택됨"), systemImage: "tray.full",
+                                       description: Text(L("보관, 지우기, 이동, 읽음, 깃발을 한 번에 할 수 있습니다.")))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let m = model.detail, m.id == model.displayedMessageID {
                 VStack(alignment: .leading, spacing: 0) {
@@ -59,7 +59,7 @@ struct MessageDetailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView("메시지를 선택하세요", systemImage: "envelope")
+                ContentUnavailableView(L("메시지를 선택하세요"), systemImage: "envelope")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -73,15 +73,15 @@ struct MessageDetailView: View {
         HStack(spacing: Space.sm) {
             Image(systemName: "pencil.and.list.clipboard")
                 .foregroundStyle(.secondary)
-            Text("저장된 초안입니다.")
+            Text(L("저장된 초안입니다."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("이어서 쓰기") {
+            Button(L("이어서 쓰기")) {
                 if let d = model.resumeDraft() { openWindow(id: "compose", value: d) }
             }
             .controlSize(.small)
-            .help("작성 창에서 이어서 씁니다 (⌘O)")
+            .help(L("작성 창에서 이어서 씁니다 (⌘O)"))
         }
         .padding(.horizontal, Space.margin)
         .padding(.vertical, Space.sm)
@@ -100,17 +100,17 @@ struct RemoteContentBar: View {
         switch remote {
         case .blocked:
             bar(symbol: "photo.badge.exclamationmark",
-                text: "원격 이미지를 차단했습니다. 보낸 사람이 메일을 열었는지 알 수 없게 합니다.") {
-                Button("불러오기", action: allow)
+                text: L("원격 이미지를 차단했습니다. 보낸 사람이 메일을 열었는지 알 수 없게 합니다.")) {
+                Button(L("불러오기"), action: allow)
                     .controlSize(.small)
-                    .help("이 메일의 원격 이미지를 원래 서버에서 불러옵니다 (⇧⌘I)")
+                    .help(L("이 메일의 원격 이미지를 원래 서버에서 불러옵니다 (⇧⌘I)"))
             }
         case .proxied where blockedTrackers > 0:
             bar(symbol: "hand.raised",
-                text: "메일 활동 보호: 추적기 \(blockedTrackers)개를 막았습니다. 그림은 앱이 대신 받았습니다.") {
-                Button("원래대로 불러오기", action: allow)
+                text: L("메일 활동 보호: 추적기 \(blockedTrackers)개를 막았습니다. 그림은 앱이 대신 받았습니다.")) {
+                Button(L("원래대로 불러오기"), action: allow)
                     .controlSize(.small)
-                    .help("추적기를 포함해 원래 서버에서 그대로 불러옵니다. 보낸 사람이 열람을 알 수 있습니다 (⇧⌘I)")
+                    .help(L("추적기를 포함해 원래 서버에서 그대로 불러옵니다. 보낸 사람이 열람을 알 수 있습니다 (⇧⌘I)"))
             }
         default:
             EmptyView()
@@ -154,7 +154,7 @@ struct MessageHeader: View {
                         if let from = message.from {
                             AddressToken(recipient: from, prominent: true)
                         } else {
-                            Text("(보낸 사람 없음)").font(.headline)
+                            Text(L("(보낸 사람 없음)")).font(.headline)
                         }
                         Spacer(minLength: Space.sm)
                         Text(message.receivedDateTime.map { MailDate.long($0) } ?? "")
@@ -164,8 +164,8 @@ struct MessageHeader: View {
                     Text(message.title)
                         .font(.title3)
                         .textSelection(.enabled)
-                    recipients("받는 사람:", message.toRecipients)
-                    recipients("참조:", message.ccRecipients)
+                    recipients(L("받는 사람:"), message.toRecipients)
+                    recipients(L("참조:"), message.ccRecipients)
                 }
             }
             if !attachments.isEmpty {
@@ -180,7 +180,7 @@ struct MessageHeader: View {
                     }
                 }
                 if attachments.count > 1 {
-                    Button("모두 다운로드…") { Task { await model.saveAll(attachments, messageID: message.id) } }
+                    Button(L("모두 다운로드…")) { Task { await model.saveAll(attachments, messageID: message.id) } }
                         .buttonStyle(.link)
                         .font(.callout)
                 }
@@ -246,25 +246,25 @@ struct AddressToken: View {
         Menu {
             Text(address)
             Divider()
-            Button("주소 복사") {
+            Button(L("주소 복사")) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(recipient.emailAddress.mailAddress?.editable ?? address, forType: .string)
             }
             if model.mailboxes.vip(address: address) == nil {
-                Button("VIP에 추가…") { model.editVIP(address: address, name: recipient.emailAddress.name) }
+                Button(L("VIP에 추가…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
             } else {
-                Button("VIP 이름·아이콘 변경…") { model.editVIP(address: address, name: recipient.emailAddress.name) }
-                Button("VIP에서 빼기") { model.removeVIP(address: address) }
+                Button(L("VIP 이름·아이콘 변경…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
+                Button(L("VIP에서 빼기")) { model.removeVIP(address: address) }
             }
-            Button("발신자 차단") { Task { await model.block(address: address) } }
-            Button("새로운 이메일") {
+            Button(L("발신자 차단")) { Task { await model.block(address: address) } }
+            Button(L("새로운 이메일")) {
                 openWindow(id: "compose", value: ComposeDraft(to: recipient.emailAddress.mailAddress?.editable ?? address))
             }
             Divider()
-            Button("이전 수신자 목록에서 제거") { model.addressBook.remove(address) }
-            Button("연락처 카드 보기") { Task { await ContactCard.show(address: address, name: recipient.emailAddress.name) } }
+            Button(L("이전 수신자 목록에서 제거")) { model.addressBook.remove(address) }
+            Button(L("연락처 카드 보기")) { Task { await ContactCard.show(address: address, name: recipient.emailAddress.name) } }
             Divider()
-            Button("'\(name)' 검색") {
+            Button(L("'\(name)' 검색")) {
                 model.searchScope = .all
                 model.searchText = recipient.emailAddress.name?.isEmpty == false ? (recipient.emailAddress.name ?? address) : address
                 Task { await model.loadMessages() }
@@ -320,7 +320,7 @@ struct ThreadStrip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("대화 \(model.thread.count)통")
+            Text(L("대화 \(model.thread.count)통"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, Space.margin)
@@ -350,7 +350,7 @@ struct ThreadRow: View {
 
     private var sender: String {
         let address = message.from?.emailAddress.address?.lowercased()
-        return address != nil && address == me?.lowercased() ? "나" : (message.from?.emailAddress.display ?? "")
+        return address != nil && address == me?.lowercased() ? L("나") : (message.from?.emailAddress.display ?? "")
     }
 
     var body: some View {
@@ -387,7 +387,7 @@ struct ThreadRow: View {
             .background(isShown ? AnyShapeStyle(.quaternary) : AnyShapeStyle(Color.clear))
         }
         .buttonStyle(.plain)
-        .help(isShown ? "지금 보고 있는 메일" : "이 메일 펼치기")
+        .help(isShown ? L("지금 보고 있는 메일") : L("이 메일 펼치기"))
         .accessibilityAddTraits(isShown ? .isSelected : [])
     }
 }
@@ -423,7 +423,7 @@ struct MeetingBar: View {
             }
             // 응답 뒤 일정 확인 결과가 있으면 Outlook 웹 일정에서 바로 확인한다 (S-038)
             if let link = model.meetingCheck?.webLink {
-                Button("일정에서 보기") { NSWorkspace.shared.open(link) }
+                Button(L("일정에서 보기")) { NSWorkspace.shared.open(link) }
                     .controlSize(.small)
                     .help(model.meetingCheck?.summary ?? "")
             }

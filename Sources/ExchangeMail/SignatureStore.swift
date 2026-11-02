@@ -52,7 +52,7 @@ final class SignatureStore {
     @discardableResult
     func add(name: String? = nil) -> Signature {
         let s = Signature(name: name ?? nextName(),
-                          html: "<div style=\"font-family:-apple-system,'Apple SD Gothic Neo';font-size:13px\">이름<br>회사 · 직함</div>")
+                          html: L("<div style=\"font-family:-apple-system,'Apple SD Gothic Neo';font-size:13px\">이름<br>회사 · 직함</div>"))
         signatures.append(s)
         return s
     }
@@ -60,8 +60,8 @@ final class SignatureStore {
     private func nextName() -> String {
         let names = Set(signatures.map(\.name))
         var n = signatures.count + 1
-        while names.contains("서명 \(n)") { n += 1 }
-        return "서명 \(n)"
+        while names.contains(L("서명 \(n)")) { n += 1 }
+        return L("서명 \(n)")
     }
 
     func delete(id: UUID) {

@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import SwiftUI
 
 /// 설정 > 일반 > 앱 아이콘 색. 앱 아이콘(tools/icon_fakuku.py와 같은 그림)을 코드로 그려 Dock 아이콘을 바꾼다.
@@ -10,15 +11,15 @@ enum AppIconColor: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .standard: "보라 (기본)"
-        case .blue: "파랑"
-        case .sky: "하늘"
-        case .green: "초록"
-        case .orange: "주황"
-        case .red: "빨강"
-        case .pink: "분홍"
-        case .graphite: "회색"
-        case .black: "검정"
+        case .standard: L("보라 (기본)")
+        case .blue: L("파랑")
+        case .sky: L("하늘")
+        case .green: L("초록")
+        case .orange: L("주황")
+        case .red: L("빨강")
+        case .pink: L("분홍")
+        case .graphite: L("회색")
+        case .black: L("검정")
         }
     }
 
@@ -117,7 +118,7 @@ struct AppIconArt: View {
                 context.fill(Path(roundedRect: rect, cornerRadius: 10 * k * s), with: .color(white))  // grid: ok 아이콘 그림 좌표(1024 기준)
             }
         }
-        .accessibilityLabel("FAKUKU Mail 아이콘")
+        .accessibilityLabel(L("FAKUKU Mail 아이콘"))
     }
 }
 
@@ -127,7 +128,7 @@ struct AppIconSettings: View {
 
     var body: some View {
         Section {
-            LabeledContent("앱 아이콘:") {
+            LabeledContent(L("앱 아이콘:")) {
                 VStack(alignment: .leading, spacing: Space.sm) {
                     HStack(alignment: .center, spacing: Space.md) {
                         AppIconArt(color: (AppIconColor(rawValue: choice) ?? .standard).color)
@@ -157,7 +158,7 @@ struct AppIconSettings: View {
                         }
                         .frame(width: 9 * 28 + 8 * Space.sm)  // grid: ok 아이콘 그림 좌표(1024 기준)
                     }
-                    SettingsNote("Dock 아이콘은 앱이 켜져 있는 동안 바뀝니다. Finder와 Launchpad의 아이콘은 macOS 규칙상 기본 보라색으로 남습니다.")
+                    SettingsNote(L("Dock 아이콘은 앱이 켜져 있는 동안 바뀝니다. Finder와 Launchpad의 아이콘은 macOS 규칙상 기본 보라색으로 남습니다."))
                 }
             }
         }

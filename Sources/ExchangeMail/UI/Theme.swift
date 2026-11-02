@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import Observation
 import SwiftUI
 
@@ -31,17 +32,17 @@ struct Theme: Identifiable, Hashable {
     var onAccent: Color { darkText ? Color(hex: 0x16161C) : .white }
 
     static let all: [Theme] = [
-        Theme(id: "system", name: "시스템", shades: nil),
-        Theme(id: "blue", name: "파랑", shades: .init(light: 0x7CC0FF, base: 0x0A84FF, deep: 0x0064D2)),
-        Theme(id: "indigo", name: "남색", shades: .init(light: 0xA5ADFF, base: 0x5E6AD2, deep: 0x4650B8)),
-        Theme(id: "violet", name: "보라", shades: .init(light: 0xB9A6FF, base: 0x7B5CFF, deep: 0x6342E6)),
-        Theme(id: "pink", name: "분홍", shades: .init(light: 0xFF9CCB, base: 0xE84A93, deep: 0xC0306F)),
-        Theme(id: "red", name: "빨강", shades: .init(light: 0xFF8A9A, base: 0xE11D48, deep: 0xBE123C)),
-        Theme(id: "orange", name: "주황", shades: .init(light: 0xFFB87A, base: 0xF97316, deep: 0xC2410C)),
-        Theme(id: "yellow", name: "노랑", shades: .init(light: 0xFFE17A, base: 0xF5B800, deep: 0x946800), darkText: true),
-        Theme(id: "mint", name: "민트", shades: .init(light: 0x8EEBC4, base: 0x2BC48A, deep: 0x0F7A55), darkText: true),
-        Theme(id: "teal", name: "청록", shades: .init(light: 0x8BE9F5, base: 0x06B6D4, deep: 0x0E7490), darkText: true),
-        Theme(id: "graphite", name: "그래파이트", shades: .init(light: 0xC7C7CC, base: 0x7C7C84, deep: 0x55555C)),
+        Theme(id: "system", name: L("시스템"), shades: nil),
+        Theme(id: "blue", name: L("파랑"), shades: .init(light: 0x7CC0FF, base: 0x0A84FF, deep: 0x0064D2)),
+        Theme(id: "indigo", name: L("남색"), shades: .init(light: 0xA5ADFF, base: 0x5E6AD2, deep: 0x4650B8)),
+        Theme(id: "violet", name: L("보라"), shades: .init(light: 0xB9A6FF, base: 0x7B5CFF, deep: 0x6342E6)),
+        Theme(id: "pink", name: L("분홍"), shades: .init(light: 0xFF9CCB, base: 0xE84A93, deep: 0xC0306F)),
+        Theme(id: "red", name: L("빨강"), shades: .init(light: 0xFF8A9A, base: 0xE11D48, deep: 0xBE123C)),
+        Theme(id: "orange", name: L("주황"), shades: .init(light: 0xFFB87A, base: 0xF97316, deep: 0xC2410C)),
+        Theme(id: "yellow", name: L("노랑"), shades: .init(light: 0xFFE17A, base: 0xF5B800, deep: 0x946800), darkText: true),
+        Theme(id: "mint", name: L("민트"), shades: .init(light: 0x8EEBC4, base: 0x2BC48A, deep: 0x0F7A55), darkText: true),
+        Theme(id: "teal", name: L("청록"), shades: .init(light: 0x8BE9F5, base: 0x06B6D4, deep: 0x0E7490), darkText: true),
+        Theme(id: "graphite", name: L("그래파이트"), shades: .init(light: 0xC7C7CC, base: 0x7C7C84, deep: 0x55555C)),
     ]
 }
 
@@ -71,7 +72,7 @@ final class ThemeStore {
     var theme: Theme {
         let chosen = Theme.all.first { $0.id == themeID } ?? Theme.all[0]
         if chosen.id == "system", macIsMulticolor, let brand = Self.brand {
-            return Theme(id: "system", name: "시스템", shades: brand.shades, darkText: brand.darkText)
+            return Theme(id: "system", name: L("시스템"), shades: brand.shades, darkText: brand.darkText)
         }
         return chosen
     }

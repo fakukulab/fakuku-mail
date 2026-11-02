@@ -48,7 +48,7 @@ extension AppModel {
                 ids.append(id)
             }
         }
-        await move(ids, to: folderID, undoManager: undoManager, undoName: "이동")
+        await move(ids, to: folderID, undoManager: undoManager, undoName: L("이동"))
     }
 
     /// 줄을 끌 때 실을 글자: 그 줄이 여러 줄 선택에 들어 있으면 고른 줄 모두.
@@ -90,7 +90,7 @@ extension AppModel {
     func toggleJunkSelected(undoManager: UndoManager?) async {
         let inJunk = selectedFolder?.kind == "junkemail"
         await moveSelected(to: inJunk ? "inbox" : "junkemail", undoManager: undoManager,
-                           undoName: inJunk ? "정크 아님" : "정크 메일로 표시")
+                           undoName: inJunk ? L("정크 아님") : L("정크 메일로 표시"))
     }
 
     // MARK: 폴더 (S-031)
@@ -144,12 +144,12 @@ struct MoveTarget: Identifiable, Hashable {
 
 /// 글자 한 줄을 묻는 작은 창 (폴더 이름 등). 확인을 누르면 글자, 취소면 nil.
 enum TextPrompt {
-    static func ask(_ title: String, message: String = "", initial: String = "", confirm: String = "확인") -> String? {
+    static func ask(_ title: String, message: String = "", initial: String = "", confirm: String = L("확인")) -> String? {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
         alert.addButton(withTitle: confirm)
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L("취소"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         field.stringValue = initial
         alert.accessoryView = field
@@ -163,7 +163,7 @@ enum TextPrompt {
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: action)
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L("취소"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 }

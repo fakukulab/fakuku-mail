@@ -91,11 +91,11 @@ extension MailContent {
             HTMLProcessor.escape(AddressParser.format((list ?? []).compactMap { $0.emailAddress.mailAddress }))
         }
         let from = HTMLProcessor.escape(m.from?.emailAddress.mailAddress?.editable ?? m.from?.emailAddress.display ?? "")
-        var rows = "<tr><th>보낸 사람</th><td>\(from)</td></tr>"
-        rows += "<tr><th>받는 사람</th><td>\(people(m.toRecipients))</td></tr>"
-        if !(m.ccRecipients ?? []).isEmpty { rows += "<tr><th>참조</th><td>\(people(m.ccRecipients))</td></tr>" }
+        var rows = L("<tr><th>보낸 사람</th><td>\(from)</td></tr>")
+        rows += L("<tr><th>받는 사람</th><td>\(people(m.toRecipients))</td></tr>")
+        if !(m.ccRecipients ?? []).isEmpty { rows += L("<tr><th>참조</th><td>\(people(m.ccRecipients))</td></tr>") }
         if let date = m.receivedDateTime {
-            rows += "<tr><th>날짜</th><td>\(HTMLProcessor.escape(MailDate.long(date, timeZone: timeZone)))</td></tr>"
+            rows += L("<tr><th>날짜</th><td>\(HTMLProcessor.escape(MailDate.long(date, timeZone: timeZone)))</td></tr>")
         }
         let header = """
         <style>@media print{body{padding:0}}.print-head{border-bottom:1px solid #999;margin-bottom:16px;padding-bottom:8px}\
@@ -120,9 +120,9 @@ extension MailContent {
     }
 }
 
-/// 목록과 인용문에 쓰는 날짜 글자. 앱 UI가 한국어라 한국어 형식으로 고정한다.
+/// 목록과 인용문에 쓰는 날짜 글자. 앱이 보이는 언어(AppLanguage)의 형식을 쓴다.
 public enum MailDate {
-    static let korean = Locale(identifier: "ko_KR")
+    static var korean: Locale { AppLanguage.locale }
 
     /// 오늘: "오후 3:12", 어제: "어제", 이번 주: "화요일", 그 전: "2025. 3. 4."
     public static func listLabel(_ date: Date, now: Date = Date(), timeZone: TimeZone = .current) -> String {
@@ -135,7 +135,7 @@ public enum MailDate {
         }
         let startOfToday = cal.startOfDay(for: now)
         if let yesterday = cal.date(byAdding: .day, value: -1, to: startOfToday), date >= yesterday, date < startOfToday {
-            return "어제"
+            return L("어제")
         }
         if let weekAgo = cal.date(byAdding: .day, value: -6, to: startOfToday), date >= weekAgo, date < startOfToday {
             return date.formatted(Date.FormatStyle(locale: korean, calendar: cal, timeZone: timeZone).weekday(.wide))

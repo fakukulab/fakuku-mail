@@ -45,8 +45,8 @@ final class MessageReader {
             }
         } catch {
             failure = OfflineError.isOffline(error)
-                ? "오프라인이고 이 메일은 이 Mac에 저장되어 있지 않습니다. 연결되면 다시 열어 주세요."
-                : "메일이 다른 폴더로 옮겨졌거나 지워졌을 수 있습니다. (\(error.localizedDescription))"
+                ? L("오프라인이고 이 메일은 이 Mac에 저장되어 있지 않습니다. 연결되면 다시 열어 주세요.")
+                : L("메일이 다른 폴더로 옮겨졌거나 지워졌을 수 있습니다. (\(error.localizedDescription))")
         }
     }
 

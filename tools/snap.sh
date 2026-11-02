@@ -10,4 +10,7 @@ shots=/tmp/ExchangeMail-shots
 rm -rf ~/Library/Saved\ Application\ State/com.fakukulab.fakukumail.savedState
 # Demo signatures are only seeded into an empty store, so start from nothing.
 rm -rf $store $shots
-APP_STORE=$store APP_SEED=1 APP_SNAPSHOT=$shots $app
+# APP_LANG=en tools/snap.sh 로 영어 화면을 찍는다 (기본은 시스템 언어).
+lang_args=()
+[[ -n "${APP_LANG:-}" ]] && lang_args=(-AppleLanguages "(${APP_LANG})")
+APP_STORE=$store APP_SEED=1 APP_SNAPSHOT=$shots $app "${lang_args[@]}"

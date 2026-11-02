@@ -52,7 +52,7 @@ final class MergeSender {
 
     /// 본문 끝의 구독 취소 줄 (눈에 보이는 링크). 누르면 보낸 사람에게 "구독 취소" 메일이 열린다.
     static func footerHTML(me: String) -> String {
-        let subject = "구독 취소 Unsubscribe".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe"
+        let subject = L("구독 취소 Unsubscribe").addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe"
         let link = "mailto:\(me)?subject=\(subject)"
         return """
         <div style="margin-top:24px;font-size:12px;color:#888888">이 메일을 더 받고 싶지 않으시면 \
@@ -90,7 +90,7 @@ final class MergeSender {
             fixEnabled: UserDefaults.standard.object(forKey: "fixEnabled") as? Bool ?? true,
             importance: options.importance, replyTo: "",
             listUnsubscribe: options.unsubscribeHeader && !me.isEmpty
-                ? "mailto:\(me)?subject=\(("구독 취소 Unsubscribe").addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe")"
+                ? "mailto:\(me)?subject=\((L("구독 취소 Unsubscribe")).addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe")"
                 : nil)
         let plan = try ComposeSender.prepare(input, options: ComposeSender.defaultOptions(), forDraft: false)
         guard plan.uploads.isEmpty else { throw MergeProblem.tooLarge }
@@ -100,7 +100,7 @@ final class MergeSender {
     enum MergeProblem: LocalizedError {
         case tooLarge
         var errorDescription: String? {
-            "본문 그림이 커서 4MB를 넘습니다. 그림을 줄이거나 링크로 바꿔 주세요."
+            L("본문 그림이 커서 4MB를 넘습니다. 그림을 줄이거나 링크로 바꿔 주세요.")
         }
     }
 
@@ -112,7 +112,7 @@ final class MergeSender {
         var mine = sample
         mine.email = me
         var test = template
-        test.subject = "[시험] " + template.subject
+        test.subject = L("[시험] ") + template.subject
         try await app.service.sendMIME(try mime(test, for: mine, options: options, app: app))
     }
 
@@ -194,7 +194,7 @@ final class MergeSender {
                 app.addressBook.noteSent([MailAddress(name: member.name, address: member.email)], me: app.auth.email)
                 return .sent
             } catch let error as GraphError where (error.status == 429 || error.status == 503) && attempt < 2 {
-                lastProblem = "Exchange가 잠시 보내기를 제한했습니다. \(Int(backoff))초 쉬고 다시 보냅니다."
+                lastProblem = L("Exchange가 잠시 보내기를 제한했습니다. \(Int(backoff))초 쉬고 다시 보냅니다.")
                 nextSendAt = Date().addingTimeInterval(backoff)
                 await sleeper(backoff)
                 nextSendAt = nil
@@ -203,6 +203,6 @@ final class MergeSender {
                 return .failed(error.localizedDescription)
             }
         }
-        return .failed("Exchange가 계속 제한해 보내지 못했습니다.")
+        return .failed(L("Exchange가 계속 제한해 보내지 못했습니다."))
     }
 }

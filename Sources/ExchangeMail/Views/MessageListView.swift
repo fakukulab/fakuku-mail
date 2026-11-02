@@ -103,7 +103,7 @@ struct MessageListView: View {
         guard let f = model.selectedFolder else { return "" }
         let unread = f.unreadItemCount ?? 0
         let total = f.totalItemCount ?? model.messages.count
-        return unread > 0 ? "메시지 \(total)개, 읽지 않음 \(unread)개" : "메시지 \(total)개"
+        return unread > 0 ? L("메시지 \(total)개, 읽지 않음 \(unread)개") : L("메시지 \(total)개")
     }
 
     @ViewBuilder
@@ -114,8 +114,8 @@ struct MessageListView: View {
             } else if !model.searchText.trimmingCharacters(in: .whitespaces).isEmpty {
                 ContentUnavailableView.search(text: model.searchText)
             } else if model.selectedFolderID != nil {
-                ContentUnavailableView("메시지 없음", systemImage: model.selectedFolder?.symbol ?? "tray",
-                                       description: Text("이 폴더에 메시지가 없습니다."))
+                ContentUnavailableView(L("메시지 없음"), systemImage: model.selectedFolder?.symbol ?? "tray",
+                                       description: Text(L("이 폴더에 메시지가 없습니다.")))
             }
         }
     }
@@ -125,7 +125,7 @@ struct MessageListView: View {
     private func contextMenu(for rows: Set<String>) -> some View {
         if !rows.isEmpty {
             let single = rows.count == 1 ? model.messages.first(where: { rows.contains($0.id) }) : nil
-            Button("새 창에서 열기") {
+            Button(L("새 창에서 열기")) {
                 if let m = single {
                     if model.selectedMessageID != m.id { model.selectedMessageID = m.id }
                     if model.selectedFolder?.kind == "drafts" {
@@ -140,46 +140,46 @@ struct MessageListView: View {
             }
             .disabled(single == nil)
             if let m = single {
-                Button("보낸 사람 차단") { Task { await model.blockSender(of: m, undoManager: undoManager) } }
+                Button(L("보낸 사람 차단")) { Task { await model.blockSender(of: m, undoManager: undoManager) } }
             }
             // VIP (S-045)
             if let m = single {
                 if model.mailboxes.vip(for: m) == nil {
-                    Button("보낸 사람을 VIP로 지정…") { model.editVIP(for: m) }
+                    Button(L("보낸 사람을 VIP로 지정…")) { model.editVIP(for: m) }
                 } else {
-                    Button("VIP 이름·아이콘 변경…") { model.editVIP(for: m) }
-                    Button("VIP에서 빼기") {
+                    Button(L("VIP 이름·아이콘 변경…")) { model.editVIP(for: m) }
+                    Button(L("VIP에서 빼기")) {
                         if let address = m.from?.emailAddress.address { model.removeVIP(address: address) }
                     }
                 }
             }
             Divider()
-            Button("답장") { if let m = single { compose(.reply, for: m) } }
+            Button(L("답장")) { if let m = single { compose(.reply, for: m) } }
                 .disabled(single == nil)
-            Button("전체 답장") { if let m = single { compose(.replyAll, for: m) } }
+            Button(L("전체 답장")) { if let m = single { compose(.replyAll, for: m) } }
                 .disabled(single == nil)
-            Button("전달") { if let m = single { compose(.forward, for: m) } }
+            Button(L("전달")) { if let m = single { compose(.forward, for: m) } }
                 .disabled(single == nil)
             Divider()
-            Button("읽음/읽지 않음 전환") { act(rows) { await model.toggleReadSelected() } }
-            Menu("깃발") {
+            Button(L("읽음/읽지 않음 전환")) { act(rows) { await model.toggleReadSelected() } }
+            Menu(L("깃발")) {
                 FlagColorItems { color in act(rows) { await model.setFlagColorSelected(color) } }
                 Divider()
-                Button("깃발 달기/떼기") { act(rows) { await model.toggleFlagSelected() } }
+                Button(L("깃발 달기/떼기")) { act(rows) { await model.toggleFlagSelected() } }
             }
             Divider()
-            Menu("이동") {
+            Menu(L("이동")) {
                 ForEach(model.moveTargets) { target in
                     Button(target.title) {
-                        act(rows) { await model.moveSelected(to: target.id, undoManager: undoManager, undoName: "이동") }
+                        act(rows) { await model.moveSelected(to: target.id, undoManager: undoManager, undoName: L("이동")) }
                     }
                 }
             }
-            Button("보관") { act(rows) { await model.archiveSelected(undoManager: undoManager) } }
-            Button(model.selectedFolder?.kind == "junkemail" ? "정크 아님" : "정크 메일로 표시") {
+            Button(L("보관")) { act(rows) { await model.archiveSelected(undoManager: undoManager) } }
+            Button(model.selectedFolder?.kind == "junkemail" ? L("정크 아님") : L("정크 메일로 표시")) {
                 act(rows) { await model.toggleJunkSelected(undoManager: undoManager) }
             }
-            Button("지우기", role: .destructive) { act(rows) { await model.deleteSelected(undoManager: undoManager) } }
+            Button(L("지우기"), role: .destructive) { act(rows) { await model.deleteSelected(undoManager: undoManager) } }
         }
     }
 
@@ -219,13 +219,13 @@ struct MessageRow: View {
                 .fill(message.isUnread ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
                 .frame(width: 8, height: 8)
                 .padding(.top, Space.xs)
-                .accessibilityLabel(message.isUnread ? "읽지 않음" : "")
+                .accessibilityLabel(message.isUnread ? L("읽지 않음") : "")
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                     if let vip {
                         VIPBadge(vip: vip)
                     }
-                    Text(message.from?.emailAddress.display ?? "(보낸 사람 없음)")
+                    Text(message.from?.emailAddress.display ?? L("(보낸 사람 없음)"))
                         .fontWeight(message.isUnread && boldUnread ? .semibold : .regular)
                         .lineLimit(1)
                     Spacer(minLength: Space.xs)
@@ -233,13 +233,13 @@ struct MessageRow: View {
                         Image(systemName: "flag.fill")
                             .font(.caption)
                             .foregroundStyle(flagColor.color)
-                            .accessibilityLabel("\(flagColor.label) 깃발")
+                            .accessibilityLabel(L("\(flagColor.label) 깃발"))
                     }
                     if message.hasAttachments == true {
                         Image(systemName: "paperclip")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .accessibilityLabel("첨부 있음")
+                            .accessibilityLabel(L("첨부 있음"))
                     }
                     Text(message.receivedDateTime.map { MailDate.listLabel($0) } ?? "")
                         .font(.caption)
@@ -288,7 +288,7 @@ struct ConversationRow: View {
                 .fill(conversation.isUnread ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
                 .frame(width: 8, height: 8)
                 .padding(.top, Space.xs)
-                .accessibilityLabel(conversation.isUnread ? "읽지 않음" : "")
+                .accessibilityLabel(conversation.isUnread ? L("읽지 않음") : "")
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                     if let vip {
@@ -303,20 +303,20 @@ struct ConversationRow: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, Space.xs)
                             .background(.quaternary, in: Capsule())
-                            .accessibilityLabel("메일 \(conversation.count)통")
+                            .accessibilityLabel(L("메일 \(conversation.count)통"))
                     }
                     Spacer(minLength: Space.xs)
                     if let flagColor {
                         Image(systemName: "flag.fill")
                             .font(.caption)
                             .foregroundStyle(flagColor.color)
-                            .accessibilityLabel("\(flagColor.label) 깃발")
+                            .accessibilityLabel(L("\(flagColor.label) 깃발"))
                     }
                     if conversation.hasAttachments {
                         Image(systemName: "paperclip")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .accessibilityLabel("첨부 있음")
+                            .accessibilityLabel(L("첨부 있음"))
                     }
                     Text(latest.receivedDateTime.map { MailDate.listLabel($0) } ?? "")
                         .font(.caption)
@@ -346,7 +346,7 @@ struct OfflineBar: View {
         HStack(spacing: Space.sm) {
             Image(systemName: "wifi.slash")
                 .foregroundStyle(.secondary)
-            Text("오프라인 · 저장된 메일을 보여 줍니다")
+            Text(L("오프라인 · 저장된 메일을 보여 줍니다"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -358,7 +358,7 @@ struct OfflineBar: View {
                     retrying = false
                 }
             } label: {
-                if retrying { ProgressView().controlSize(.small) } else { Text("다시 연결") }
+                if retrying { ProgressView().controlSize(.small) } else { Text(L("다시 연결")) }
             }
             .controlSize(.small)
             .disabled(retrying)
@@ -378,33 +378,33 @@ struct FilterMenu: View {
     var body: some View {
         @Bindable var model = model
         Menu {
-            Toggle("읽지 않음", isOn: $model.listFilter.unread)
-            Toggle("깃발", isOn: $model.listFilter.flagged)
-            Toggle("첨부 파일 있음", isOn: $model.listFilter.hasAttachments)
-            Toggle("멘션(@)", isOn: $model.listFilter.mentionsMe)
-            Toggle("높은 우선순위", isOn: $model.listFilter.highImportance)
-            Toggle("받는 사람 또는 참조에 내가 있는 메일", isOn: $model.listFilter.toOrCcMe)
-            Picker("받은 날짜", selection: $model.listFilter.received) {
-                Text("전체").tag(MailFilter.Period?.none)
+            Toggle(L("읽지 않음"), isOn: $model.listFilter.unread)
+            Toggle(L("깃발"), isOn: $model.listFilter.flagged)
+            Toggle(L("첨부 파일 있음"), isOn: $model.listFilter.hasAttachments)
+            Toggle(L("멘션(@)"), isOn: $model.listFilter.mentionsMe)
+            Toggle(L("높은 우선순위"), isOn: $model.listFilter.highImportance)
+            Toggle(L("받는 사람 또는 참조에 내가 있는 메일"), isOn: $model.listFilter.toOrCcMe)
+            Picker(L("받은 날짜"), selection: $model.listFilter.received) {
+                Text(L("전체")).tag(MailFilter.Period?.none)
                 ForEach(MailFilter.Period.allCases, id: \.self) { p in
                     Text(p.label).tag(MailFilter.Period?.some(p))
                 }
             }
-            Picker("범주", selection: $model.listFilter.category) {
-                Text("전체").tag(String?.none)
+            Picker(L("범주"), selection: $model.listFilter.category) {
+                Text(L("전체")).tag(String?.none)
                 ForEach(model.categories, id: \.self) { c in
                     Text(c).tag(String?.some(c))
                 }
             }
             .disabled(model.categories.isEmpty)
             Divider()
-            Button("모든 필터 해제") { model.listFilter = MailFilter() }
+            Button(L("모든 필터 해제")) { model.listFilter = MailFilter() }
                 .disabled(!model.listFilter.isActive)
         } label: {
-            Label("필터", systemImage: model.listFilter.isActive
+            Label(L("필터"), systemImage: model.listFilter.isActive
                   ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
-        .help(model.listFilter.isActive ? "필터: " + model.listFilter.labels.joined(separator: ", ") : "필터")
+        .help(model.listFilter.isActive ? L("필터: ") + model.listFilter.labels.joined(separator: ", ") : L("필터"))
     }
 }
 
@@ -416,22 +416,22 @@ struct SortMenu: View {
     var body: some View {
         @Bindable var model = model
         Menu {
-            Picker("정렬 기준", selection: $model.listSort.key) {
+            Picker(L("정렬 기준"), selection: $model.listSort.key) {
                 ForEach(MailSort.Key.allCases, id: \.self) { key in
                     Text(key.label).tag(key)
                 }
             }
             .pickerStyle(.inline)
             Divider()
-            Picker("순서", selection: $model.listSort.descending) {
-                Text(model.listSort.key == .date ? "새로운 항목 우선" : "내림차순").tag(true)
-                Text(model.listSort.key == .date ? "오래된 항목 우선" : "오름차순").tag(false)
+            Picker(L("순서"), selection: $model.listSort.descending) {
+                Text(model.listSort.key == .date ? L("새로운 항목 우선") : L("내림차순")).tag(true)
+                Text(model.listSort.key == .date ? L("오래된 항목 우선") : L("오름차순")).tag(false)
             }
             .pickerStyle(.inline)
         } label: {
-            Label("정렬", systemImage: "arrow.up.arrow.down")
+            Label(L("정렬"), systemImage: "arrow.up.arrow.down")
         }
-        .help("정렬 기준: \(model.listSort.key.label)")
+        .help(L("정렬 기준: \(model.listSort.key.label)"))
     }
 }
 
@@ -448,7 +448,7 @@ struct FilterBar: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: Space.xs)
-            Button("해제") { model.listFilter = MailFilter() }
+            Button(L("해제")) { model.listFilter = MailFilter() }
                 .controlSize(.small)
         }
         .padding(.horizontal, Space.md)

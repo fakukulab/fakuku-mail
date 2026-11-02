@@ -20,7 +20,7 @@ public struct ArchivedMail: Identifiable, Sendable {
     /// 원본 크기 (바이트)
     public var size: Int
 
-    public var title: String { subject.isEmpty ? "(제목 없음)" : subject }
+    public var title: String { subject.isEmpty ? L("(제목 없음)") : subject }
 }
 
 public struct ArchivedAttachment: Identifiable, Sendable {
@@ -95,7 +95,7 @@ public enum MailArchive {
     /// "김 대리 <kim@example.com>" → "김 대리" (이름이 없으면 주소)
     public static func displayName(_ from: String) -> String {
         let trimmed = from.trimmingCharacters(in: .whitespaces)
-        guard let lt = trimmed.firstIndex(of: "<") else { return trimmed.isEmpty ? "(보낸 사람 없음)" : trimmed }
+        guard let lt = trimmed.firstIndex(of: "<") else { return trimmed.isEmpty ? L("(보낸 사람 없음)") : trimmed }
         let name = trimmed[..<lt].trimmingCharacters(in: CharacterSet(charactersIn: "\" "))
         if !name.isEmpty { return name }
         return trimmed[trimmed.index(after: lt)...].trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
@@ -199,7 +199,7 @@ public enum MailArchive {
         } else if type != "text/plain" && type != "text/html" || isAttachment {
             counter += 1
             let cid = part.header("content-id")?.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
-            let fallback = type == "message/rfc822" ? "전달된 메일 \(counter).eml" : (cid.map { "그림 \($0)" } ?? "첨부 \(counter)")
+            let fallback = type == "message/rfc822" ? L("전달된 메일 \(counter).eml") : (cid.map { L("그림 \($0)") } ?? L("첨부 \(counter)"))
             let name = filename.map(decodeWords) ?? fallback
             mail.attachments.append(ArchivedAttachment(id: counter, name: name, contentType: type, contentID: cid,
                                                        isInline: disposition.type == "inline" || (cid != nil && filename == nil),

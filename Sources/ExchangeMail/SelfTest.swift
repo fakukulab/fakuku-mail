@@ -895,6 +895,19 @@ enum SelfTest {
             check("M17 스마트 메일상자 복제", model.mailboxes.smart.contains { $0.name == "복제 시험 사본" && $0.id != base.id })
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
 
+            // S-054: 시스템 언어에 따라 한국어·영어 (셀프 테스트는 한국어로 돈다)
+            check("S-054 한국어 시스템에서는 화면 글자가 한국어", AppLanguage.isKorean && L("사서함") == "사서함")
+            let english = Bundle.main.path(forResource: "Localizable", ofType: "strings", inDirectory: nil, forLocalization: "en")
+                .flatMap { NSDictionary(contentsOfFile: $0) as? [String: String] } ?? [:]
+            check("S-054 영어 표가 앱에 들어 있다", english["사서함"] == "Mailbox" && english["@language"] == "en",
+                  "\(english.count)개")
+            check("S-054 끼워 넣는 값의 키 규칙 (%@)",
+                  english["메시지 %@개, 읽지 않음 %@개"] == "%@ messages, %@ unread"
+                  && String(format: english["메시지 %@개, 읽지 않음 %@개"] ?? "", "3" as NSString, "1" as NSString) == "3 messages, 1 unread")
+            let languages = Bundle.main.localizations
+            check("S-054 앱이 한국어와 영어를 알린다 (메뉴 막대의 시스템 항목도 따라간다)",
+                  languages.contains("ko") && languages.contains("en"), languages.joined(separator: ","))
+
             // S-053: 메일상자 내보내기 → 메일 파일 열기
             if let inbox = model.folders.first(where: { $0.kind == "inbox" }) {
                 let file = Store.directory.appending(path: "selftest-export.mbox")

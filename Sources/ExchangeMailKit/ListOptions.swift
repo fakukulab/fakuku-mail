@@ -7,9 +7,9 @@ public struct MailFilter: Equatable, Codable, Sendable {
         case today, week, month
         public var label: String {
             switch self {
-            case .today: "오늘"
-            case .week: "이번 주"
-            case .month: "이번 달"
+            case .today: L("오늘")
+            case .week: L("이번 주")
+            case .month: L("이번 달")
             }
         }
     }
@@ -30,14 +30,14 @@ public struct MailFilter: Equatable, Codable, Sendable {
     /// 목록 위에 보일 짧은 설명들
     public var labels: [String] {
         var out: [String] = []
-        if unread { out.append("읽지 않음") }
-        if flagged { out.append("깃발") }
-        if hasAttachments { out.append("첨부 파일 있음") }
-        if mentionsMe { out.append("멘션(@)") }
-        if highImportance { out.append("높은 우선순위") }
-        if toOrCcMe { out.append("받는 사람·참조에 나") }
-        if let category { out.append("범주: \(category)") }
-        if let received { out.append("받은 날짜: \(received.label)") }
+        if unread { out.append(L("읽지 않음")) }
+        if flagged { out.append(L("깃발")) }
+        if hasAttachments { out.append(L("첨부 파일 있음")) }
+        if mentionsMe { out.append(L("멘션(@)")) }
+        if highImportance { out.append(L("높은 우선순위")) }
+        if toOrCcMe { out.append(L("받는 사람·참조에 나")) }
+        if let category { out.append(L("범주: \(category)")) }
+        if let received { out.append(L("받은 날짜: \(received.label)")) }
         return out
     }
 
@@ -111,12 +111,12 @@ public struct MailSort: Equatable, Codable, Sendable {
         case date, sender, subject, attachments, flag, importance
         public var label: String {
             switch self {
-            case .date: "받은 날짜"
-            case .sender: "보낸 사람"
-            case .subject: "제목"
-            case .attachments: "첨부 파일"
-            case .flag: "깃발 상태"
-            case .importance: "중요도"
+            case .date: L("받은 날짜")
+            case .sender: L("보낸 사람")
+            case .subject: L("제목")
+            case .attachments: L("첨부 파일")
+            case .flag: L("깃발 상태")
+            case .importance: L("중요도")
             }
         }
     }

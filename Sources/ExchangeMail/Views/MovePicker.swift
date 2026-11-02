@@ -16,9 +16,9 @@ struct MovePicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            Text("메시지 \(model.selectedIDs.count)개를 옮길 폴더")
+            Text(L("메시지 \(model.selectedIDs.count)개를 옮길 폴더"))
                 .font(.headline)
-            TextField("폴더 찾기", text: $query)
+            TextField(L("폴더 찾기"), text: $query)
                 .textFieldStyle(.roundedBorder)
             List(targets, selection: $choice) { target in
                 Text(target.title).tag(target.id)
@@ -26,9 +26,9 @@ struct MovePicker: View {
             .frame(height: 240)
             HStack {
                 Spacer()
-                Button("취소", role: .cancel) { dismiss() }
+                Button(L("취소"), role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("이동") { moveAndClose() }
+                Button(L("이동")) { moveAndClose() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(choice == nil)
             }
@@ -40,6 +40,6 @@ struct MovePicker: View {
     private func moveAndClose() {
         guard let folder = choice else { return }
         dismiss()
-        Task { await model.moveSelected(to: folder, undoManager: undoManager, undoName: "이동") }
+        Task { await model.moveSelected(to: folder, undoManager: undoManager, undoName: L("이동")) }
     }
 }

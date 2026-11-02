@@ -35,8 +35,8 @@ struct ArchiveWindow: View {
 
     var body: some View {
         content
-            .navigationTitle(url?.lastPathComponent ?? "메일 파일")
-            .navigationSubtitle(mails.map { "\($0.count)통 · 읽기 전용" } ?? "")
+            .navigationTitle(url?.lastPathComponent ?? L("메일 파일"))
+            .navigationSubtitle(mails.map { L("\($0.count)통 · 읽기 전용") } ?? "")
             .task(id: url) { await load() }
             .noInitialFocus()
     }
@@ -44,12 +44,12 @@ struct ArchiveWindow: View {
     @ViewBuilder
     private var content: some View {
         if let failure {
-            ContentUnavailableView("메일 파일을 열 수 없습니다", systemImage: "tray.and.arrow.down",
+            ContentUnavailableView(L("메일 파일을 열 수 없습니다"), systemImage: "tray.and.arrow.down",
                                    description: Text(failure))
         } else if let mails {
             if mails.isEmpty {
-                ContentUnavailableView("메일 없음", systemImage: "tray",
-                                       description: Text("이 파일에서 메일을 찾지 못했습니다. mbox나 eml 파일인지 확인하세요."))
+                ContentUnavailableView(L("메일 없음"), systemImage: "tray",
+                                       description: Text(L("이 파일에서 메일을 찾지 못했습니다. mbox나 eml 파일인지 확인하세요.")))
             } else {
                 NavigationSplitView {
                     list
@@ -58,13 +58,13 @@ struct ArchiveWindow: View {
                     if let mail = mails.first(where: { $0.id == selection }) {
                         ArchivedMailView(mail: mail, css: readingStyle.css)
                     } else {
-                        ContentUnavailableView("메일을 고르세요", systemImage: "envelope")
+                        ContentUnavailableView(L("메일을 고르세요"), systemImage: "envelope")
                     }
                 }
-                .searchable(text: $searchText, placement: .sidebar, prompt: "이 파일에서 검색")
+                .searchable(text: $searchText, placement: .sidebar, prompt: L("이 파일에서 검색"))
             }
         } else {
-            ProgressView("메일을 읽는 중…")
+            ProgressView(L("메일을 읽는 중…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -90,7 +90,7 @@ struct ArchiveWindow: View {
                     if mail.attachments.contains(where: { !$0.isInline }) {
                         Image(systemName: "paperclip")
                             .foregroundStyle(.secondary)
-                            .accessibilityLabel("첨부 있음")
+                            .accessibilityLabel(L("첨부 있음"))
                     }
                 }
                 Text(MailArchive.preview(mail))
@@ -108,7 +108,7 @@ struct ArchiveWindow: View {
 
     private func load() async {
         guard let url else {
-            failure = "열 파일이 없습니다."
+            failure = L("열 파일이 없습니다.")
             return
         }
         do {
@@ -144,11 +144,11 @@ struct ArchivedMailView: View {
                     .font(.title2.weight(.semibold))
                     .textSelection(.enabled)
                 Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Space.sm, verticalSpacing: Space.xs) {
-                    row("보낸 사람", mail.from)
-                    row("받는 사람", mail.to)
-                    if !mail.cc.isEmpty { row("참조", mail.cc) }
+                    row(L("보낸 사람"), mail.from)
+                    row(L("받는 사람"), mail.to)
+                    if !mail.cc.isEmpty { row(L("참조"), mail.cc) }
                     if let date = mail.date {
-                        row("날짜", date.formatted(date: .long, time: .shortened))
+                        row(L("날짜"), date.formatted(date: .long, time: .shortened))
                     }
                 }
                 .font(.callout)
@@ -208,6 +208,6 @@ enum ArchivedFiles {
     static func safeName(_ name: String) -> String {
         let cleaned = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: CharacterSet(charactersIn: ". "))
-        return cleaned.isEmpty ? "첨부" : cleaned
+        return cleaned.isEmpty ? L("첨부") : cleaned
     }
 }

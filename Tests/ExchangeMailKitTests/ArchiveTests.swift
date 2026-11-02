@@ -95,3 +95,19 @@ func archiveListText() {
     mail.text = "  첫 줄\n둘째 줄 "
     #expect(MailArchive.preview(mail) == "첫 줄 둘째 줄")
 }
+
+// S-054 화면 글자 번역 키
+
+@Test("L(): 끼워 넣은 값은 키에서 %@, 원문의 %는 %%, 번역이 없으면 원문")
+func localizationKeys() {
+    let n = 3
+    let interpolated: Loc = "메시지 \(n)개, 읽지 않음 \(Optional(1) ?? 0)개"
+    #expect(interpolated.key == "메시지 %@개, 읽지 않음 %@개")
+    #expect(interpolated.args == ["3", "1"])
+    let percent: Loc = "100% 완료"
+    #expect(percent.key == "100%% 완료")
+    #expect(L("100% 완료") == "100% 완료")
+    #expect(L("메일 \(n)통") == "메일 3통")
+    #expect(L("\(Date(timeIntervalSince1970: 0), format: .iso8601.year())년") == "1970년")
+    #expect(AppLanguage.isKorean)
+}

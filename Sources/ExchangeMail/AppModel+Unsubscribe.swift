@@ -17,7 +17,7 @@ extension AppModel {
             do {
                 let (_, response) = try await URLSession(configuration: .ephemeral).data(for: request)
                 if let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
-                    noticeMessage = "구독 취소를 요청했습니다. 처리되기까지 며칠 걸릴 수 있습니다."
+                    noticeMessage = L("구독 취소를 요청했습니다. 처리되기까지 며칠 걸릴 수 있습니다.")
                     return
                 }
             } catch {
@@ -32,7 +32,7 @@ extension AppModel {
             do {
                 let plan = try ComposeSender.prepare(input, options: .off, forDraft: false)
                 try await service.sendMIME(plan.mime)
-                noticeMessage = "\(parts.to)에 구독 취소 메일을 보냈습니다."
+                noticeMessage = L("\(parts.to)에 구독 취소 메일을 보냈습니다.")
             } catch {
                 report(error, quietIfOffline: false)
             }
@@ -54,29 +54,29 @@ struct UnsubscribeBar: View {
             HStack(spacing: Space.sm) {
                 Image(systemName: "envelope.badge.shield.half.filled")
                     .foregroundStyle(.secondary)
-                Text("메일링 리스트나 단체 발송으로 온 메일입니다.")
+                Text(L("메일링 리스트나 단체 발송으로 온 메일입니다."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
-                Button("구독 취소…") { confirm = true }
+                Button(L("구독 취소…")) { confirm = true }
                     .controlSize(.small)
                     .disabled(busy)
-                    .help(info.oneClick ? "보낸 곳에 구독 취소를 바로 요청합니다"
-                                        : info.mailto != nil ? "보낸 곳에 구독 취소 메일을 보냅니다" : "구독 취소 웹 페이지를 엽니다")
+                    .help(info.oneClick ? L("보낸 곳에 구독 취소를 바로 요청합니다")
+                                        : info.mailto != nil ? L("보낸 곳에 구독 취소 메일을 보냅니다") : L("구독 취소 웹 페이지를 엽니다"))
             }
             .padding(.horizontal, Space.margin)
             .padding(.vertical, Space.sm)
             .background(.bar)
-            .confirmationDialog("이 보낸 사람의 메일을 그만 받을까요?", isPresented: $confirm) {
-                Button("구독 취소") {
+            .confirmationDialog(L("이 보낸 사람의 메일을 그만 받을까요?"), isPresented: $confirm) {
+                Button(L("구독 취소")) {
                     busy = true
                     Task {
                         await model.unsubscribe(from: message)
                         busy = false
                     }
                 }
-                Button("취소", role: .cancel) {}
+                Button(L("취소"), role: .cancel) {}
             } message: {
                 Text(message.from?.emailAddress.display ?? "")
             }

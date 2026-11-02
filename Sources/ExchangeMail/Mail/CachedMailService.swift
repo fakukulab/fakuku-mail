@@ -74,7 +74,7 @@ final class CachedMailService: MailService {
     func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage {
         // 검색은 서버에서만 된다.
         if let search, !search.isEmpty {
-            return try await write("검색할") {
+            return try await write(L("검색할")) {
                 try await remote.messages(folderID: folderID, search: search, filter: filter, oldestFirst: oldestFirst)
             }
         }
@@ -88,11 +88,11 @@ final class CachedMailService: MailService {
     }
 
     func categories() async throws -> [String] {
-        try await write("범주를 불러올") { try await remote.categories() }
+        try await write(L("범주를 불러올")) { try await remote.categories() }
     }
 
     func nextPage(_ link: String) async throws -> MessagePage {
-        try await write("더 불러올") { try await remote.nextPage(link) }
+        try await write(L("더 불러올")) { try await remote.nextPage(link) }
     }
 
     func message(id: String) async throws -> MailMessage {
@@ -107,23 +107,23 @@ final class CachedMailService: MailService {
     }
 
     func attachmentContent(messageID: String, attachmentID: String) async throws -> Data {
-        try await write("첨부를 받을") { try await remote.attachmentContent(messageID: messageID, attachmentID: attachmentID) }
+        try await write(L("첨부를 받을")) { try await remote.attachmentContent(messageID: messageID, attachmentID: attachmentID) }
     }
 
     func conversation(id: String) async throws -> [MailMessage] {
-        try await write("대화를 불러올") { try await remote.conversation(id: id) }
+        try await write(L("대화를 불러올")) { try await remote.conversation(id: id) }
     }
 
     func searchAll(_ text: String) async throws -> MessagePage {
-        try await write("검색할") { try await remote.searchAll(text) }
+        try await write(L("검색할")) { try await remote.searchAll(text) }
     }
 
     func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
-        try await write("스마트 메일상자를 불러올") { try await remote.collectMessages(folderID: folderID, filter: filter) }
+        try await write(L("스마트 메일상자를 불러올")) { try await remote.collectMessages(folderID: folderID, filter: filter) }
     }
 
     func messages(fromSender address: String) async throws -> MessagePage {
-        try await write("VIP 메일을 불러올") { try await remote.messages(fromSender: address) }
+        try await write(L("VIP 메일을 불러올")) { try await remote.messages(fromSender: address) }
     }
 
     func flaggedMessages() async throws -> MessagePage {
@@ -135,100 +135,100 @@ final class CachedMailService: MailService {
     // MARK: 쓰기
 
     func setFlag(id: String, flagged: Bool) async throws {
-        try await write("깃발을 바꿀") { try await remote.setFlag(id: id, flagged: flagged) }
+        try await write(L("깃발을 바꿀")) { try await remote.setFlag(id: id, flagged: flagged) }
     }
 
     func copy(id: String, to destination: String) async throws {
-        try await write("복사할") { try await remote.copy(id: id, to: destination) }
+        try await write(L("복사할")) { try await remote.copy(id: id, to: destination) }
     }
 
     func setImportance(id: String, importance: String) async throws {
-        try await write("우선 순위를 바꿀") { try await remote.setImportance(id: id, importance: importance) }
+        try await write(L("우선 순위를 바꿀")) { try await remote.setImportance(id: id, importance: importance) }
     }
 
     func mimeContent(id: String) async throws -> Data {
-        try await write("원본을 불러올") { try await remote.mimeContent(id: id) }
+        try await write(L("원본을 불러올")) { try await remote.mimeContent(id: id) }
     }
 
     func scheduleDraft(id: String, at date: Date) async throws {
-        try await write("예약할") { try await remote.scheduleDraft(id: id, at: date) }
+        try await write(L("예약할")) { try await remote.scheduleDraft(id: id, at: date) }
     }
 
     func rules() async throws -> [MessageRule] {
-        try await write("규칙을 불러올") { try await remote.rules() }
+        try await write(L("규칙을 불러올")) { try await remote.rules() }
     }
 
     func createRule(_ rule: MessageRule) async throws -> MessageRule {
-        try await write("규칙을 만들") { try await remote.createRule(rule) }
+        try await write(L("규칙을 만들")) { try await remote.createRule(rule) }
     }
 
     func setRule(id: String, enabled: Bool) async throws {
-        try await write("규칙을 바꿀") { try await remote.setRule(id: id, enabled: enabled) }
+        try await write(L("규칙을 바꿀")) { try await remote.setRule(id: id, enabled: enabled) }
     }
 
     func deleteRule(id: String) async throws {
-        try await write("규칙을 지울") { try await remote.deleteRule(id: id) }
+        try await write(L("규칙을 지울")) { try await remote.deleteRule(id: id) }
     }
 
     func automaticReplies() async throws -> AutomaticReplies {
-        try await write("자동 응답을 불러올") { try await remote.automaticReplies() }
+        try await write(L("자동 응답을 불러올")) { try await remote.automaticReplies() }
     }
 
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws {
-        try await write("자동 응답을 저장할") { try await remote.setAutomaticReplies(settings) }
+        try await write(L("자동 응답을 저장할")) { try await remote.setAutomaticReplies(settings) }
     }
 
     func event(id: String) async throws -> MailEvent {
-        try await write("일정을 확인할") { try await remote.event(id: id) }
+        try await write(L("일정을 확인할")) { try await remote.event(id: id) }
     }
 
     func meetingCheck(eventID: String) async throws -> MeetingCheck {
-        try await write("일정을 확인할") { try await remote.meetingCheck(eventID: eventID) }
+        try await write(L("일정을 확인할")) { try await remote.meetingCheck(eventID: eventID) }
     }
 
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
-        try await write("회의 초대에 답할") { try await remote.respond(toEvent: eventID, with: response) }
+        try await write(L("회의 초대에 답할")) { try await remote.respond(toEvent: eventID, with: response) }
     }
 
     func createFolder(name: String, parentID: String?) async throws -> MailFolder {
-        try await write("폴더를 만들") { try await remote.createFolder(name: name, parentID: parentID) }
+        try await write(L("폴더를 만들")) { try await remote.createFolder(name: name, parentID: parentID) }
     }
 
     func renameFolder(id: String, name: String) async throws {
-        try await write("폴더 이름을 바꿀") { try await remote.renameFolder(id: id, name: name) }
+        try await write(L("폴더 이름을 바꿀")) { try await remote.renameFolder(id: id, name: name) }
     }
 
     func deleteFolder(id: String) async throws {
-        try await write("폴더를 지울") { try await remote.deleteFolder(id: id) }
+        try await write(L("폴더를 지울")) { try await remote.deleteFolder(id: id) }
     }
 
     func setRead(id: String, read: Bool) async throws {
-        try await write("읽음 상태를 바꿀") { try await remote.setRead(id: id, read: read) }
+        try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(id: id, read: read) }
     }
 
     func move(id: String, to destination: String) async throws -> String {
-        try await write("옮길") { try await remote.move(id: id, to: destination) }
+        try await write(L("옮길")) { try await remote.move(id: id, to: destination) }
     }
 
     func sendMIME(_ mime: Data) async throws {
-        try await write("보낼") { try await remote.sendMIME(mime) }
+        try await write(L("보낼")) { try await remote.sendMIME(mime) }
     }
 
     func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String {
-        try await write("초안을 저장할") { try await remote.saveDraft(mime, preview: preview, replacing: oldID) }
+        try await write(L("초안을 저장할")) { try await remote.saveDraft(mime, preview: preview, replacing: oldID) }
     }
 
     func deleteMessage(id: String) async throws {
-        try await write("지울") { try await remote.deleteMessage(id: id) }
+        try await write(L("지울")) { try await remote.deleteMessage(id: id) }
     }
 
     func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,
                           progress: @escaping (Double) -> Void) async throws {
-        try await write("첨부를 올릴") { try await remote.uploadAttachment(attachment, toMessage: id, progress: progress) }
+        try await write(L("첨부를 올릴")) { try await remote.uploadAttachment(attachment, toMessage: id, progress: progress) }
     }
 
     func sendDraft(id: String) async throws {
-        try await write("보낼") { try await remote.sendDraft(id: id) }
+        try await write(L("보낼")) { try await remote.sendDraft(id: id) }
     }
 
     /// 다시 연결: 폴더를 한 번 읽어 본다.

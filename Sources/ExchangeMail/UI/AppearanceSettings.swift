@@ -1,4 +1,5 @@
 import SwiftUI
+import ExchangeMailKit
 
 /// 설정 > 일반 > 강조 색. 밝은/어두운 모드는 Mac 설정을 따른다.
 struct AppearanceSettings: View {
@@ -6,7 +7,7 @@ struct AppearanceSettings: View {
 
     var body: some View {
         Section {
-            LabeledContent("강조 색:") {
+            LabeledContent(L("강조 색:")) {
                 VStack(alignment: .leading, spacing: Space.sm) {
                     HStack(spacing: Space.sm) {
                         ForEach(Theme.all) { theme in
@@ -44,7 +45,7 @@ private struct AccentPreview: View {
         .overlay(shape.strokeBorder(.separator, lineWidth: 1))
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("강조 색 미리보기")
+        .accessibilityLabel(L("강조 색 미리보기"))
     }
 
     private var sidebar: some View {
@@ -56,9 +57,9 @@ private struct AccentPreview: View {
             }
             .padding(.leading, Space.xs)
             .padding(.bottom, Space.sm)
-            sidebarRow("받은 편지함", symbol: "tray", selected: true)
-            sidebarRow("보낸 편지함", symbol: "paperplane", selected: false)
-            sidebarRow("보관", symbol: "archivebox", selected: false)
+            sidebarRow(L("받은 편지함"), symbol: "tray", selected: true)
+            sidebarRow(L("보낸 편지함"), symbol: "paperplane", selected: false)
+            sidebarRow(L("보관"), symbol: "archivebox", selected: false)
             Spacer(minLength: 0)
         }
         .padding(Space.sm)
@@ -79,24 +80,24 @@ private struct AccentPreview: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             HStack(alignment: .firstTextBaseline) {
-                Text("받은 편지함").font(.headline)
+                Text(L("받은 편지함")).font(.headline)
                 Spacer()
-                Text("읽지 않음 1").font(.caption).foregroundStyle(Palette.accentText)
+                Text(L("읽지 않음 1")).font(.caption).foregroundStyle(Palette.accentText)
             }
-            task("주간 회의록", done: true)
-            task("견적서 송부드립니다", done: false, tag: "첨부")
+            task(L("주간 회의록"), done: true)
+            task(L("견적서 송부드립니다"), done: false, tag: L("첨부"))
             Spacer(minLength: 0)
             // Drawn, not real controls: the preview is a picture, and real
             // controls turn gray when the window is not in front.
             HStack {
-                Label("새로운 메시지", systemImage: "square.and.pencil")
+                Label(L("새로운 메시지"), systemImage: "square.and.pencil")
                     .font(.callout.weight(.medium))
                     .foregroundStyle(Palette.onAccent)
                     .padding(.horizontal, Space.md)
                     .frame(height: 24)
                     .background(Palette.accent, in: Capsule())
                 Spacer()
-                Text("첨부 보정").font(.caption).foregroundStyle(.secondary)
+                Text(L("첨부 보정")).font(.caption).foregroundStyle(.secondary)
                 Capsule()
                     .fill(Palette.accent)
                     .frame(width: 28, height: 16)

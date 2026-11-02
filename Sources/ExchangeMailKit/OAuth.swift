@@ -84,8 +84,8 @@ public enum OAuthError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .stateMismatch: "로그인 응답이 이 요청과 맞지 않습니다. 다시 로그인하세요."
-        case .missingCode: "로그인 응답에 인증 코드가 없습니다."
+        case .stateMismatch: L("로그인 응답이 이 요청과 맞지 않습니다. 다시 로그인하세요.")
+        case .missingCode: L("로그인 응답에 인증 코드가 없습니다.")
         case .server(let message): message
         }
     }

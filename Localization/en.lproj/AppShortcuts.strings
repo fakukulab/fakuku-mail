@@ -1,0 +1,12 @@
+/* Siri phrases */
+"${applicationName}에서 읽지 않은 메일 몇 통이야" = "How many unread emails do I have in ${applicationName}";
+"${applicationName} 읽지 않은 메일" = "${applicationName} unread mail";
+"${applicationName} 안 읽은 메일 몇 개야" = "How many unread messages in ${applicationName}";
+"${applicationName} 새 메일 가져와" = "Get new mail in ${applicationName}";
+"${applicationName}에서 메일 확인해" = "Check mail in ${applicationName}";
+"${applicationName} VIP 메일 보여 줘" = "Show VIP mail in ${applicationName}";
+"${applicationName}에서 VIP 메일" = "VIP mail in ${applicationName}";
+"${applicationName} 읽지 않은 메일 보여 줘" = "Show unread mail in ${applicationName}";
+"${applicationName}로 메일 써 줘" = "Write an email with ${applicationName}";
+"${applicationName}에서 새 메일" = "New email in ${applicationName}";
+"${applicationName}에서 메일 검색" = "Search mail in ${applicationName}";

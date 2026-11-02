@@ -45,15 +45,15 @@ public struct SmartMailbox: Codable, Hashable, Identifiable, Sendable {
 
         public var label: String {
             switch self {
-            case .sender: "보낸 사람에 포함"
-            case .subject: "제목에 포함"
-            case .unread: "읽지 않음"
-            case .flagged: "깃발 표시됨"
-            case .attachments: "첨부 파일 있음"
-            case .highImportance: "높은 우선순위"
-            case .vip: "VIP가 보냄"
-            case .receivedWithinDays: "최근 며칠 안에 받음"
-            case .folder: "폴더"
+            case .sender: L("보낸 사람에 포함")
+            case .subject: L("제목에 포함")
+            case .unread: L("읽지 않음")
+            case .flagged: L("깃발 표시됨")
+            case .attachments: L("첨부 파일 있음")
+            case .highImportance: L("높은 우선순위")
+            case .vip: L("VIP가 보냄")
+            case .receivedWithinDays: L("최근 며칠 안에 받음")
+            case .folder: L("폴더")
             }
         }
 
@@ -171,12 +171,12 @@ public struct SmartMailbox: Codable, Hashable, Identifiable, Sendable {
         let parts = usable.map { c -> String in
             switch c.field {
             case .sender, .subject: "\(c.field.label) '\(c.value)'"
-            case .receivedWithinDays: "최근 \(c.value)일 안에 받음"
-            case .folder: "폴더: \(folderName(c.value) ?? c.value)"
+            case .receivedWithinDays: L("최근 \(c.value)일 안에 받음")
+            case .folder: L("폴더: \(folderName(c.value) ?? c.value)")
             default: c.field.label
             }
         }
-        return parts.joined(separator: matchAll ? " 그리고 " : " 또는 ")
+        return parts.joined(separator: matchAll ? L(" 그리고 ") : L(" 또는 "))
     }
 }
 
@@ -231,13 +231,13 @@ public enum FlagColor: String, Codable, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .red: "빨간색"
-        case .orange: "주황색"
-        case .yellow: "노란색"
-        case .green: "초록색"
-        case .blue: "파란색"
-        case .purple: "보라색"
-        case .gray: "회색"
+        case .red: L("빨간색")
+        case .orange: L("주황색")
+        case .yellow: L("노란색")
+        case .green: L("초록색")
+        case .blue: L("파란색")
+        case .purple: L("보라색")
+        case .gray: L("회색")
         }
     }
 

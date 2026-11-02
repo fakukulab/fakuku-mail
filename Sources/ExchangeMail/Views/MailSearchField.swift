@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import SwiftUI
 
 /// 본문 열 도구 막대 오른쪽의 검색 칸 (S-014, S-033).
@@ -14,7 +15,7 @@ struct MailSearchField: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            TextField("검색", text: $model.searchText, prompt: Text("검색"))
+            TextField(L("검색"), text: $model.searchText, prompt: Text(L("검색")))
                 .textFieldStyle(.plain)
                 .focused($focused)
                 .onSubmit { Task { await model.loadMessages() } }
@@ -23,24 +24,24 @@ struct MailSearchField: View {
                     focused = false
                 }
             if !model.searchText.isEmpty {
-                Button("검색어 지우기", systemImage: "xmark.circle.fill") { model.searchText = "" }
+                Button(L("검색어 지우기"), systemImage: "xmark.circle.fill") { model.searchText = "" }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
                     .foregroundStyle(.secondary)
             }
             // 검색 범위 (S-033)
-            Picker("검색 범위", selection: $model.searchScope) {
-                Text("이 폴더").tag(SearchScope.folder)
-                Text("모든 폴더").tag(SearchScope.all)
+            Picker(L("검색 범위"), selection: $model.searchScope) {
+                Text(L("이 폴더")).tag(SearchScope.folder)
+                Text(L("모든 폴더")).tag(SearchScope.all)
             }
             .pickerStyle(.menu)
             .labelsHidden()
             .fixedSize()
-            .help("검색 범위")
+            .help(L("검색 범위"))
         }
         .padding(.leading, Space.sm)
         .frame(width: 280)
-        .help("메일 검색 (⌥⌘F). Return으로 찾고 Esc로 지웁니다.")
+        .help(L("메일 검색 (⌥⌘F). Return으로 찾고 Esc로 지웁니다."))
         .onChange(of: model.searchFocusRequest) { _, _ in focused = true }
     }
 }
@@ -48,7 +49,7 @@ struct MailSearchField: View {
 /// 사서함 > 메일 검색(⌥⌘F): 메인 창 도구 막대의 검색 칸에 초점을 준다.
 /// 도구 막대 항목은 창 본문과 다른 곳에 그려져 SwiftUI `@FocusState`가 닿지 않을 때가 있어, AppKit에서 칸을 찾아 직접 준다.
 enum SearchFieldFocus {
-    static let placeholder = "검색"
+    static let placeholder = L("검색")
 
     @discardableResult
     static func focus() -> Bool {

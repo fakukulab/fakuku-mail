@@ -10,12 +10,12 @@ extension MessageListView {
         ToolbarItem(id: "filter", placement: .primaryAction) { FilterMenu(model: model) }
         ToolbarItem(id: "sort", placement: .primaryAction) { SortMenu(model: model) }
         ToolbarItem(id: "listGetMail", placement: .primaryAction) {
-            Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
-                .help("받은 메일 가져오기 (⇧⌘N)")
+            Button(L("받은 메일 가져오기"), systemImage: "arrow.clockwise") { Task { await model.refresh() } }
+                .help(L("받은 메일 가져오기 (⇧⌘N)"))
         }
         ToolbarItem(id: "listNewMessage", placement: .primaryAction) {
-            Button("새로운 메시지", systemImage: "square.and.pencil") { openWindow(id: "compose", value: ComposeDraft()) }
-                .help("새로운 메시지 (⌘N)")
+            Button(L("새로운 메시지"), systemImage: "square.and.pencil") { openWindow(id: "compose", value: ComposeDraft()) }
+                .help(L("새로운 메시지 (⌘N)"))
         }
     }
 }
@@ -47,24 +47,24 @@ extension MessageDetailView {
     @ToolbarContentBuilder
     private var organize: some CustomizableToolbarContent {
         ToolbarItem(id: "archive") {
-            Button("보관", systemImage: "archivebox") { Task { await model.archiveSelected(undoManager: undoManager) } }
-                .help("보관 (⌃⌘A)")
+            Button(L("보관"), systemImage: "archivebox") { Task { await model.archiveSelected(undoManager: undoManager) } }
+                .help(L("보관 (⌃⌘A)"))
                 .disabled(noSelection)
         }
         ToolbarItem(id: "delete") {
-            Button("지우기", systemImage: "trash") { Task { await model.deleteSelected(undoManager: undoManager) } }
-                .help("지우기 (Delete)")
+            Button(L("지우기"), systemImage: "trash") { Task { await model.deleteSelected(undoManager: undoManager) } }
+                .help(L("지우기 (Delete)"))
                 .disabled(noSelection)
         }
         ToolbarItem(id: "junk") {
-            Button("정크", systemImage: "xmark.bin") { Task { await model.toggleJunkSelected(undoManager: undoManager) } }
-                .help("정크 메일로 표시 / 정크 아님 (⇧⌘J)")
+            Button(L("정크"), systemImage: "xmark.bin") { Task { await model.toggleJunkSelected(undoManager: undoManager) } }
+                .help(L("정크 메일로 표시 / 정크 아님 (⇧⌘J)"))
                 .disabled(noSelection)
         }
         .defaultCustomization(.hidden)
         ToolbarItem(id: "move") {
-            Button("이동", systemImage: "folder") { model.showMovePicker = true }
-                .help("다른 폴더로 이동 (⇧⌘M)")
+            Button(L("이동"), systemImage: "folder") { model.showMovePicker = true }
+                .help(L("다른 폴더로 이동 (⇧⌘M)"))
                 .disabled(noSelection)
         }
         .defaultCustomization(.hidden)
@@ -73,11 +73,11 @@ extension MessageDetailView {
             Menu {
                 FlagColorItems { color in Task { await model.setFlagColorSelected(color) } }
             } label: {
-                Label("깃발", systemImage: allFlagged ? "flag.fill" : "flag")
+                Label(L("깃발"), systemImage: allFlagged ? "flag.fill" : "flag")
             } primaryAction: {
                 Task { await model.toggleFlagSelected() }
             }
-            .help("깃발 달기/떼기 (⇧⌘L), 색은 ⌄ (⌥⌘1~7)")
+            .help(L("깃발 달기/떼기 (⇧⌘L), 색은 ⌄ (⌥⌘1~7)"))
             .disabled(noSelection)
         }
     }
@@ -85,18 +85,18 @@ extension MessageDetailView {
     @ToolbarContentBuilder
     private var reply: some CustomizableToolbarContent {
         ToolbarItem(id: "reply") {
-            Button("답장", systemImage: "arrowshape.turn.up.left") { compose(.reply) }
-                .help("답장 (⌘R)")
+            Button(L("답장"), systemImage: "arrowshape.turn.up.left") { compose(.reply) }
+                .help(L("답장 (⌘R)"))
                 .disabled(model.detail == nil)
         }
         ToolbarItem(id: "replyAll") {
-            Button("전체 답장", systemImage: "arrowshape.turn.up.left.2") { compose(.replyAll) }
-                .help("전체 답장 (⇧⌘R)")
+            Button(L("전체 답장"), systemImage: "arrowshape.turn.up.left.2") { compose(.replyAll) }
+                .help(L("전체 답장 (⇧⌘R)"))
                 .disabled(model.detail == nil)
         }
         ToolbarItem(id: "forward") {
-            Button("전달", systemImage: "arrowshape.turn.up.right") { compose(.forward) }
-                .help("전달 (⇧⌘F)")
+            Button(L("전달"), systemImage: "arrowshape.turn.up.right") { compose(.forward) }
+                .help(L("전달 (⇧⌘F)"))
                 .disabled(model.detail == nil)
         }
     }
@@ -105,20 +105,20 @@ extension MessageDetailView {
     @ToolbarContentBuilder
     private var extras: some CustomizableToolbarContent {
         ToolbarItem(id: "read") {
-            Button("읽음/읽지 않음", systemImage: "envelope.badge") { Task { await model.toggleReadSelected() } }
-                .help("읽음 또는 읽지 않음으로 표시 (⇧⌘U)")
+            Button(L("읽음/읽지 않음"), systemImage: "envelope.badge") { Task { await model.toggleReadSelected() } }
+                .help(L("읽음 또는 읽지 않음으로 표시 (⇧⌘U)"))
                 .disabled(noSelection)
         }
         .defaultCustomization(.hidden)
         ToolbarItem(id: "print") {
-            Button("인쇄", systemImage: "printer") { model.printDisplayed() }
-                .help("인쇄 (⌘P)")
+            Button(L("인쇄"), systemImage: "printer") { model.printDisplayed() }
+                .help(L("인쇄 (⌘P)"))
                 .disabled(model.detail == nil || model.multipleSelectionCount > 0)
         }
         .defaultCustomization(.hidden)
         ToolbarItem(id: "openWindow") {
-            Button("새 창에서 열기", systemImage: "macwindow.on.rectangle") { openInWindow() }
-                .help("새 창에서 열기 (⌘O)")
+            Button(L("새 창에서 열기"), systemImage: "macwindow.on.rectangle") { openInWindow() }
+                .help(L("새 창에서 열기 (⌘O)"))
                 .disabled(model.detail == nil || model.multipleSelectionCount > 0)
         }
         .defaultCustomization(.hidden)

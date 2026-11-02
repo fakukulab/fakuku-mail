@@ -49,7 +49,7 @@ struct SignatureSettings: View {
             List(selection: $selection) {
                 ForEach(store.signatures) { s in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(s.name.isEmpty ? "이름 없는 서명" : s.name)
+                        Text(s.name.isEmpty ? L("이름 없는 서명") : s.name)
                             .lineLimit(1)
                         Text(preview(s))
                             .font(.caption)
@@ -63,16 +63,16 @@ struct SignatureSettings: View {
             .listStyle(.inset)
             .overlay {
                 if store.signatures.isEmpty {
-                    ContentUnavailableView("서명 없음", systemImage: "signature",
-                                           description: Text("+를 눌러 서명을 만드세요."))
+                    ContentUnavailableView(L("서명 없음"), systemImage: "signature",
+                                           description: Text(L("+를 눌러 서명을 만드세요.")))
                 }
             }
             Divider()
             HStack(spacing: 0) {
-                Button("서명 추가", systemImage: "plus") { selection = store.add().id }
-                    .help("서명 추가")
-                Button("서명 삭제", systemImage: "minus") { deleteSelected() }
-                    .help("고른 서명 삭제")
+                Button(L("서명 추가"), systemImage: "plus") { selection = store.add().id }
+                    .help(L("서명 추가"))
+                Button(L("서명 삭제"), systemImage: "minus") { deleteSelected() }
+                    .help(L("고른 서명 삭제"))
                     .disabled(selection == nil)
                 Spacer()
             }
@@ -88,14 +88,14 @@ struct SignatureSettings: View {
         if let id = selection, let signature = store.signature(id: id) {
             VStack(alignment: .leading, spacing: Space.lg) {
                 HStack(spacing: Space.sm) {
-                    TextField("서명 이름", text: Binding(
+                    TextField(L("서명 이름"), text: Binding(
                         get: { signature.name },
-                        set: { store.update(id: id, name: $0) }), prompt: Text("서명 이름"))
+                        set: { store.update(id: id, name: $0) }), prompt: Text(L("서명 이름")))
                         .textFieldStyle(.roundedBorder)
                     Toggle("HTML", isOn: $showSource)
                         .toggleStyle(.button)
                         .controlSize(.small)
-                        .help("HTML 소스를 직접 고칩니다")
+                        .help(L("HTML 소스를 직접 고칩니다"))
                 }
                 VStack(spacing: 0) {
                     if showSource {
@@ -118,15 +118,15 @@ struct SignatureSettings: View {
                     }
                 }
                 .overlay(RoundedRectangle(cornerRadius: Space.xs).strokeBorder(.separator))
-                Text("그림은 끌어다 놓으면 들어갑니다. 고친 내용은 바로 저장됩니다.")
+                Text(L("그림은 끌어다 놓으면 들어갑니다. 고친 내용은 바로 저장됩니다."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Divider()
                 rules
             }
         } else {
-            ContentUnavailableView("서명을 고르세요", systemImage: "signature",
-                                   description: Text("왼쪽에서 서명을 고르거나 +를 눌러 만드세요."))
+            ContentUnavailableView(L("서명을 고르세요"), systemImage: "signature",
+                                   description: Text(L("왼쪽에서 서명을 고르거나 +를 눌러 만드세요.")))
         }
     }
 
@@ -134,7 +134,7 @@ struct SignatureSettings: View {
     private var rules: some View {
         Grid(alignment: .leading, horizontalSpacing: Space.sm, verticalSpacing: Space.md) {
             GridRow {
-                Text("기본 서명")
+                Text(L("기본 서명"))
                     .font(.headline)
                     .gridCellColumns(2)
             }
@@ -149,7 +149,7 @@ struct SignatureSettings: View {
                             // 예전에 계정별로 정한 값이 있으면 지운다: 이 화면이 정한 값이 그대로 쓰이게.
                             if let email = model.auth.email { store.setChoice(.inherit, kind: kind, account: email) }
                         })) {
-                        Text("없음").tag(RuleChoice.none)
+                        Text(L("없음")).tag(RuleChoice.none)
                         if !store.signatures.isEmpty { Divider() }
                         ForEach(store.signatures) { s in
                             Text(s.name).tag(RuleChoice.signature(s.id))
@@ -165,7 +165,7 @@ struct SignatureSettings: View {
     private func preview(_ s: Signature) -> String {
         let text = HTMLProcessor.plainText(from: s.html)
             .split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
-        return text ?? "빈 서명"
+        return text ?? L("빈 서명")
     }
 
     private func load(force: Bool = false) {

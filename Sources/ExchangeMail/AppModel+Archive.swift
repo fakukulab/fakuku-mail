@@ -11,9 +11,9 @@ extension AppModel {
     func exportSelectedMailbox() {
         guard !archiveExporting, let folder = selectedFolder else { return }
         let panel = NSSavePanel()
-        panel.title = "메일상자 내보내기"
-        panel.message = "\"\(folder.displayName)\"의 메일 \(folder.totalItemCount ?? 0)통을 mbox 파일 하나로 저장합니다."
-        panel.prompt = "내보내기"
+        panel.title = L("메일상자 내보내기")
+        panel.message = L("\"\(folder.displayName)\"의 메일 \(folder.totalItemCount ?? 0)통을 mbox 파일 하나로 저장합니다.")
+        panel.prompt = L("내보내기")
         let day = Date().formatted(.iso8601.year().month().day())
         panel.nameFieldStringValue = "\(folder.displayName) \(day).mbox"
         panel.allowedContentTypes = [Self.mboxType]
@@ -22,8 +22,8 @@ extension AppModel {
         exportTask = Task { [weak self] in
             guard let self else { return }
             if let done = await self.exportMailbox(folder, to: url) {
-                self.noticeMessage = "\"\(folder.displayName)\"의 메일 \(done.saved)통을 내보냈습니다."
-                    + (done.failed > 0 ? " \(done.failed)통은 원본을 받지 못해 빠졌습니다." : "")
+                self.noticeMessage = L("\"\(folder.displayName)\"의 메일 \(done.saved)통을 내보냈습니다.")
+                    + (done.failed > 0 ? L(" \(done.failed)통은 원본을 받지 못해 빠졌습니다.") : "")
                     + "\n\(url.path)"
                 if !SelfTest.requested { NSWorkspace.shared.activateFileViewerSelecting([url]) }
             }
@@ -41,7 +41,7 @@ extension AppModel {
     /// 폴더의 모든 메일을 받아 mbox로 쓴다. 중단되거나 쓰지 못하면 nil (만들던 파일은 지운다).
     func exportMailbox(_ folder: MailFolder, to url: URL) async -> (saved: Int, failed: Int)? {
         archiveExporting = true
-        progressText = "\"\(folder.displayName)\" 내보내는 중…"
+        progressText = L("\"\(folder.displayName)\" 내보내는 중…")
         defer {
             archiveExporting = false
             progressText = nil
@@ -71,7 +71,7 @@ extension AppModel {
                         } else {
                             failed += 1
                         }
-                        progressText = "\"\(folder.displayName)\" 내보내는 중… \(saved + failed)" + (total > 0 ? " / \(total)통" : "통")
+                        progressText = L("\"\(folder.displayName)\" 내보내는 중… \(saved + failed)") + (total > 0 ? L(" / \(total)통") : L("통"))
                     }
                     guard let next = page.nextLink else { break }
                     page = try await service.nextPage(next)
@@ -85,7 +85,7 @@ extension AppModel {
             }
             return (saved, failed)
         } catch is CancellationError {
-            noticeMessage = "내보내기를 중단했습니다."
+            noticeMessage = L("내보내기를 중단했습니다.")
             return nil
         } catch {
             report(error, quietIfOffline: false)
@@ -110,9 +110,9 @@ extension AppModel {
     /// 파일 > 메일상자 가져오기… : .mbox, .eml (맥 Mail이 내보낸 .mbox 폴더도)
     static func chooseArchive() -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "메일상자 가져오기"
-        panel.message = "mbox 파일, 맥 Mail이 내보낸 .mbox 폴더, eml 파일을 고르세요."
-        panel.prompt = "가져오기"
+        panel.title = L("메일상자 가져오기")
+        panel.message = L("mbox 파일, 맥 Mail이 내보낸 .mbox 폴더, eml 파일을 고르세요.")
+        panel.prompt = L("가져오기")
         panel.allowedContentTypes = [mboxType, emlType, .emailMessage]
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false

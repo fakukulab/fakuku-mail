@@ -36,15 +36,15 @@ struct ContentView: View {
             NotificationRouter.shared.open = { id in Task { await model.openFromNotification(id) } }
             await model.prepareNotifications()
         }
-        .alert("알림", isPresented: Binding(get: { model.noticeMessage != nil },
+        .alert(L("알림"), isPresented: Binding(get: { model.noticeMessage != nil },
                                           set: { if !$0 { model.noticeMessage = nil } })) {
-            Button("확인", role: .cancel) {}
+            Button(L("확인"), role: .cancel) {}
         } message: {
             Text(model.noticeMessage ?? "")
         }
-        .alert("오류", isPresented: Binding(get: { model.errorMessage != nil },
+        .alert(L("오류"), isPresented: Binding(get: { model.errorMessage != nil },
                                           set: { if !$0 { model.errorMessage = nil } })) {
-            Button("확인", role: .cancel) {}
+            Button(L("확인"), role: .cancel) {}
         } message: {
             Text(model.errorMessage ?? "")
         }
@@ -105,8 +105,8 @@ struct FolderSidebar: View {
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedFolderID) {
-            Section("스마트 메일상자") {
-                Label("깃발 표시", systemImage: "flag")
+            Section(L("스마트 메일상자")) {
+                Label(L("깃발 표시"), systemImage: "flag")
                     .tag(FolderOrder.flaggedID)
                 // 색별 깃발 (쓰는 색만)
                 ForEach(model.usedFlagColors, id: \.self) { c in
@@ -124,10 +124,10 @@ struct FolderSidebar: View {
                         .tag(box.id)
                         .help(box.summary { id in model.folders.first { $0.id == id }?.displayName })
                         .contextMenu {
-                            Button("스마트 메일상자 변경…") { model.editingSmart = box }
-                            Button("스마트 메일상자 지우기…", role: .destructive) {
-                                if TextPrompt.confirm("\"\(box.name)\" 스마트 메일상자를 지울까요?",
-                                                      message: "메일은 지워지지 않고 원래 폴더에 남습니다.", action: "지우기") {
+                            Button(L("스마트 메일상자 변경…")) { model.editingSmart = box }
+                            Button(L("스마트 메일상자 지우기…"), role: .destructive) {
+                                if TextPrompt.confirm(L("\"\(box.name)\" 스마트 메일상자를 지울까요?"),
+                                                      message: L("메일은 지워지지 않고 원래 폴더에 남습니다."), action: L("지우기")) {
                                     model.removeSmart(id: box.id)
                                 }
                             }
@@ -137,20 +137,20 @@ struct FolderSidebar: View {
             // VIP (S-045): 사람마다 이름과 아이콘
             if !model.mailboxes.vips.isEmpty {
                 Section("VIP") {
-                    Label("모든 VIP", systemImage: "star")
+                    Label(L("모든 VIP"), systemImage: "star")
                         .tag(VirtualMailbox.allVIPsID)
                     ForEach(model.mailboxes.vips) { vip in
                         Label(vip.title, systemImage: vip.symbol)
                             .tag(VirtualMailbox.id(forVIP: vip.address))
                             .help(vip.address)
                             .contextMenu {
-                                Button("이름·아이콘 변경…") { model.editingVIP = vip }
-                                Button("VIP에서 빼기") { model.removeVIP(address: vip.address) }
+                                Button(L("이름·아이콘 변경…")) { model.editingVIP = vip }
+                                Button(L("VIP에서 빼기")) { model.removeVIP(address: vip.address) }
                             }
                     }
                 }
             }
-            Section(model.auth.email ?? "사서함") {
+            Section(model.auth.email ?? L("사서함")) {
                 ForEach(model.folders) { folder in
                     FolderRow(folder: folder)
                         .tag(folder.id)
@@ -164,8 +164,8 @@ struct FolderSidebar: View {
             }
         }
         .contextMenu {
-            Button("새 폴더…") { newFolder(parent: nil) }
-            Button("새 스마트 메일상자…") { model.newSmartMailbox() }
+            Button(L("새 폴더…")) { newFolder(parent: nil) }
+            Button(L("새 스마트 메일상자…")) { model.newSmartMailbox() }
         }
         .overlay {
             if model.folders.isEmpty && model.isLoading {
@@ -176,17 +176,17 @@ struct FolderSidebar: View {
 
     @ViewBuilder
     private func folderMenu(_ folder: MailFolder) -> some View {
-        Button("새 하위 폴더…") { newFolder(parent: folder) }
+        Button(L("새 하위 폴더…")) { newFolder(parent: folder) }
         Divider()
-        Button("이름 변경…") {
-            if let name = TextPrompt.ask("폴더 이름 변경", initial: folder.displayName, confirm: "변경") {
+        Button(L("이름 변경…")) {
+            if let name = TextPrompt.ask(L("폴더 이름 변경"), initial: folder.displayName, confirm: L("변경")) {
                 Task { await model.renameFolder(folder, to: name) }
             }
         }
         .disabled(!folder.isEditable)
-        Button("폴더 지우기…", role: .destructive) {
-            if TextPrompt.confirm("\"\(folder.displayName)\" 폴더를 지울까요?",
-                                  message: "폴더와 안의 메일, 하위 폴더가 지운 편지함으로 옮겨집니다.", action: "지우기") {
+        Button(L("폴더 지우기…"), role: .destructive) {
+            if TextPrompt.confirm(L("\"\(folder.displayName)\" 폴더를 지울까요?"),
+                                  message: L("폴더와 안의 메일, 하위 폴더가 지운 편지함으로 옮겨집니다."), action: L("지우기")) {
                 Task { await model.deleteFolder(folder) }
             }
         }
@@ -194,8 +194,8 @@ struct FolderSidebar: View {
     }
 
     private func newFolder(parent: MailFolder?) {
-        let message = parent.map { "\"\($0.displayName)\" 안에 만듭니다." } ?? ""
-        if let name = TextPrompt.ask("새 폴더", message: message, confirm: "만들기") {
+        let message = parent.map { L("\"\($0.displayName)\" 안에 만듭니다.") } ?? ""
+        if let name = TextPrompt.ask(L("새 폴더"), message: message, confirm: L("만들기")) {
             Task { await model.createFolder(named: name, parentID: parent?.id) }
         }
     }

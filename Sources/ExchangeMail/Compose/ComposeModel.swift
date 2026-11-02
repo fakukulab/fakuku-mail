@@ -43,7 +43,7 @@ final class ComposeModel {
     /// 본문에 지금 들어 있는 서명. 메뉴 값이 이것과 다를 때만 본문을 바꾼다.
     @ObservationIgnored private var appliedSignatureID: UUID?
     var error: String?
-    var errorTitle = "보낼 수 없습니다"
+    var errorTitle = L("보낼 수 없습니다")
 
     init(draft: ComposeDraft) {
         self.draft = draft
@@ -97,15 +97,15 @@ final class ComposeModel {
                 forwarded = filled
                 savedFingerprint = fingerprint
             } catch {
-                errorTitle = "첨부를 가져오지 못했습니다"
-                self.error = "원본 첨부를 가져오지 못했습니다: \(error.localizedDescription)"
+                errorTitle = L("첨부를 가져오지 못했습니다")
+                self.error = L("원본 첨부를 가져오지 못했습니다: \(error.localizedDescription)")
             }
         }
         // 첨부 파일로 전달 (M17): 원본 MIME을 .eml 파일로 붙인다.
         if let source = draft.attachMessageFrom {
             do {
                 let data = try await app.service.mimeContent(id: source)
-                let base = (draft.attachMessageName ?? "메시지").replacingOccurrences(of: "/", with: "-")
+                let base = (draft.attachMessageName ?? L("메시지")).replacingOccurrences(of: "/", with: "-")
                     .replacingOccurrences(of: ":", with: "-")
                 let dir = FileManager.default.temporaryDirectory
                     .appending(path: "ExchangeMail-eml-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -115,8 +115,8 @@ final class ComposeModel {
                 files.append(url)
                 savedFingerprint = fingerprint
             } catch {
-                errorTitle = "원본을 붙이지 못했습니다"
-                self.error = "전달할 메일의 원본을 가져오지 못했습니다: \(error.localizedDescription)"
+                errorTitle = L("원본을 붙이지 못했습니다")
+                self.error = L("전달할 메일의 원본을 가져오지 못했습니다: \(error.localizedDescription)")
             }
         }
     }
@@ -128,8 +128,8 @@ final class ComposeModel {
         let result = AttachmentList.merge(files, adding: urls)
         files = result.files
         if !result.skipped.isEmpty {
-            errorTitle = "첨부할 수 없습니다"
-            error = "폴더는 첨부할 수 없습니다: \(result.skipped.joined(separator: ", ")). 압축한 뒤 첨부하세요."
+            errorTitle = L("첨부할 수 없습니다")
+            error = L("폴더는 첨부할 수 없습니다: \(result.skipped.joined(separator: ", ")). 압축한 뒤 첨부하세요.")
         }
     }
 
@@ -166,7 +166,7 @@ final class ComposeModel {
     /// 보내고 성공하면 true. 실패하거나 보내기를 취소하면 false (실패면 `error`에 이유).
     /// `undoDelay`초 동안은 "보내기 취소"를 기다린다 (S-036). 주소와 첨부는 기다리기 전에 확인한다.
     func send(app: AppModel, undoDelay: Int = 0) async -> Bool {
-        errorTitle = "보낼 수 없습니다"
+        errorTitle = L("보낼 수 없습니다")
         sending = true
         defer { sending = false }
         do {
@@ -227,9 +227,9 @@ final class ComposeModel {
 
     /// 초안을 만들고(큰 첨부는 올리고) 지연 발송 시각을 붙여 보낸다. Exchange가 그 시각에 보낸다.
     func schedule(app: AppModel, at date: Date) async -> Bool {
-        errorTitle = "예약할 수 없습니다"
+        errorTitle = L("예약할 수 없습니다")
         guard ScheduledSend.isValid(date) else {
-            error = "1분 뒤 이후의 시각을 고르세요."
+            error = L("1분 뒤 이후의 시각을 고르세요.")
             return false
         }
         sending = true
@@ -284,7 +284,7 @@ final class ComposeModel {
             await app.draftsChanged()
             return true
         } catch {
-            errorTitle = "초안을 저장하지 못했습니다"
+            errorTitle = L("초안을 저장하지 못했습니다")
             self.error = error.localizedDescription
             return false
         }
@@ -328,7 +328,7 @@ final class ComposeModel {
         let id = try await app.service.saveDraft(plan.mime, preview: preview, replacing: nil)
         do {
             try await upload(plan.uploads, to: id, app: app)
-            uploadStatus = "보내는 중"
+            uploadStatus = L("보내는 중")
             try await app.service.sendDraft(id: id)
             uploadStatus = nil
         } catch {
@@ -343,7 +343,7 @@ final class ComposeModel {
             uploadFraction = nil
         }
         for (index, attachment) in list.enumerated() {
-            uploadStatus = "큰 첨부 올리는 중 \(index + 1)/\(list.count)"
+            uploadStatus = L("큰 첨부 올리는 중 \(index + 1)/\(list.count)")
             uploadFraction = Double(index) / Double(list.count)
             try await app.service.uploadAttachment(attachment, toMessage: id) { [weak self] part in
                 self?.uploadFraction = (Double(index) + part) / Double(list.count)

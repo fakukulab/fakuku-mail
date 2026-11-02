@@ -36,7 +36,7 @@ final class GraphAuth: NSObject {
         super.init()
         if let demoEmail {
             email = demoEmail
-            displayName = "데모 사용자"
+            displayName = L("데모 사용자")
             return
         }
         if let data = Keychain.load(account: keychainAccount),
@@ -62,7 +62,7 @@ final class GraphAuth: NSObject {
         guard !isDemo, !isSigningIn else { return }
         lastError = nil
         guard !clientID.isEmpty else {
-            lastError = "Azure 앱(클라이언트) ID를 먼저 입력하세요."
+            lastError = L("Azure 앱(클라이언트) ID를 먼저 입력하세요.")
             return
         }
         isSigningIn = true
@@ -72,7 +72,7 @@ final class GraphAuth: NSObject {
         let state = OAuth.randomState()
         guard let url = OAuth.authorizeURL(tenant: tenant, clientID: clientID, redirectURI: redirectURI,
                                            challenge: OAuth.challenge(for: verifier), state: state) else {
-            lastError = "로그인 주소를 만들 수 없습니다. 테넌트 값을 확인하세요."
+            lastError = L("로그인 주소를 만들 수 없습니다. 테넌트 값을 확인하세요.")
             return
         }
         do {
@@ -213,9 +213,9 @@ enum AuthError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .signedOut: "로그인이 필요합니다."
-        case .expired: "로그인이 만료되었습니다. 다시 로그인하세요."
-        case .server(let message): "Microsoft 로그인 오류: \(message)"
+        case .signedOut: L("로그인이 필요합니다.")
+        case .expired: L("로그인이 만료되었습니다. 다시 로그인하세요.")
+        case .server(let message): L("Microsoft 로그인 오류: \(message)")
         }
     }
 }

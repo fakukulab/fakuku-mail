@@ -10,12 +10,12 @@ extension AppModel {
     /// 목록 제목
     var listTitle: String {
         switch selectedVirtual {
-        case .flagged: "깃발 표시"
-        case .flagColor(let c): "\(c.label) 깃발"
+        case .flagged: L("깃발 표시")
+        case .flagColor(let c): L("\(c.label) 깃발")
         case .allVIPs: "VIP"
         case .vip(let address): mailboxes.vip(address: address)?.title ?? address
-        case .smart(let id): mailboxes.smart.first { $0.id == id }?.name ?? "스마트 메일상자"
-        case nil: selectedFolder?.displayName ?? "메일"
+        case .smart(let id): mailboxes.smart.first { $0.id == id }?.name ?? L("스마트 메일상자")
+        case nil: selectedFolder?.displayName ?? L("메일")
         }
     }
 

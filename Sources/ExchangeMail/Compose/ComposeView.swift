@@ -45,14 +45,14 @@ struct ComposeView: View {
             let outside = externalAddresses
             if !outside.isEmpty {
                 Divider()
-                Label("바깥 주소: \(outside.joined(separator: ", "))", systemImage: "exclamationmark.triangle")
+                Label(L("바깥 주소: \(outside.joined(separator: ", "))"), systemImage: "exclamationmark.triangle")
                     .font(.callout)
                     .foregroundStyle(.orange)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Space.margin)
                     .padding(.vertical, Space.sm)
-                    .help("설정 > 작성에 적은 도메인으로 끝나지 않는 주소입니다. 받는 사람을 다시 확인하세요.")
+                    .help(L("설정 > 작성에 적은 도메인으로 끝나지 않는 주소입니다. 받는 사람을 다시 확인하세요."))
             }
             Divider()
             // 첨부는 Outlook처럼 제목 아래, 본문 위에 카드로 (M17)
@@ -82,7 +82,7 @@ struct ComposeView: View {
         .focusedSceneValue(\.richTextEditor, compose.editor)
         .alert(compose.errorTitle, isPresented: Binding(get: { compose.error != nil },
                                                          set: { if !$0 { compose.error = nil } })) {
-            Button("확인", role: .cancel) {}
+            Button(L("확인"), role: .cancel) {}
         } message: {
             Text(compose.error ?? "")
         }
@@ -134,52 +134,52 @@ struct ComposeView: View {
     private var header: some View {
         @Bindable var compose = compose
         return VStack(spacing: 0) {
-            row("받는 사람:") {
-                TextField("받는 사람", text: $compose.to, prompt: Text(""))
+            row(L("받는 사람:")) {
+                TextField(L("받는 사람"), text: $compose.to, prompt: Text(""))
                     .focused($focus, equals: .to)
                     .addressSuggestions(for: compose.to, from: model.addressBook)
             }
             rule
             if fieldCc || !compose.cc.isEmpty {
-                row("참조:") {
-                    TextField("참조", text: $compose.cc, prompt: Text(""))
+                row(L("참조:")) {
+                    TextField(L("참조"), text: $compose.cc, prompt: Text(""))
                         .focused($focus, equals: .cc)
                         .addressSuggestions(for: compose.cc, from: model.addressBook)
                 }
                 rule
             }
             if fieldBcc || !compose.bcc.isEmpty {
-                row("숨은 참조:") {
-                    TextField("숨은 참조", text: $compose.bcc, prompt: Text(""))
+                row(L("숨은 참조:")) {
+                    TextField(L("숨은 참조"), text: $compose.bcc, prompt: Text(""))
                         .focused($focus, equals: .bcc)
                         .addressSuggestions(for: compose.bcc, from: model.addressBook)
                 }
                 rule
             }
             if fieldReplyTo || !compose.replyTo.isEmpty {
-                row("답장 받을 사람:") {
-                    TextField("답장 받을 사람", text: $compose.replyTo, prompt: Text(""))
+                row(L("답장 받을 사람:")) {
+                    TextField(L("답장 받을 사람"), text: $compose.replyTo, prompt: Text(""))
                         .addressSuggestions(for: compose.replyTo, from: model.addressBook)
                 }
                 rule
             }
-            row("제목:") {
-                TextField("제목", text: $compose.subject, prompt: Text(""))
+            row(L("제목:")) {
+                TextField(L("제목"), text: $compose.subject, prompt: Text(""))
                     .focused($focus, equals: .subject)
                 if fieldPriority || compose.importance != "normal" {
                     priorityMenu
                 }
             }
             rule
-            row("보낸 사람:") {
+            row(L("보낸 사람:")) {
                 Text(fromLine)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: Space.lg)
-                Text("서명:")
+                Text(L("서명:"))
                     .foregroundStyle(.secondary)
-                Picker("서명", selection: $compose.signatureID) {
-                    Text("없음").tag(UUID?.none)
+                Picker(L("서명"), selection: $compose.signatureID) {
+                    Text(L("없음")).tag(UUID?.none)
                     if !model.signatures.signatures.isEmpty { Divider() }
                     ForEach(model.signatures.signatures) { s in
                         Text(s.name).tag(UUID?.some(s.id))
@@ -206,10 +206,10 @@ struct ComposeView: View {
         @Bindable var compose = compose
         let mark = compose.importance == "high" ? "!!" : compose.importance == "low" ? "–" : "!"
         return Menu {
-            Picker("우선 순위", selection: $compose.importance) {
-                Text("!!  우선 순위 높음").tag("high")
-                Text("!   우선 순위 보통").tag("normal")
-                Text("–   우선 순위 낮음").tag("low")
+            Picker(L("우선 순위"), selection: $compose.importance) {
+                Text(L("!!  우선 순위 높음")).tag("high")
+                Text(L("!   우선 순위 보통")).tag("normal")
+                Text(L("–   우선 순위 낮음")).tag("low")
             }
             .pickerStyle(.inline)
             .labelsHidden()
@@ -220,21 +220,21 @@ struct ComposeView: View {
         }
         .menuStyle(.button)
         .fixedSize()
-        .help(compose.importance == "high" ? "우선 순위 높음" : compose.importance == "low" ? "우선 순위 낮음" : "우선 순위 보통")
-        .accessibilityLabel("우선 순위")
+        .help(compose.importance == "high" ? L("우선 순위 높음") : compose.importance == "low" ? L("우선 순위 낮음") : L("우선 순위 보통"))
+        .accessibilityLabel(L("우선 순위"))
     }
 
     /// 머리글 필드 단추 (도구 막대): 참조, 숨은 참조, 답장 받을 사람, 우선 순위를 보이고 감춘다.
     private var fieldsMenu: some View {
         Menu {
-            Toggle("참조 주소 필드", isOn: $fieldCc)
-            Toggle("숨은 참조 주소 필드", isOn: $fieldBcc)
-            Toggle("답장 받을 사람 주소 필드", isOn: $fieldReplyTo)
-            Toggle("우선 순위 필드", isOn: $fieldPriority)
+            Toggle(L("참조 주소 필드"), isOn: $fieldCc)
+            Toggle(L("숨은 참조 주소 필드"), isOn: $fieldBcc)
+            Toggle(L("답장 받을 사람 주소 필드"), isOn: $fieldReplyTo)
+            Toggle(L("우선 순위 필드"), isOn: $fieldPriority)
         } label: {
-            Label("머리글 필드", systemImage: "list.bullet.rectangle")
+            Label(L("머리글 필드"), systemImage: "list.bullet.rectangle")
         }
-        .help("머리글 필드 보이기·감추기")
+        .help(L("머리글 필드 보이기·감추기"))
     }
 
     /// 왼쪽 여백부터 창 오른쪽 끝까지 긋는 구분선 (맥 Mail)
@@ -282,17 +282,17 @@ struct ComposeView: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             if let fraction = compose.uploadFraction {
                 ProgressView(value: fraction) {
-                    Text(compose.uploadStatus ?? "큰 첨부 올리는 중")
+                    Text(compose.uploadStatus ?? L("큰 첨부 올리는 중"))
                         .font(.callout)
                 }
             } else if compose.hasLargeAttachments {
-                Label("큰 첨부는 따로 올려 보냅니다. 보내기를 누른 뒤 창 제목 아래에서 진행률을 볼 수 있습니다.",
+                Label(L("큰 첨부는 따로 올려 보냅니다. 보내기를 누른 뒤 창 제목 아래에서 진행률을 볼 수 있습니다."),
                       systemImage: "icloud.and.arrow.up")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
             if movedImageCount > 0 {
-                Label("본문 그림 \(movedImageCount)개가 일반 첨부로 나갑니다. 서명 그림은 본문에 남습니다.",
+                Label(L("본문 그림 \(movedImageCount)개가 일반 첨부로 나갑니다. 서명 그림은 본문에 남습니다."),
                       systemImage: "photo.on.rectangle")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -310,46 +310,46 @@ struct ComposeView: View {
         if let status = compose.uploadStatus {
             return compose.uploadFraction.map { "\(status) · \(Int(($0 * 100).rounded()))%" } ?? status
         }
-        if compose.savingDraft { return "초안 저장 중…" }
+        if compose.savingDraft { return L("초안 저장 중…") }
         if let date = compose.lastDraftSave {
-            return "초안 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Locale(identifier: "ko_KR"))))"
+            return L("초안 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale)))")
         }
-        return compose.savedDraftID != nil ? "임시 보관함의 초안" : ""
+        return compose.savedDraftID != nil ? L("임시 보관함의 초안") : ""
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup {
-            Button("삭제", systemImage: "trash") {
+            Button(L("삭제"), systemImage: "trash") {
                 Task {
                     await compose.discard(app: model)
                     dismiss()
                 }
             }
-            .help("이 메일과 저장된 초안을 버립니다")
-            Button("초안 저장", systemImage: "square.and.arrow.down") {
+            .help(L("이 메일과 저장된 초안을 버립니다"))
+            Button(L("초안 저장"), systemImage: "square.and.arrow.down") {
                 Task { await compose.saveDraft(app: model, force: true) }
             }
             .keyboardShortcut("s")
             .disabled(compose.savingDraft)
-            .help("임시 보관함에 저장 (⌘S)")
+            .help(L("임시 보관함에 저장 (⌘S)"))
         }
         // 맥 Mail처럼 창 도구 막대의 아이콘 단추 (⌃⌘W)
         ToolbarItem {
-            Button("Siri로 글쓰기", systemImage: "apple.writing.tools") { compose.editor.showWritingTools() }
-                .help("Siri로 글쓰기")
+            Button(L("Siri로 글쓰기"), systemImage: "apple.writing.tools") { compose.editor.showWritingTools() }
+                .help(L("Siri로 글쓰기"))
         }
         ToolbarItem {
             fieldsMenu
         }
         ToolbarItemGroup {
-            Button("파일 첨부", systemImage: "paperclip") { attach() }
+            Button(L("파일 첨부"), systemImage: "paperclip") { attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
-                .help("파일 첨부 (⇧⌘A)")
-            Button("나중에 보내기…", systemImage: "clock") { showSchedule = true }
+                .help(L("파일 첨부 (⇧⌘A)"))
+            Button(L("나중에 보내기…"), systemImage: "clock") { showSchedule = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift, .option])
                 .disabled(compose.sending)
-                .help("나중에 보내기 (⌥⇧⌘D)")
+                .help(L("나중에 보내기 (⌥⇧⌘D)"))
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
@@ -358,13 +358,13 @@ struct ComposeView: View {
                 if compose.sending {
                     ProgressView().controlSize(.small)
                 } else {
-                    Label("보내기", systemImage: "paperplane.fill")
+                    Label(L("보내기"), systemImage: "paperplane.fill")
                 }
             }
             .buttonStyle(.borderedProminent)
             .disabled(compose.sending)
             .keyboardShortcut("d", modifiers: [.command, .shift])
-            .help("보내기 (⇧⌘D)")
+            .help(L("보내기 (⇧⌘D)"))
         }
     }
 
@@ -404,11 +404,11 @@ struct UndoSendBar: View {
         HStack(spacing: Space.sm) {
             Image(systemName: "paperplane")
                 .foregroundStyle(.secondary)
-            Text("\(seconds)초 뒤에 보냅니다")
+            Text(L("\(seconds)초 뒤에 보냅니다"))
                 .font(.callout)
                 .monospacedDigit()
             Spacer()
-            Button("보내기 취소", action: cancel)
+            Button(L("보내기 취소"), action: cancel)
                 .keyboardShortcut(.cancelAction)
                 .controlSize(.small)
         }
@@ -426,24 +426,24 @@ struct ScheduleSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            Text("나중에 보내기")
+            Text(L("나중에 보내기"))
                 .font(.headline)
             ForEach(ScheduledSend.presets(), id: \.date) { preset in
                 Button(preset.title) { schedule(preset.date) }
                     .buttonStyle(.link)
             }
             Divider()
-            DatePicker("날짜와 시각", selection: $date, in: Date().addingTimeInterval(60)...,
+            DatePicker(L("날짜와 시각"), selection: $date, in: Date().addingTimeInterval(60)...,
                        displayedComponents: [.date, .hourAndMinute])
-            Text("Exchange가 이 시각에 보냅니다. 그때 Mac이 꺼져 있어도 됩니다. 보내기 전에는 보낼 편지함에서 볼 수 있습니다.")
+            Text(L("Exchange가 이 시각에 보냅니다. 그때 Mac이 꺼져 있어도 됩니다. 보내기 전에는 보낼 편지함에서 볼 수 있습니다."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("취소", role: .cancel) { dismiss() }
+                Button(L("취소"), role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("예약") { schedule(date) }
+                Button(L("예약")) { schedule(date) }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!ScheduledSend.isValid(date))
             }

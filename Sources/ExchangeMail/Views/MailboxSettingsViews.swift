@@ -14,7 +14,7 @@ struct RulesSettings: View {
             if loading {
                 ProgressView().frame(maxWidth: .infinity)
             } else if rules.isEmpty {
-                Text("규칙이 없습니다.")
+                Text(L("규칙이 없습니다."))
                     .foregroundStyle(.secondary)
             }
             ForEach(rules) { rule in
@@ -27,22 +27,22 @@ struct RulesSettings: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Button("지우기", systemImage: "trash", role: .destructive) { delete(rule) }
+                    Button(L("지우기"), systemImage: "trash", role: .destructive) { delete(rule) }
                         .labelStyle(.iconOnly)
                         .buttonStyle(.borderless)
-                        .help("이 규칙 지우기")
+                        .help(L("이 규칙 지우기"))
                 }
                 .padding(.vertical, Space.xs)
             }
-            Button("규칙 추가…") { adding = true }
+            Button(L("규칙 추가…")) { adding = true }
             if let problem {
                 Label(problem, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.secondary)
             }
         } header: {
-            Text("받은 편지함 규칙")
+            Text(L("받은 편지함 규칙"))
         } footer: {
-            Text("Exchange 서버 규칙이라 이 앱이 꺼져 있어도 적용되고, Outlook에도 같은 규칙이 보입니다.")
+            Text(L("Exchange 서버 규칙이라 이 앱이 꺼져 있어도 적용되고, Outlook에도 같은 규칙이 보입니다."))
                 .foregroundStyle(.secondary)
         }
         .task { await load() }
@@ -61,7 +61,7 @@ struct RulesSettings: View {
             rules = try await model.service.rules()
             problem = nil
         } catch {
-            problem = "규칙을 불러오지 못했습니다: \(error.localizedDescription)"
+            problem = L("규칙을 불러오지 못했습니다: \(error.localizedDescription)")
         }
     }
 
@@ -77,7 +77,7 @@ struct RulesSettings: View {
     }
 
     private func delete(_ rule: MessageRule) {
-        guard TextPrompt.confirm("\"\(rule.displayName)\" 규칙을 지울까요?", message: "Outlook에서도 사라집니다.", action: "지우기") else { return }
+        guard TextPrompt.confirm(L("\"\(rule.displayName)\" 규칙을 지울까요?"), message: L("Outlook에서도 사라집니다."), action: L("지우기")) else { return }
         Task {
             do {
                 try await model.service.deleteRule(id: rule.id)
@@ -94,7 +94,7 @@ struct RulesSettings: View {
             rules.append(try await model.service.createRule(draft.rule(sequence: next)))
             problem = nil
         } catch {
-            problem = "규칙을 만들지 못했습니다: \(error.localizedDescription)"
+            problem = L("규칙을 만들지 못했습니다: \(error.localizedDescription)")
         }
     }
 }
@@ -126,21 +126,21 @@ struct RuleEditor: View {
 
     var body: some View {
         Form {
-            TextField("이름", text: $name, prompt: Text("비우면 조건 글자"))
-            Picker("조건", selection: $field) {
-                Text("보낸 사람에").tag(RuleDraft.Field.sender)
-                Text("제목에").tag(RuleDraft.Field.subject)
+            TextField(L("이름"), text: $name, prompt: Text(L("비우면 조건 글자")))
+            Picker(L("조건"), selection: $field) {
+                Text(L("보낸 사람에")).tag(RuleDraft.Field.sender)
+                Text(L("제목에")).tag(RuleDraft.Field.subject)
             }
-            TextField("포함하는 글자", text: $text, prompt: Text("쉼표로 여러 개: 견적, 발주"))
-            Picker("동작", selection: $actionKind) {
-                Text("폴더로 이동").tag(0)
-                Text("읽음으로 표시").tag(1)
-                Text("중요도 높음").tag(2)
-                Text("지우기").tag(3)
+            TextField(L("포함하는 글자"), text: $text, prompt: Text(L("쉼표로 여러 개: 견적, 발주")))
+            Picker(L("동작"), selection: $actionKind) {
+                Text(L("폴더로 이동")).tag(0)
+                Text(L("읽음으로 표시")).tag(1)
+                Text(L("중요도 높음")).tag(2)
+                Text(L("지우기")).tag(3)
             }
             if actionKind == 0 {
-                Picker("폴더", selection: $folderID) {
-                    Text("고르세요").tag(String?.none)
+                Picker(L("폴더"), selection: $folderID) {
+                    Text(L("고르세요")).tag(String?.none)
                     ForEach(folders) { f in
                         Text(String(repeating: "    ", count: f.depth ?? 0) + f.displayName).tag(String?.some(f.id))
                     }
@@ -152,10 +152,10 @@ struct RuleEditor: View {
         .frame(width: 440)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("취소") { dismiss() }
+                Button(L("취소")) { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("추가") { if let draft { save(draft) } }
+                Button(L("추가")) { if let draft { save(draft) } }
                     .disabled(draft == nil)
             }
         }
@@ -178,34 +178,34 @@ struct AutoReplySettings: View {
 
     var body: some View {
         Section {
-            Toggle("자동 응답 보내기", isOn: $on)
-            Toggle("기간 정하기", isOn: $useDates)
+            Toggle(L("자동 응답 보내기"), isOn: $on)
+            Toggle(L("기간 정하기"), isOn: $useDates)
                 .disabled(!on)
             if useDates {
-                DatePicker("시작", selection: $start)
-                DatePicker("끝", selection: $end, in: start...)
+                DatePicker(L("시작"), selection: $start)
+                DatePicker(L("끝"), selection: $end, in: start...)
             }
         } header: {
-            Text("부재중 자동 응답")
+            Text(L("부재중 자동 응답"))
         }
         .disabled(!loaded)
-        Section("조직 안 사람에게") {
+        Section(L("조직 안 사람에게")) {
             TextEditor(text: $internalText)
                 .frame(height: 96)
         }
         .disabled(!loaded || !on)
         Section {
-            Picker("보낼 대상", selection: $audience) {
-                Text("보내지 않음").tag("none")
-                Text("연락처에 있는 사람만").tag("contactsOnly")
-                Text("모두").tag("all")
+            Picker(L("보낼 대상"), selection: $audience) {
+                Text(L("보내지 않음")).tag("none")
+                Text(L("연락처에 있는 사람만")).tag("contactsOnly")
+                Text(L("모두")).tag("all")
             }
             if audience != "none" {
                 TextEditor(text: $externalText)
                     .frame(height: 96)
             }
         } header: {
-            Text("조직 밖 사람에게")
+            Text(L("조직 밖 사람에게"))
         }
         .disabled(!loaded || !on)
         Section {
@@ -216,7 +216,7 @@ struct AutoReplySettings: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("저장") { Task { await save() } }
+                Button(L("저장")) { Task { await save() } }
                     .buttonStyle(.borderedProminent)
                     .disabled(!loaded || saving || (useDates && end <= start))
             }
@@ -237,7 +237,7 @@ struct AutoReplySettings: View {
             loaded = true
             status = nil
         } catch {
-            status = "불러오지 못했습니다: \(error.localizedDescription)"
+            status = L("불러오지 못했습니다: \(error.localizedDescription)")
         }
     }
 
@@ -248,9 +248,9 @@ struct AutoReplySettings: View {
                                              audience: audience, internalText: internalText, externalText: externalText)
         do {
             try await model.service.setAutomaticReplies(settings)
-            status = on ? "자동 응답을 켰습니다." : "자동 응답을 껐습니다."
+            status = on ? L("자동 응답을 켰습니다.") : L("자동 응답을 껐습니다.")
         } catch {
-            status = "저장하지 못했습니다: \(error.localizedDescription)"
+            status = L("저장하지 못했습니다: \(error.localizedDescription)")
         }
     }
 }

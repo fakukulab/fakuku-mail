@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -258,45 +259,45 @@ struct FormatToolbar: View {
             }
             .menuStyle(.button)
             .fixedSize()
-            .help("글꼴")
+            .help(L("글꼴"))
 
-            Picker("크기", selection: $size) {
+            Picker(L("크기"), selection: $size) {
                 ForEach(sizes, id: \.self) { Text("\($0)").tag($0) }
             }
             .labelsHidden()
             .fixedSize()
-            .help("글자 크기")
+            .help(L("글자 크기"))
             .onChange(of: size) { _, v in controller.setFontSize(v) }
 
-            ColorPicker("글자 색", selection: $color, supportsOpacity: false)
+            ColorPicker(L("글자 색"), selection: $color, supportsOpacity: false)
                 .labelsHidden()
-                .help("글자 색")
+                .help(L("글자 색"))
                 .onChange(of: color) { _, v in controller.setColor(NSColor(v)) }
 
             Divider().frame(height: Space.lg)
             ControlGroup {
-                button("bold", "굵게", "bold")
-                button("italic", "기울임", "italic")
-                button("underline", "밑줄", "underline")
+                button("bold", L("굵게"), "bold")
+                button("italic", L("기울임"), "italic")
+                button("underline", L("밑줄"), "underline")
             }
             .fixedSize()
             ControlGroup {
-                button("text.alignleft", "왼쪽 정렬", "justifyLeft")
-                button("text.aligncenter", "가운데 정렬", "justifyCenter")
-                button("text.alignright", "오른쪽 정렬", "justifyRight")
+                button("text.alignleft", L("왼쪽 정렬"), "justifyLeft")
+                button("text.aligncenter", L("가운데 정렬"), "justifyCenter")
+                button("text.alignright", L("오른쪽 정렬"), "justifyRight")
             }
             .fixedSize()
-            button("list.bullet", "글머리 기호 목록", "insertUnorderedList")
-            Button("링크", systemImage: "link") { addLink() }
+            button("list.bullet", L("글머리 기호 목록"), "insertUnorderedList")
+            Button(L("링크"), systemImage: "link") { addLink() }
                 .labelStyle(.iconOnly)
-                .help("링크 넣기")
-            Button("그림", systemImage: "photo") { pickImage() }
+                .help(L("링크 넣기"))
+            Button(L("그림"), systemImage: "photo") { pickImage() }
                 .labelStyle(.iconOnly)
-                .help("그림 넣기")
+                .help(L("그림 넣기"))
             if showsWritingTools {
-                Button("Siri로 글쓰기", systemImage: "apple.writing.tools") { controller.showWritingTools() }
+                Button(L("Siri로 글쓰기"), systemImage: "apple.writing.tools") { controller.showWritingTools() }
                     .labelStyle(.iconOnly)
-                    .help("Siri로 글쓰기")
+                    .help(L("Siri로 글쓰기"))
             }
             Spacer(minLength: 0)
         }
@@ -320,10 +321,10 @@ struct FormatToolbar: View {
 
     private func addLink() {
         let alert = NSAlert()
-        alert.messageText = "링크 넣기"
-        alert.informativeText = "고른 글자에 연결할 주소를 넣으세요."
-        alert.addButton(withTitle: "넣기")
-        alert.addButton(withTitle: "취소")
+        alert.messageText = L("링크 넣기")
+        alert.informativeText = L("고른 글자에 연결할 주소를 넣으세요.")
+        alert.addButton(withTitle: L("넣기"))
+        alert.addButton(withTitle: L("취소"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         field.stringValue = "https://"
         alert.accessoryView = field

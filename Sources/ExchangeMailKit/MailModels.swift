@@ -234,7 +234,7 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var isFlagged: Bool { flag?.flagStatus == "flagged" }
 
     public var title: String {
-        if let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty { subject } else { "(제목 없음)" }
+        if let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty { subject } else { L("(제목 없음)") }
     }
 
     public var isUnread: Bool { isRead == false }
@@ -307,7 +307,7 @@ public enum GraphJSON {
         d.dateDecodingStrategy = .custom { decoder in
             let s = try decoder.singleValueContainer().decode(String.self)
             if let date = parseDate(s) { return date }
-            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "날짜 형식: \(s)"))
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "날짜 형식: \(s)"))  // l10n: data
         }
         return d
     }

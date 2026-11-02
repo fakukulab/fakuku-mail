@@ -97,14 +97,14 @@ struct GraphError: LocalizedError {
 
     var errorDescription: String? {
         switch status {
-        case 401: "Microsoft 계정 인증이 거절되었습니다. 다시 로그인하세요."
-        case 403: "이 작업에 필요한 권한이 없습니다 (Mail.ReadWrite, Mail.Send). 관리자 동의가 필요할 수 있습니다."
-        case 413: "메일이 너무 큽니다. 조직의 메일 크기 한도를 넘었을 수 있습니다."
-        case 429: "요청이 너무 많습니다. 잠시 뒤 다시 시도하세요."
+        case 401: L("Microsoft 계정 인증이 거절되었습니다. 다시 로그인하세요.")
+        case 403: L("이 작업에 필요한 권한이 없습니다 (Mail.ReadWrite, Mail.Send). 관리자 동의가 필요할 수 있습니다.")
+        case 413: L("메일이 너무 큽니다. 조직의 메일 크기 한도를 넘었을 수 있습니다.")
+        case 429: L("요청이 너무 많습니다. 잠시 뒤 다시 시도하세요.")
         default:
             code == "ErrorMessageSizeExceeded"
-                ? "메일이 조직의 크기 한도를 넘었습니다. 첨부를 줄이거나 OneDrive 링크로 보내세요."
-                : "메일 서버 오류 (\(status)): \(message)"
+                ? L("메일이 조직의 크기 한도를 넘었습니다. 첨부를 줄이거나 OneDrive 링크로 보내세요.")
+                : L("메일 서버 오류 (\(status)): \(message)")
         }
     }
 }

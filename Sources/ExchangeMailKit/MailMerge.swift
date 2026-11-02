@@ -56,7 +56,7 @@ public struct MergeGroup: Codable, Hashable, Identifiable, Sendable {
 
     /// 이 그룹에서 쓸 수 있는 자리표시자 이름 (이름, 이메일 + CSV 열)
     public var placeholders: [String] {
-        var keys = ["이름", "이메일"]
+        var keys = ["이름", "이메일"]  // l10n: data
         for m in members { for k in m.fields.keys.sorted() where !keys.contains(k) { keys.append(k) } }
         return keys
     }
@@ -137,10 +137,10 @@ public enum MailMerge {
         guard let header = rows.first else { return ([], 0) }
         let keys = header.map { $0.trimmingCharacters(in: .whitespaces) }
         let lower = keys.map { $0.lowercased() }
-        guard let emailCol = lower.firstIndex(where: { ["이메일", "email", "e-mail", "메일", "주소", "mail"].contains($0) }) else {
+        guard let emailCol = lower.firstIndex(where: { ["이메일", "email", "e-mail", "메일", "주소", "mail"].contains($0) }) else {  // l10n: data
             return ([], max(rows.count - 1, 0))
         }
-        let nameCol = lower.firstIndex { ["이름", "name", "성명", "full name"].contains($0) }
+        let nameCol = lower.firstIndex { ["이름", "name", "성명", "full name"].contains($0) }  // l10n: data
         var out: [MergeMember] = []
         var skipped = 0
         for row in rows.dropFirst() where !row.allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
@@ -199,9 +199,9 @@ public struct SendPacing: Codable, Equatable, Sendable {
         case careful, normal, fast
         public var label: String {
             switch self {
-            case .careful: "신중하게 (60~120초 간격, 시간당 30통)"
-            case .normal: "보통 (30~60초 간격, 시간당 60통)"
-            case .fast: "빠르게 (10~20초 간격, 시간당 150통)"
+            case .careful: L("신중하게 (60~120초 간격, 시간당 30통)")
+            case .normal: L("보통 (30~60초 간격, 시간당 60통)")
+            case .fast: L("빠르게 (10~20초 간격, 시간당 150통)")
             }
         }
         public var pacing: SendPacing {

@@ -51,14 +51,14 @@ public struct MailNotification: Equatable, Sendable {
                 let name = m.from?.emailAddress.display ?? ""
                 if !name.isEmpty && !senders.contains(name) { senders.append(name) }
             }
-            let names = senders.prefix(3).joined(separator: ", ") + (senders.count > 3 ? " 외" : "")
-            return [MailNotification(id: "summary-\(messages[0].id)", title: "새 메일 \(messages.count)통",
+            let names = senders.prefix(3).joined(separator: ", ") + (senders.count > 3 ? L(" 외") : "")
+            return [MailNotification(id: "summary-\(messages[0].id)", title: L("새 메일 \(messages.count)통"),
                                      subtitle: names, body: messages.prefix(3).map(\.title).joined(separator: "\n"),
                                      threadID: "inbox", messageID: nil)]
         }
         return messages.map { m in
             MailNotification(id: m.id,
-                             title: m.from?.emailAddress.display ?? "새 메일",
+                             title: m.from?.emailAddress.display ?? L("새 메일"),
                              subtitle: m.title,
                              body: String((m.bodyPreview ?? "").prefix(180)),
                              threadID: m.conversationId ?? m.id,

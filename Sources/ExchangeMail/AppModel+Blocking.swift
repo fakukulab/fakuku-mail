@@ -51,7 +51,7 @@ extension AppModel {
         guard let address = m.from?.emailAddress.address, !address.isEmpty else { return }
         await block(address: address)
         if blockMode == .trash, messages.contains(where: { $0.id == m.id }) {
-            await move([m.id], to: "deleteditems", undoManager: undoManager, undoName: "보낸 사람 차단")
+            await move([m.id], to: "deleteditems", undoManager: undoManager, undoName: L("보낸 사람 차단"))
         }
     }
 

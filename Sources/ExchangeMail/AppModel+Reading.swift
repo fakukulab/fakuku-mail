@@ -30,8 +30,8 @@ extension AppModel {
         guard let full = await loadedAttachment(attachment, messageID: messageID),
               let url = previewFile(for: full) else {
             if errorMessage == nil {
-                errorMessage = isOffline ? "오프라인이라 이 첨부를 열 수 없습니다. 연결되면 다시 해 주세요."
-                                         : "이 첨부를 열 수 없습니다."
+                errorMessage = isOffline ? L("오프라인이라 이 첨부를 열 수 없습니다. 연결되면 다시 해 주세요.")
+                                         : L("이 첨부를 열 수 없습니다.")
             }
             return
         }

@@ -47,7 +47,7 @@ extension AppModel {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "여기에 저장"
+        panel.prompt = L("여기에 저장")
         guard panel.runModal() == .OK, let dir = panel.url else { return }
         var skipped: [String] = []
         for original in attachments {
@@ -66,7 +66,7 @@ extension AppModel {
             do { try data.write(to: url) } catch { skipped.append(a.name) }
         }
         if !skipped.isEmpty {
-            errorMessage = "저장하지 못한 첨부: \(skipped.joined(separator: ", ")). Outlook 웹에서 받아 주세요."
+            errorMessage = L("저장하지 못한 첨부: \(skipped.joined(separator: ", ")). Outlook 웹에서 받아 주세요.")
         }
     }
 

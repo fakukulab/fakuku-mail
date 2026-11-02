@@ -33,15 +33,15 @@ struct ComposeSender {
 
         var errorDescription: String? {
             switch self {
-            case .noRecipients: "받는 사람을 한 명 이상 넣으세요."
-            case .invalidAddresses(let list): "주소 형식이 올바르지 않습니다: \(list.joined(separator: ", "))"
-            case .unreadableFile(let name): "첨부 파일을 읽을 수 없습니다: \(name)"
+            case .noRecipients: L("받는 사람을 한 명 이상 넣으세요.")
+            case .invalidAddresses(let list): L("주소 형식이 올바르지 않습니다: \(list.joined(separator: ", "))")
+            case .unreadableFile(let name): L("첨부 파일을 읽을 수 없습니다: \(name)")
             case .tooLarge(let bytes):
-                "메일이 \(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))라서 보낼 수 없습니다. Exchange는 한 번에 4MB까지 받습니다. 첨부를 줄여 주세요."
+                L("메일이 \(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))라서 보낼 수 없습니다. Exchange는 한 번에 4MB까지 받습니다. 첨부를 줄여 주세요.")
             case .attachmentTooLarge(let name):
-                "\(name)이(가) 150MB를 넘어 첨부할 수 없습니다. OneDrive 링크로 보내 주세요."
+                L("\(name)이(가) 150MB를 넘어 첨부할 수 없습니다. OneDrive 링크로 보내 주세요.")
             case .inlineImagesTooLarge:
-                "본문 안 그림(서명, 인용문 포함)이 너무 커서 보낼 수 없습니다. 그림을 줄이거나 \"첨부 보정\"을 켜서 첨부로 보내세요."
+                L("본문 안 그림(서명, 인용문 포함)이 너무 커서 보낼 수 없습니다. 그림을 줄이거나 \"첨부 보정\"을 켜서 첨부로 보내세요.")
             }
         }
     }

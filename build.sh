@@ -69,6 +69,8 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   fi
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
+# 화면 글자: 시스템 언어가 한국어면 한국어, 영어(그 밖의 언어 포함)면 영어. 메뉴 막대의 시스템 항목도 따라간다.
+cp -R "$here/Localization/"*.lproj "$app/Contents/Resources/"
 # Siri·단축어 메타데이터 (Contents/Resources/Metadata.appintents). 실패해도 앱은 설치한다.
 "$here/tools/make_intents.sh" "$app" "$scratch" "$here/Sources/ExchangeMail" || echo "warning: Siri 명령 메타데이터를 만들지 못했습니다 (앱은 정상 설치)"
 xattr -cr "$app"

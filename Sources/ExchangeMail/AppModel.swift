@@ -488,11 +488,11 @@ final class AppModel {
 
     /// 보관도 지우기처럼 ⌘Z로 되돌린다 (창의 되돌리기 관리자를 넘긴다).
     func archiveSelected(undoManager: UndoManager? = nil) async {
-        await moveSelected(to: "archive", undoManager: undoManager, undoName: "보관")
+        await moveSelected(to: "archive", undoManager: undoManager, undoName: L("보관"))
     }
 
     func deleteSelected(undoManager: UndoManager?) async {
-        await moveSelected(to: "deleteditems", undoManager: undoManager, undoName: "지우기")
+        await moveSelected(to: "deleteditems", undoManager: undoManager, undoName: L("지우기"))
     }
 
     /// 고른 메일(여러 통, 대화별이면 대화 전체)을 옮긴다 (S-027).
@@ -582,8 +582,8 @@ final class AppModel {
                 if detail?.event?.id == eventID { detail?.event = fresh }
                 if serverValue == response.graphValue { break }
             } catch {
-                errorMessage = "회의 응답은 보냈지만 일정을 다시 찾을 수 없습니다. 주최자가 일정을 바꿨거나 취소했을 수 있습니다. "
-                    + "Outlook 웹에서 확인해 주세요.\n(\(error.localizedDescription))"
+                errorMessage = L("회의 응답은 보냈지만 일정을 다시 찾을 수 없습니다. 주최자가 일정을 바꿨거나 취소했을 수 있습니다. ")
+                    + L("Outlook 웹에서 확인해 주세요.\n(\(error.localizedDescription))")
                 return
             }
         }
@@ -598,8 +598,8 @@ final class AppModel {
         }
         let final = meetingCheck ?? check
         if !final.foundInCalendarView || final.isCancelled || final.calendarViewResponse != response.graphValue {
-            noticeMessage = "회의 응답(\(response.label))을 보냈습니다. 확인 결과: \(final.summary). "
-                + "아래 '일정에서 보기'로 Outlook 웹 일정을 열어 확인해 주세요."
+            noticeMessage = L("회의 응답(\(response.label))을 보냈습니다. 확인 결과: \(final.summary). ")
+                + L("아래 '일정에서 보기'로 Outlook 웹 일정을 열어 확인해 주세요.")
         }
     }
 
@@ -625,7 +625,7 @@ final class AppModel {
     func loadedAttachment(_ a: FileAttachment, messageID: String? = nil) async -> FileAttachment? {
         if a.data != nil { return a }
         if (a.odataType ?? "").hasSuffix("referenceAttachment") {
-            errorMessage = "\(a.name)은(는) OneDrive·SharePoint 링크로 붙인 파일입니다. Outlook 웹에서 열어 주세요."
+            errorMessage = L("\(a.name)은(는) OneDrive·SharePoint 링크로 붙인 파일입니다. Outlook 웹에서 열어 주세요.")
             return nil
         }
         guard let mid = messageID ?? detail?.id else { return nil }
@@ -641,7 +641,7 @@ final class AppModel {
             return full
         } catch {
             report(error, quietIfOffline: false)
-            if errorMessage == nil { errorMessage = "첨부를 받지 못했습니다: \(error.localizedDescription)" }
+            if errorMessage == nil { errorMessage = L("첨부를 받지 못했습니다: \(error.localizedDescription)") }
             return nil
         }
     }
@@ -666,7 +666,7 @@ final class AppModel {
         if OfflineError.isOffline(error) {
             isOffline = true
             if quietIfOffline { return }
-            errorMessage = (error as? OfflineError)?.localizedDescription ?? OfflineError.unavailable("이 작업을 할").localizedDescription
+            errorMessage = (error as? OfflineError)?.localizedDescription ?? OfflineError.unavailable(L("이 작업을 할")).localizedDescription
             return
         }
         errorMessage = error.localizedDescription

@@ -24,8 +24,8 @@ final class MergeStore {
     func group(_ id: UUID?) -> MergeGroup? { library.groups.first { $0.id == id } }
 
     @discardableResult
-    func addTemplate(name: String = "새 템플릿") -> MergeTemplate {
-        let t = MergeTemplate(name: name, html: "<div>{{이름}}님, 안녕하세요.</div><div><br></div>")
+    func addTemplate(name: String = L("새 템플릿")) -> MergeTemplate {
+        let t = MergeTemplate(name: name, html: L("<div>{{이름}}님, 안녕하세요.</div><div><br></div>"))
         library.templates.append(t)
         write()
         return t
@@ -44,7 +44,7 @@ final class MergeStore {
     }
 
     @discardableResult
-    func addGroup(name: String = "새 그룹") -> MergeGroup {
+    func addGroup(name: String = L("새 그룹")) -> MergeGroup {
         let g = MergeGroup(name: name)
         library.groups.append(g)
         write()

@@ -6,7 +6,11 @@ Everything else keeps the code name `ExchangeMail`. Keep the bundle id: the Azur
 A native macOS mail client in SwiftUI for Microsoft Exchange Online.
 Mail stays on the server (Microsoft Graph). Local data: signatures in
 `~/Library/Application Support/ExchangeMail/signatures.json`, VIPs and smart mailboxes in `.../ExchangeMail/mailboxes.json`, individual-sending templates and groups in `.../ExchangeMail/merge.json`, an offline cache of recent mail in
-`.../ExchangeMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean (`docs/GLOSSARY.md` for words).
+`.../ExchangeMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean, and English when the Mac is in English (`docs/GLOSSARY.md` for words).
+Every Korean UI string is wrapped in `L("…")` (`ExchangeMailKit/Localization.swift`); the Korean text is the key and the English is in
+`Localization/en.lproj/Localizable.strings` (interpolated values become `%@`, a literal `%` becomes `%%`). Strings that are data
+(comparisons, CSV column names, placeholders like {{이름}}, names stored on the server) get `// l10n: data`.
+After adding text, run `tools/l10n.py` and add the English it reports; it prints PASS l10n. `APP_LANG=en tools/snap.sh` shows the English screens.
 
 ## Layout
 
@@ -43,7 +47,7 @@ Mail stays on the server (Microsoft Graph). Local data: signatures in
   Remote content follows `RemoteContent`: with Mail activity protection (default) trackers are removed and other remote
   images load through `fakuku-proxy:` (`TrackingProtection`, `ProxyImageLoader`: no cookies, no referer); otherwise CSP blocks them.
 - Then check the grid: `tools/grid-lint.sh` and `swift tools/check-layout.swift /tmp/ExchangeMail-shots/*-layout.json`. Both print PASS.
-- A change is done when the build has no errors, the grid checks pass, and you looked at the light and dark snapshots.
+- A change is done when the build has no errors, the grid checks and `tools/l10n.py` pass, and you looked at the light and dark snapshots.
 
 ## Design rules
 

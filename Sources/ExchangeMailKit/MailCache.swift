@@ -138,7 +138,7 @@ public enum OfflineError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .unavailable(let what): "오프라인이라 \(what) 수 없습니다. 연결되면 다시 해 주세요."
+        case .unavailable(let what): L("오프라인이라 \(what) 수 없습니다. 연결되면 다시 해 주세요.")
         }
     }
 

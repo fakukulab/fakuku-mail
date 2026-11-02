@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import Contacts
 import ContactsUI
 
@@ -13,10 +14,10 @@ enum ContactCard {
         let granted = (try? await store.requestAccess(for: .contacts)) ?? false
         guard granted else {
             let alert = NSAlert()
-            alert.messageText = "연락처에 접근할 수 없습니다"
-            alert.informativeText = "시스템 설정 > 개인정보 보호 및 보안 > 연락처에서 FAKUKU Mail을 켜 주세요."
-            alert.addButton(withTitle: "시스템 설정 열기")
-            alert.addButton(withTitle: "취소")
+            alert.messageText = L("연락처에 접근할 수 없습니다")
+            alert.informativeText = L("시스템 설정 > 개인정보 보호 및 보안 > 연락처에서 FAKUKU Mail을 켜 주세요.")
+            alert.addButton(withTitle: L("시스템 설정 열기"))
+            alert.addButton(withTitle: L("취소"))
             if alert.runModal() == .alertFirstButtonReturn,
                let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts") {
                 NSWorkspace.shared.open(url)
@@ -31,10 +32,10 @@ enum ContactCard {
         }
         // 연락처에 없으면 추가할지 묻는다.
         let alert = NSAlert()
-        alert.messageText = "\(name.map { "\($0) <\(address)>" } ?? address)은(는) 연락처에 없습니다"
-        alert.informativeText = "연락처에 추가하면 카드를 볼 수 있고, 다른 앱에서도 이 이름으로 보입니다."
-        alert.addButton(withTitle: "연락처에 추가")
-        alert.addButton(withTitle: "취소")
+        alert.messageText = L("\(name.map { "\($0) <\(address)>" } ?? address)은(는) 연락처에 없습니다")
+        alert.informativeText = L("연락처에 추가하면 카드를 볼 수 있고, 다른 앱에서도 이 이름으로 보입니다.")
+        alert.addButton(withTitle: L("연락처에 추가"))
+        alert.addButton(withTitle: L("취소"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let contact = newContact(address: address, name: name)
         let request = CNSaveRequest()

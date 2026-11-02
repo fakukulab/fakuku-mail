@@ -50,8 +50,8 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
 
 public enum ReplyBuilder {
 
-    static let replyPrefixes = ["re:", "회신:", "답장:", "aw:", "sv:"]
-    static let forwardPrefixes = ["fw:", "fwd:", "전달:", "wg:", "tr:"]
+    static let replyPrefixes = ["re:", "회신:", "답장:", "aw:", "sv:"]  // l10n: data
+    static let forwardPrefixes = ["fw:", "fwd:", "전달:", "wg:", "tr:"]  // l10n: data
 
     /// 답장은 "RE: ", 전달은 "FW: "를 한 번만 붙인다.
     public static func subject(for kind: ComposeKind, original: String) -> String {
@@ -103,16 +103,16 @@ public enum ReplyBuilder {
         if kind == .forward {
             let to = HTMLProcessor.escape(AddressParser.format((m.toRecipients ?? []).compactMap { $0.emailAddress.mailAddress }))
             let cc = HTMLProcessor.escape(AddressParser.format((m.ccRecipients ?? []).compactMap { $0.emailAddress.mailAddress }))
-            var header = "<b>보낸 사람:</b> \(from)<br><b>날짜:</b> \(HTMLProcessor.escape(when))<br><b>받는 사람:</b> \(to)<br>"
-            if !cc.isEmpty { header += "<b>참조:</b> \(cc)<br>" }
-            header += "<b>제목:</b> \(HTMLProcessor.escape(m.title))"
+            var header = L("<b>보낸 사람:</b> \(from)<br><b>날짜:</b> \(HTMLProcessor.escape(when))<br><b>받는 사람:</b> \(to)<br>")
+            if !cc.isEmpty { header += L("<b>참조:</b> \(cc)<br>") }
+            header += L("<b>제목:</b> \(HTMLProcessor.escape(m.title))")
             return """
-            <div data-quote="forward"><br><div>-------- 전달된 메시지 --------</div>\
+            <div data-quote="forward"><br><div>-------- \(L("전달된 메시지")) --------</div>\
             <div style="font-size:12px">\(header)</div><br>\(body)</div>
             """
         }
         return """
-        <div data-quote="reply"><br><div style="font-size:12px">\(HTMLProcessor.escape(when)), \(from) 님이 작성:</div>\
+        <div data-quote="reply"><br><div style="font-size:12px">\(L("\(HTMLProcessor.escape(when)), \(from) 님이 작성:"))</div>\
         <blockquote type="cite" style="margin:4px 0 0 0;padding-left:10px;border-left:2px solid #b4b4b4">\(body)</blockquote></div>
         """
     }

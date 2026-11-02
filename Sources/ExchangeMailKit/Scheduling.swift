@@ -56,12 +56,12 @@ public struct MailEvent: Codable, Hashable, Sendable {
     /// "11월 5일 (목) 오전 10:00 – 오전 11:00", 종일이면 "11월 5일 (목) 종일"
     public func whenText(timeZone: TimeZone = .current) -> String {
         guard let s = start?.date else { return "" }
-        let korean = Locale(identifier: "ko_KR")
+        let korean = AppLanguage.locale
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timeZone
         let day = Date.FormatStyle(locale: korean, calendar: cal, timeZone: timeZone).month(.defaultDigits).day().weekday(.abbreviated)
         let time = Date.FormatStyle(date: .omitted, time: .shortened, locale: korean, calendar: cal, timeZone: timeZone)
-        if isAllDay == true { return "\(s.formatted(day)) 종일" }
+        if isAllDay == true { return L("\(s.formatted(day)) 종일") }
         guard let e = end?.date else { return "\(s.formatted(day)) \(s.formatted(time))" }
         let sameDay = cal.isDate(s, inSameDayAs: e)
         return sameDay
@@ -81,17 +81,17 @@ public enum MeetingResponse: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .accept: "수락"
-        case .tentativelyAccept: "미정"
-        case .decline: "거절"
+        case .accept: L("수락")
+        case .tentativelyAccept: L("미정")
+        case .decline: L("거절")
         }
     }
 
     public var doneLabel: String {
         switch self {
-        case .accept: "수락함"
-        case .tentativelyAccept: "미정으로 답함"
-        case .decline: "거절함"
+        case .accept: L("수락함")
+        case .tentativelyAccept: L("미정으로 답함")
+        case .decline: L("거절함")
         }
     }
 
@@ -107,11 +107,11 @@ public enum MeetingResponse: String, CaseIterable, Sendable {
     /// 서버 상태를 사람이 읽는 말로
     public static func describe(_ graphValue: String?) -> String {
         switch graphValue {
-        case "accepted": "수락함"
-        case "tentativelyAccepted": "미정"
-        case "declined": "거절함"
-        case "organizer": "주최자"
-        case "notResponded", "none", nil: "아직 응답 안 함"
+        case "accepted": L("수락함")
+        case "tentativelyAccepted": L("미정")
+        case "declined": L("거절함")
+        case "organizer": L("주최자")
+        case "notResponded", "none", nil: L("아직 응답 안 함")
         default: graphValue ?? ""
         }
     }
@@ -148,18 +148,18 @@ public enum ScheduledSend {
     /// 오늘 오후 6시(지났으면 빼고), 내일 오전 9시, 다음 월요일 오전 9시
     public static func presets(now: Date = Date(), calendar base: Calendar = .current) -> [Preset] {
         var cal = base
-        cal.locale = Locale(identifier: "ko_KR")
+        cal.locale = AppLanguage.locale
         func at(_ day: Date, hour: Int) -> Date? { cal.date(bySettingHour: hour, minute: 0, second: 0, of: day) }
         var out: [Preset] = []
         if let evening = at(now, hour: 18), evening > now.addingTimeInterval(5 * 60) {
-            out.append(Preset(title: "오늘 오후 6:00", date: evening))
+            out.append(Preset(title: L("오늘 오후 6:00"), date: evening))
         }
         if let tomorrow = cal.date(byAdding: .day, value: 1, to: now), let morning = at(tomorrow, hour: 9) {
-            out.append(Preset(title: "내일 오전 9:00", date: morning))
+            out.append(Preset(title: L("내일 오전 9:00"), date: morning))
         }
         let monday = cal.nextDate(after: now, matching: DateComponents(hour: 9, minute: 0, weekday: 2), matchingPolicy: .nextTime)
         if let monday, !out.contains(where: { $0.date == monday }) {
-            out.append(Preset(title: "월요일 오전 9:00", date: monday))
+            out.append(Preset(title: L("월요일 오전 9:00"), date: monday))
         }
         return out
     }
@@ -202,13 +202,13 @@ public struct MeetingCheck: Equatable, Sendable {
     /// 사람에게 보일 한 줄 요약
     public var summary: String {
         var parts: [String] = []
-        parts.append("서버 응답: \(MeetingResponse.describe(response))")
-        if let calendarName { parts.append("캘린더: \(calendarName)") }
-        if isCancelled { parts.append("주최자가 취소한 회의") }
+        parts.append(L("서버 응답: \(MeetingResponse.describe(response))"))
+        if let calendarName { parts.append(L("캘린더: \(calendarName)")) }
+        if isCancelled { parts.append(L("주최자가 취소한 회의")) }
         parts.append(foundInCalendarView
-            ? "일정 보기에 있음 (\(MeetingResponse.describe(calendarViewResponse)))"
-            : "일정 보기에서 찾지 못함")
-        if !otherEventIDs.isEmpty { parts.append("같은 회의의 다른 일정 \(otherEventIDs.count)개") }
+            ? L("일정 보기에 있음 (\(MeetingResponse.describe(calendarViewResponse)))")
+            : L("일정 보기에서 찾지 못함"))
+        if !otherEventIDs.isEmpty { parts.append(L("같은 회의의 다른 일정 \(otherEventIDs.count)개")) }
         return parts.joined(separator: " · ")
     }
 }

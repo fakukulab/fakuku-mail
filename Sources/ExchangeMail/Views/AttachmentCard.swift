@@ -45,7 +45,7 @@ struct AttachmentCard: View {
             .menuIndicator(.hidden)
             .buttonStyle(.borderless)
             .fixedSize()
-            .help("첨부 동작")
+            .help(L("첨부 동작"))
         }
         .font(.callout)
         .padding(.leading, Space.sm)
@@ -56,19 +56,19 @@ struct AttachmentCard: View {
         .contentShape(Rectangle())
         .onTapGesture { (preview ?? open)?() }
         .contextMenu { actions }
-        .help("\(name) - 누르면 미리 보기")
+        .help(L("\(name) - 누르면 미리 보기"))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder
     private var actions: some View {
-        if let preview { Button("미리 보기", action: preview) }
-        if let open { Button("열기", action: open) }
-        if let save { Button("다운로드…", action: save) }
+        if let preview { Button(L("미리 보기"), action: preview) }
+        if let open { Button(L("열기"), action: open) }
+        if let save { Button(L("다운로드…"), action: save) }
         if let remove {
             Divider()
-            Button("제거", role: .destructive, action: remove)
+            Button(L("제거"), role: .destructive, action: remove)
         }
     }
 }

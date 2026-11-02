@@ -23,10 +23,10 @@ public enum ComposeKind: String, Codable, CaseIterable, Identifiable, Sendable {
 
     public var label: String {
         switch self {
-        case .new: "새로운 메시지"
-        case .reply: "답장"
-        case .replyAll: "전체 답장"
-        case .forward: "전달"
+        case .new: L("새로운 메시지")
+        case .reply: L("답장")
+        case .replyAll: L("전체 답장")
+        case .forward: L("전달")
         }
     }
 
@@ -38,9 +38,9 @@ public enum ComposeKind: String, Codable, CaseIterable, Identifiable, Sendable {
 
     public var ruleLabel: String {
         switch ruleKind {
-        case .new: "새 메일"
-        case .reply, .replyAll: "답장"
-        case .forward: "전달"
+        case .new: L("새 메일")
+        case .reply, .replyAll: L("답장")
+        case .forward: L("전달")
         }
     }
 }

@@ -58,7 +58,7 @@ extension AppModel {
     /// 'X'(으)로 다시 이동 (⌃⌘M)
     func moveSelectedToLastTarget(undoManager: UndoManager?) async {
         guard let target = lastMoveTarget else { return }
-        await moveSelected(to: target.id, undoManager: undoManager, undoName: "이동")
+        await moveSelected(to: target.id, undoManager: undoManager, undoName: L("이동"))
     }
 
     /// 고른 메일의 대화 id들
@@ -90,7 +90,7 @@ extension AppModel {
         guard let folderID = selectedFolderID, !VirtualMailbox.isVirtual(folderID) else { return }
         var unread = MailFilter()
         unread.unread = true
-        progressText = "읽음으로 표시하는 중…"
+        progressText = L("읽음으로 표시하는 중…")
         defer { progressText = nil }
         do {
             var page = try await service.messages(folderID: folderID, search: nil, filter: unread, oldestFirst: false)
@@ -99,7 +99,7 @@ extension AppModel {
                 for m in page.messages where m.isUnread {
                     try await service.setRead(id: m.id, read: true)
                     done += 1
-                    progressText = "읽음으로 표시하는 중… \(done)통"
+                    progressText = L("읽음으로 표시하는 중… \(done)통")
                 }
                 guard let next = page.nextLink, done < 5_000 else { break }
                 page = try await service.nextPage(next)
@@ -115,7 +115,7 @@ extension AppModel {
     /// 지운 편지함 비우기(영구 삭제) 또는 정크 메일 지우기(지운 편지함으로). `kind`는 deleteditems, junkemail.
     func emptyFolder(kind: String) async {
         let folderID = folders.first { $0.kind == kind }?.id ?? kind
-        progressText = kind == "deleteditems" ? "지운 편지함을 비우는 중…" : "정크 메일을 지우는 중…"
+        progressText = kind == "deleteditems" ? L("지운 편지함을 비우는 중…") : L("정크 메일을 지우는 중…")
         defer { progressText = nil }
         var done = 0
         do {
@@ -126,7 +126,7 @@ extension AppModel {
                 for m in page.messages {
                     try await service.deleteMessage(id: m.id)
                     done += 1
-                    progressText = "\(kind == "deleteditems" ? "지운 편지함을 비우는 중" : "정크 메일을 지우는 중")… \(done)통"
+                    progressText = L("\(kind == "deleteditems" ? L("지운 편지함을 비우는 중") : L("정크 메일을 지우는 중"))… \(done)통")
                 }
             }
         } catch {
@@ -161,7 +161,7 @@ extension AppModel {
     func duplicateSmart(id: String) {
         guard var copy = mailboxes.smart.first(where: { $0.id == id }) else { return }
         copy.id = SmartMailbox.newID()
-        copy.name += " 사본"
+        copy.name += L(" 사본")
         saveSmart(copy)
     }
 
