@@ -69,9 +69,16 @@ extension MessageDetailView {
         }
         .defaultCustomization(.hidden)
         ToolbarItem(id: "flag") {
-            Button("깃발", systemImage: allFlagged ? "flag.fill" : "flag") { Task { await model.toggleFlagSelected() } }
-                .help("깃발 달기/떼기 (⇧⌘L)")
-                .disabled(noSelection)
+            // 누르면 깃발 달기/떼기, ⌄로 색 고르기
+            Menu {
+                FlagColorItems { color in Task { await model.setFlagColorSelected(color) } }
+            } label: {
+                Label("깃발", systemImage: allFlagged ? "flag.fill" : "flag")
+            } primaryAction: {
+                Task { await model.toggleFlagSelected() }
+            }
+            .help("깃발 달기/떼기 (⇧⌘L), 색은 ⌄ (⌥⌘1~7)")
+            .disabled(noSelection)
         }
     }
 

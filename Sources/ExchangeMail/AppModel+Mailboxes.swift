@@ -11,6 +11,7 @@ extension AppModel {
     var listTitle: String {
         switch selectedVirtual {
         case .flagged: "깃발 표시"
+        case .flagColor(let c): "\(c.label) 깃발"
         case .allVIPs: "VIP"
         case .vip(let address): mailboxes.vip(address: address)?.title ?? address
         case .smart(let id): mailboxes.smart.first { $0.id == id }?.name ?? "스마트 메일상자"
@@ -23,6 +24,9 @@ extension AppModel {
         switch box {
         case .flagged:
             return try await service.flaggedMessages()
+        case .flagColor(let color):
+            let page = try await service.flaggedMessages()
+            return MessagePage(messages: page.messages.filter { flagColor(for: $0) == color }, nextLink: nil, serverFiltered: false)
         case .vip(let address):
             return try await service.messages(fromSender: address)
         case .allVIPs:

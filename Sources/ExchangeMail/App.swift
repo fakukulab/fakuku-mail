@@ -368,6 +368,17 @@ struct MailCommands: Commands {
         }
         .keyboardShortcut("l", modifiers: [.command, .shift])
         .disabled(reader == nil && !menu.hasSelection)
+        // 깃발 색 (맥 Mail처럼 ⌥⌘1~7). Exchange에는 색이 없어 이 Mac에 저장한다.
+        Menu("깃발 색") {
+            FlagColorItems(shortcuts: true) { color in
+                if let reader {
+                    Task { await reader.setFlagColor(color, model: model) }
+                } else {
+                    Task { await model.setFlagColorSelected(color) }
+                }
+            }
+        }
+        .disabled(reader == nil && !menu.hasSelection)
         Menu("우선 순위 설정") {
             ForEach([("high", "높음"), ("normal", "보통"), ("low", "낮음")], id: \.0) { pair in
                 Button {
@@ -462,9 +473,9 @@ struct MailCommands: Commands {
         .disabled(editor == nil)
         Menu("목록") {
             Button("글머리 기호 목록") { editor?.command("insertUnorderedList") }
-                .keyboardShortcut("7", modifiers: [.command, .option])
+                .keyboardShortcut("7", modifiers: [.command, .shift])
             Button("번호 목록") { editor?.command("insertOrderedList") }
-                .keyboardShortcut("8", modifiers: [.command, .option])
+                .keyboardShortcut("8", modifiers: [.command, .shift])
         }
         .disabled(editor == nil)
         Menu("정렬") {

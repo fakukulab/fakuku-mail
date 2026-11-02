@@ -17,7 +17,8 @@ struct MessageListView: View {
                 // 대화 한 줄의 tag는 대화의 최근 메일 id다.
                 let conversations = model.conversations
                 ForEach(conversations) { c in
-                    ConversationRow(conversation: c, me: model.auth.email, vip: model.mailboxes.vip(for: c.latest))
+                    ConversationRow(conversation: c, me: model.auth.email, vip: model.mailboxes.vip(for: c.latest),
+                                    flagColor: c.messages.last(where: \.isFlagged).flatMap { model.flagColor(for: $0) })
                         .tag(c.latest.id)
                         .draggable(model.dragPayload(for: c.latest.id))
                         .onAppear {
@@ -26,7 +27,8 @@ struct MessageListView: View {
                 }
             } else {
                 ForEach(model.messages) { m in
-                    MessageRow(message: m, folderTag: model.folderTag(for: m), vip: model.mailboxes.vip(for: m))
+                    MessageRow(message: m, folderTag: model.folderTag(for: m), vip: model.mailboxes.vip(for: m),
+                               flagColor: model.flagColor(for: m))
                         .tag(m.id)
                         .draggable(model.dragPayload(for: m.id))
                         .onAppear {
@@ -160,7 +162,11 @@ struct MessageListView: View {
                 .disabled(single == nil)
             Divider()
             Button("읽음/읽지 않음 전환") { act(rows) { await model.toggleReadSelected() } }
-            Button("깃발 달기/떼기") { act(rows) { await model.toggleFlagSelected() } }
+            Menu("깃발") {
+                FlagColorItems { color in act(rows) { await model.setFlagColorSelected(color) } }
+                Divider()
+                Button("깃발 달기/떼기") { act(rows) { await model.toggleFlagSelected() } }
+            }
             Divider()
             Menu("이동") {
                 ForEach(model.moveTargets) { target in
@@ -201,6 +207,8 @@ struct MessageRow: View {
     var folderTag: String? = nil
     /// 보낸 사람이 VIP면 그 사람의 아이콘을 이름 앞에 (S-045)
     var vip: VIP? = nil
+    /// 깃발 색 (깃발이 없으면 nil)
+    var flagColor: FlagColor? = nil
     /// 설정 > 보기 > 목록 미리보기 줄 수, 볼드체로 읽지 않은 메시지 표시
     @AppStorage(Prefs.previewLines) private var previewLines = 2
     @AppStorage(Prefs.boldUnread) private var boldUnread = true
@@ -221,11 +229,11 @@ struct MessageRow: View {
                         .fontWeight(message.isUnread && boldUnread ? .semibold : .regular)
                         .lineLimit(1)
                     Spacer(minLength: Space.xs)
-                    if message.isFlagged {
+                    if let flagColor {
                         Image(systemName: "flag.fill")
                             .font(.caption)
-                            .foregroundStyle(.orange)
-                            .accessibilityLabel("깃발")
+                            .foregroundStyle(flagColor.color)
+                            .accessibilityLabel("\(flagColor.label) 깃발")
                     }
                     if message.hasAttachments == true {
                         Image(systemName: "paperclip")
@@ -268,6 +276,8 @@ struct ConversationRow: View {
     let me: String?
     /// 마지막 메일을 VIP가 보냈으면 (S-045)
     var vip: VIP? = nil
+    /// 대화 안 가장 최근 깃발 메일의 색
+    var flagColor: FlagColor? = nil
     @AppStorage(Prefs.previewLines) private var previewLines = 2
     @AppStorage(Prefs.boldUnread) private var boldUnread = true
 
@@ -296,11 +306,11 @@ struct ConversationRow: View {
                             .accessibilityLabel("메일 \(conversation.count)통")
                     }
                     Spacer(minLength: Space.xs)
-                    if conversation.messages.contains(where: \.isFlagged) {
+                    if let flagColor {
                         Image(systemName: "flag.fill")
                             .font(.caption)
-                            .foregroundStyle(.orange)
-                            .accessibilityLabel("깃발")
+                            .foregroundStyle(flagColor.color)
+                            .accessibilityLabel("\(flagColor.label) 깃발")
                     }
                     if conversation.hasAttachments {
                         Image(systemName: "paperclip")

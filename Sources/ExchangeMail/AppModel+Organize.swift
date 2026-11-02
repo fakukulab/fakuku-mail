@@ -68,6 +68,7 @@ extension AppModel {
         do {
             for m in targets where m.isFlagged != flag {
                 try await service.setFlag(id: m.id, flagged: flag)
+                if !flag { forgetFlagColor(of: m) }
                 if let i = messages.firstIndex(where: { $0.id == m.id }) {
                     messages[i].flag = flag ? .flagged : .notFlagged
                 }

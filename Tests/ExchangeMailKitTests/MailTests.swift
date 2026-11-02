@@ -878,3 +878,14 @@ func mergeCSVWindowsLineEndings() {
     #expect(r.members.last?.fields["Mobile"] == "0044")
     #expect(r.skipped == 1)
 }
+
+@Test("깃발 색 상자 id와 메일 열쇠")
+func flagColors() {
+    #expect(VirtualMailbox(id: VirtualMailbox.id(for: .purple)) == .flagColor(.purple))
+    #expect(VirtualMailbox(id: "__flag:pink") == nil)
+    #expect(VirtualMailbox.isVirtual(VirtualMailbox.id(for: .red)))
+    var m = MailMessage(id: "graph-id", subject: "s", from: nil, receivedDateTime: Date())
+    #expect(FlagColor.key(for: m) == "graph-id")
+    m.internetMessageId = "<abc@x>"
+    #expect(FlagColor.key(for: m) == "<abc@x>")
+}

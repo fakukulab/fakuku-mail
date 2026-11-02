@@ -795,6 +795,26 @@ enum SelfTest {
             check("차단: 모두 풀면 규칙도 지운다",
                   model.blockedRule == nil && !rulesAfterUnblock.contains(where: BlockedSenders.isBlockRule))
 
+            // 깃발 색 (맥 Mail처럼 일곱 가지, 이 Mac에 저장)
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.6))
+            if let m = model.messages.first(where: { !$0.isFlagged }) {
+                await open(m.id)
+                await model.setFlagColorSelected(.blue)
+                let flagged = model.messages.first { $0.id == m.id }
+                check("깃발 색: 파란 깃발을 달면 서버에 깃발, 색은 파랑",
+                      flagged?.isFlagged == true && flagged.flatMap { model.flagColor(for: $0) } == .blue)
+                check("깃발 색: 사이드바에 쓰는 색이 생긴다", model.usedFlagColors.contains(.blue))
+                model.selectedFolderID = VirtualMailbox.id(for: .blue)
+                try? await Task.sleep(for: .seconds(0.6))
+                check("깃발 색: 파란 깃발 상자에 그 메일이 있다", model.messages.contains { $0.subject == m.subject })
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.6))
+                await open(m.id)
+                await model.toggleFlagSelected()
+                check("깃발 색: 깃발을 떼면 색도 지운다", model.flagColors[FlagColor.key(for: m)] == nil)
+            }
+
             // M18: 개별 발송 (간격은 셀프 테스트에서 바로 넘긴다)
             if let demo = model.demoService {
                 let sentBefore = demo.sent.count

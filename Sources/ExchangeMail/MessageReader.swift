@@ -78,6 +78,11 @@ final class MessageReader {
         model.printMessage(message, body: body, remote: model.remoteMode(for: message, allowed: allowRemote))
     }
 
+    func setFlagColor(_ color: FlagColor, model: AppModel) async {
+        guard let message else { return }
+        if await model.setFlagColor(color, for: message) { self.message?.flag = .flagged }
+    }
+
     func toggleFlag(model: AppModel) async {
         guard let message else { return }
         let flag = !message.isFlagged

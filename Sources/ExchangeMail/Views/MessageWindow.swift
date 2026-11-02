@@ -91,11 +91,15 @@ struct MessageWindow: View {
     @ToolbarContentBuilder
     private var organizeItems: some CustomizableToolbarContent {
         ToolbarItem(id: "flag") {
-            Button(reader.message?.isFlagged == true ? "깃발 떼기" : "깃발 달기",
-                   systemImage: reader.message?.isFlagged == true ? "flag.fill" : "flag") {
+            Menu {
+                FlagColorItems { color in Task { await reader.setFlagColor(color, model: model) } }
+            } label: {
+                Label(reader.message?.isFlagged == true ? "깃발 떼기" : "깃발 달기",
+                      systemImage: reader.message?.isFlagged == true ? "flag.fill" : "flag")
+            } primaryAction: {
                 Task { await reader.toggleFlag(model: model) }
             }
-            .help("깃발 달기/떼기 (⇧⌘L)")
+            .help("깃발 달기/떼기 (⇧⌘L), 색은 ⌄")
             .disabled(reader.message == nil)
         }
         ToolbarItem(id: "archive") {

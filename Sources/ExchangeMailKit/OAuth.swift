@@ -118,7 +118,7 @@ extension Data {
 
 /// Graph 메일 요청에 쓰는 쿼리.
 public enum GraphQuery {
-    public static let listSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,flag,importance,categories"
+    public static let listSelect = "id,internetMessageId,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,flag,importance,categories"
     public static let detailSelect = "id,internetMessageId,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,isRead,hasAttachments,internetMessageHeaders,flag"
     public static let pageSize = 50
     public static let folderSelect = "id,displayName,unreadItemCount,totalItemCount,parentFolderId,childFolderCount"

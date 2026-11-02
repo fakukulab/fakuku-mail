@@ -94,6 +94,16 @@ struct FolderSidebar: View {
             Section("스마트 메일상자") {
                 Label("깃발 표시", systemImage: "flag")
                     .tag(FolderOrder.flaggedID)
+                // 색별 깃발 (쓰는 색만)
+                ForEach(model.usedFlagColors, id: \.self) { c in
+                    Label {
+                        Text(c.label)
+                    } icon: {
+                        Image(systemName: "flag.fill").foregroundStyle(c.color)
+                    }
+                    .padding(.leading, Space.lg)
+                    .tag(VirtualMailbox.id(for: c))
+                }
                 // 사람이 만든 상자 (S-046)
                 ForEach(model.mailboxes.smart) { box in
                     Label(box.name, systemImage: box.symbol)

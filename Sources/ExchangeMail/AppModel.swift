@@ -67,6 +67,20 @@ final class AppModel {
             updateMenu()
         }
     }
+    /// 메일마다 깃발 색 (열쇠: Internet Message-ID). 이 Mac에만 저장한다.
+    var flagColors: [String: FlagColor] = AppModel.savedFlagColors() {
+        didSet {
+            guard !Store.isOverridden else { return }
+            UserDefaults.standard.set(flagColors.mapValues(\.rawValue), forKey: "flag.colors")
+        }
+    }
+
+    static func savedFlagColors() -> [String: FlagColor] {
+        guard !Store.isOverridden,
+              let raw = UserDefaults.standard.dictionary(forKey: "flag.colors") as? [String: String] else { return [:] }
+        return raw.compactMapValues(FlagColor.init(rawValue:))
+    }
+
     /// 지운 편지함 비우기 같은 오래 걸리는 일의 진행 글 (목록 위 막대)
     var progressText: String?
     /// 차단된 보낸 사람 서버 규칙 (설정 > 정크 메일). 아직 읽지 않았으면 nil.

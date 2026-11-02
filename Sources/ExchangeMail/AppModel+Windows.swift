@@ -28,6 +28,7 @@ extension AppModel {
             return false
         }
         let state: FollowupFlag = flagged ? .flagged : .notFlagged
+        if !flagged, let m = messages.first(where: { $0.id == id }) ?? (detail?.id == id ? detail : nil) { forgetFlagColor(of: m) }
         if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].flag = state }
         if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].flag = state }
         patchDetail(id) { $0.flag = state }

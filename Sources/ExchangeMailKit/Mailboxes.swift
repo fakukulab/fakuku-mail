@@ -194,16 +194,23 @@ public struct LocalMailboxes: Codable, Equatable, Sendable {
 
 public enum VirtualMailbox: Equatable, Sendable {
     case flagged
+    /// 깃발 표시 > 색 하나 (이 Mac에만 저장한 깃발 색)
+    case flagColor(FlagColor)
     case allVIPs
     case vip(address: String)
     case smart(id: String)
 
     public static let allVIPsID = "__vip"
+    public static let flagColorPrefix = "__flag:"
+    public static func id(for color: FlagColor) -> String { flagColorPrefix + color.rawValue }
     public static let vipPrefix = "vip:"
     public static let smartPrefix = "smart:"
 
     public init?(id: String) {
         if id == FolderOrder.flaggedID { self = .flagged }
+        else if id.hasPrefix(Self.flagColorPrefix), let c = FlagColor(rawValue: String(id.dropFirst(Self.flagColorPrefix.count))) {
+            self = .flagColor(c)
+        }
         else if id == Self.allVIPsID { self = .allVIPs }
         else if id.hasPrefix(Self.vipPrefix) { self = .vip(address: String(id.dropFirst(Self.vipPrefix.count))) }
         else if id.hasPrefix(Self.smartPrefix) { self = .smart(id: id) }
@@ -214,4 +221,31 @@ public enum VirtualMailbox: Equatable, Sendable {
 
     /// 사이드바 id가 서버 폴더가 아니면 true (메일을 끌어다 놓을 수 없고, 검색은 모든 폴더에서 한다)
     public static func isVirtual(_ id: String?) -> Bool { id.flatMap { VirtualMailbox(id: $0) } != nil }
+}
+
+// MARK: 깃발 색 (맥 Mail처럼 일곱 가지)
+
+/// Exchange 깃발에는 색이 없다 (Outlook은 범주로 색을 낸다). 색은 이 Mac에 메일마다 저장한다.
+public enum FlagColor: String, Codable, CaseIterable, Sendable {
+    case red, orange, yellow, green, blue, purple, gray
+
+    public var label: String {
+        switch self {
+        case .red: "빨간색"
+        case .orange: "주황색"
+        case .yellow: "노란색"
+        case .green: "초록색"
+        case .blue: "파란색"
+        case .purple: "보라색"
+        case .gray: "회색"
+        }
+    }
+
+    /// 깃발은 있는데 색을 정한 적이 없을 때 (Outlook이나 다른 기기에서 단 깃발)
+    public static let fallback = FlagColor.red
+
+    /// 메일을 알아보는 열쇠: 옮겨도 바뀌지 않는 Internet Message-ID, 없으면 Graph id
+    public static func key(for m: MailMessage) -> String {
+        (m.internetMessageId?.isEmpty == false ? m.internetMessageId : nil) ?? m.id
+    }
 }
