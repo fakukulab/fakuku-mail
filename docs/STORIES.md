@@ -546,7 +546,7 @@ Acceptance:
 
 ### S-052 Siri 음성 명령과 단축어
 As the user, Siri와 단축어로 읽지 않은 메일 수 묻기, 새 메일 가져오기, VIP·읽지 않은 메일 보기, 새 메일 쓰기, 메일 검색을 한다.
-Status: doing (2026-11-03 메타데이터 생성 확인, Siri·단축어 동작 확인 중)
+Status: done (2026-11-03 맥에서 Siri·단축어 확인)
 
 ## Later
 - Sparkle 업데이트와 공증 배포 (기획안 7장)
