@@ -52,6 +52,12 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
 - Selection (S-027): the list binds `selection: Set<String>`; `selectedMessageID` is its single member or nil.
   Actions use `selectedIDs` (rows, expanded to whole conversations when organized by conversation).
   `move(_:to:)` records each message's original folder (`parentFolderId`) so Command-Z works from mixed lists.
+- Message windows (S-043): `WindowGroup(id: "message", for: String.self)` shows `MessageWindow`, which owns a
+  `MessageReader` (@Observable: one message, body, attachments, remote-content choice, Quick Look). Server calls
+  and list updates stay in AppModel (`+Windows`: `openTarget`, `setFlag`, `moveOpened`). The window publishes its
+  reader with `focusedSceneValue(\.messageReader)`, and `MailCommands` acts on it when that window is in front.
+- Toolbar (S-044): the detail column uses `.toolbar(id: "mail")` (customizable, View > Customize Toolbar);
+  the list column's filter, sort, refresh, and new-message buttons stay fixed.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 

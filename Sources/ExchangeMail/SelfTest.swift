@@ -651,6 +651,48 @@ enum SelfTest {
                   readBack?.status == "scheduled" && AutomaticReplies.plain(readBack?.internalReplyMessage) == "휴가 중입니다."
                       && readBack?.externalAudience == "contactsOnly")
 
+            // M14: 별도 창 (S-043). 창이 쓰는 리더와 모델 동작을 그대로 부른다.
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            if let first = model.messages.first(where: { !$0.isMeetingRequest }) {
+                await open(first.id)
+                check("S-043 받은 메일은 메시지 창으로 연다", model.openTarget() == .message(model.displayedMessageID ?? ""))
+                let reader = MessageReader(messageID: first.id)
+                await reader.load(using: model)
+                check("S-043 창은 메일 한 통을 따로 읽는다", reader.message?.id == first.id && reader.body != nil && reader.failure == nil)
+                check("S-043 창에서 답장하면 제목에 RE:가 붙는다",
+                      reader.draft(.reply, model: model)?.subject.hasPrefix("RE:") == true)
+                let wasFlagged = reader.message?.isFlagged ?? false
+                await reader.toggleFlag(model: model)
+                check("S-043 창에서 깃발을 달면 목록에도 보인다",
+                      reader.message?.isFlagged == !wasFlagged
+                          && model.messages.first { $0.id == first.id }?.isFlagged == !wasFlagged)
+                await reader.toggleFlag(model: model)
+            }
+            let sentPage = try? await model.service.messages(folderID: "sentitems", search: nil)
+            if let sent = sentPage?.messages.first {
+                // 지금 보는 폴더(받은 편지함) 밖의 메일도 창에서 보관할 수 있다.
+                let reader = MessageReader(messageID: sent.id)
+                await reader.load(using: model)
+                await reader.move(to: "archive", undoName: "보관", model: model)
+                let archived = (try? await model.service.messages(folderID: "archive", search: nil))?.messages ?? []
+                check("S-043 창에서 보관하면 보관함으로 가고 창이 닫힌다",
+                      reader.closed && archived.contains { $0.subject == sent.subject })
+            } else {
+                check("S-043 데모 보낸 편지함에 메일이 있다", false)
+            }
+            let gone = MessageReader(messageID: "no-such-message")
+            await gone.load(using: model)
+            check("S-043 없는 메일은 창에 이유를 보인다", gone.message == nil && gone.failure != nil)
+            model.selectedFolderID = "drafts"
+            try? await Task.sleep(for: .seconds(0.5))
+            if let draft = model.messages.first {
+                await open(draft.id)
+                await model.loadDetail()
+                if case .compose = model.openTarget() { check("S-043 초안은 작성 창에서 이어서 쓴다", true) }
+                else { check("S-043 초안은 작성 창에서 이어서 쓴다", false) }
+            }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

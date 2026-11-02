@@ -25,6 +25,23 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
         self.to = to
         self.subject = subject
     }
+
+    /// 본문의 mailto: 링크로 새 메시지 (받는 사람과 제목)
+    public static func mailto(_ url: URL) -> ComposeDraft {
+        let raw = url.absoluteString.replacingOccurrences(of: "mailto:", with: "", options: [.anchored, .caseInsensitive])
+        let parts = raw.split(separator: "?", maxSplits: 1).map(String.init)
+        let to = parts.first?.removingPercentEncoding ?? ""
+        var subject = ""
+        if parts.count > 1 {
+            for pair in parts[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1).map(String.init)
+                if kv.count == 2, kv[0].lowercased() == "subject" {
+                    subject = kv[1].removingPercentEncoding ?? kv[1]
+                }
+            }
+        }
+        return ComposeDraft(to: to, subject: subject)
+    }
 }
 
 public enum ReplyBuilder {

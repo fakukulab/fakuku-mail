@@ -41,18 +41,16 @@ struct MessageListView: View {
             }
         }
         .onDeleteCommand { Task { await model.deleteSelected(undoManager: undoManager) } }
-        // 오른쪽 클릭은 고른 줄 전체에, 두 번 클릭은 초안 이어서 쓰기 (S-027).
+        // 오른쪽 클릭은 고른 줄 전체에 (S-027). 두 번 클릭은 별도 창으로, 초안이면 이어서 쓰기 (S-043, S-022).
         .contextMenu(forSelectionType: String.self) { rows in
             contextMenu(for: rows)
         } primaryAction: { rows in
-            if rows.count == 1, let d = model.resumeDraft() { openWindow(id: "compose", value: d) }
+            if rows.count == 1 { openInWindow() }
         }
         // ↑↓는 List가 처리한다. Space/⇧Space는 본문을 넘기고, 끝에서 다음/이전 메일로 (S-019).
-        // 임시 보관함에서 Return은 초안을 이어서 쓴다 (S-022).
+        // Return은 두 번 클릭과 같다.
         .onKeyPress(.return) {
-            guard let d = model.resumeDraft() else { return .ignored }
-            openWindow(id: "compose", value: d)
-            return .handled
+            openInWindow() ? .handled : .ignored
         }
         .onKeyPress(.space, phases: .down) { press in
             let down = !press.modifiers.contains(.shift)
@@ -83,6 +81,17 @@ struct MessageListView: View {
         }
     }
 
+    /// 고른 메일을 새 창에서 연다. 초안은 작성 창에서. 열었으면 true.
+    @discardableResult
+    private func openInWindow() -> Bool {
+        switch model.openTarget() {
+        case .compose(let draft): openWindow(id: "compose", value: draft)
+        case .message(let id): openWindow(id: "message", value: id)
+        case nil: return false
+        }
+        return true
+    }
+
     private var subtitle: String {
         guard let f = model.selectedFolder else { return "" }
         let unread = f.unreadItemCount ?? 0
@@ -109,6 +118,21 @@ struct MessageListView: View {
     private func contextMenu(for rows: Set<String>) -> some View {
         if !rows.isEmpty {
             let single = rows.count == 1 ? model.messages.first(where: { rows.contains($0.id) }) : nil
+            Button("새 창에서 열기") {
+                if let m = single {
+                    if model.selectedMessageID != m.id { model.selectedMessageID = m.id }
+                    if model.selectedFolder?.kind == "drafts" {
+                        Task {
+                            await model.loadDetail()
+                            openInWindow()
+                        }
+                    } else {
+                        openWindow(id: "message", value: m.id)
+                    }
+                }
+            }
+            .disabled(single == nil)
+            Divider()
             Button("답장") { if let m = single { compose(.reply, for: m) } }
                 .disabled(single == nil)
             Button("전체 답장") { if let m = single { compose(.replyAll, for: m) } }

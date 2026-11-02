@@ -3,6 +3,13 @@ import Foundation
 /// 받은 메일 본문을 화면에 안전하게 보이기 위한 규칙.
 public enum MailContent {
 
+    /// 화면에 보일 본문: HTML이면 cid 그림을 data: URI로 바꾼다. 평문은 그대로.
+    public static func displayBody(_ body: MailMessage.Body?, attachments: [FileAttachment]) -> MailMessage.Body? {
+        guard let body else { return nil }
+        guard body.isHTML else { return body }
+        return MailMessage.Body(contentType: body.contentType, content: resolveInlineImages(html: body.content, attachments: attachments))
+    }
+
     /// `cid:` 그림을 인라인 첨부의 data: URI로 바꾼다. 찾지 못한 cid는 그대로 둔다.
     public static func resolveInlineImages(html: String, attachments: [FileAttachment]) -> String {
         var map: [String: String] = [:]

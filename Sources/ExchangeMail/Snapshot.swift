@@ -8,6 +8,7 @@ import SwiftUI
 /// writes <page>-light.png and <page>-dark.png for:
 ///   every well-known folder (inbox with the first message open, sentitems, drafts, archive, deleteditems),
 ///   signin (the sign-in page), compose (a reply window with a signature and a quote),
+///   message (a message opened in its own window, S-043),
 ///   and settings-<tab> for every Settings tab. Then quits.
 /// Each PNG gets a <page>-<mode>-layout.json with the grid probes (tools/check-layout.swift).
 /// APP_SNAPSHOT_PAGES=inbox,compose limits the pages. Add "settings" to include Settings.
@@ -70,6 +71,23 @@ enum Snapshot {
                         capture(to: "\(dir)/compose-\(mode).png", window: compose)
                     }
                     compose?.close()
+                }
+            }
+
+            // 메일을 별도 창으로 (S-043)
+            if wanted("message") {
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.8))
+                if let id = model.messages.first?.id {
+                    openWindow(id: "message", value: id)
+                    try? await Task.sleep(for: .seconds(2))
+                    let window = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet && $0.canBecomeMain }
+                    for mode in ["light", "dark"] {
+                        NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                        try? await Task.sleep(for: .seconds(0.8))
+                        capture(to: "\(dir)/message-\(mode).png", window: window)
+                    }
+                    window?.close()
                 }
             }
 

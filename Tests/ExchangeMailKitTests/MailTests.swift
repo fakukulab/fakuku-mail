@@ -715,3 +715,23 @@ func sorting() {
     #expect(MailSort(key: .sender, descending: false).apply(list).map(\.id) == ["2", "1", "3"])
     #expect(MailSort(key: .attachments, descending: true).apply(list).map(\.id) == ["2", "3", "1"])
 }
+
+@Test("본문의 mailto: 링크는 받는 사람과 제목을 채운다")
+func mailtoLink() throws {
+    let url = try #require(URL(string: "mailto:kim%40corp.com?subject=%EA%B2%AC%EC%A0%81%20%EB%AC%B8%EC%9D%98&body=x"))
+    let draft = ComposeDraft.mailto(url)
+    #expect(draft.to == "kim@corp.com")
+    #expect(draft.subject == "견적 문의")
+    #expect(ComposeDraft.mailto(try #require(URL(string: "mailto:a@b.com"))).subject == "")
+}
+
+@Test("본문 보기: cid 그림을 data: URI로, 평문은 그대로")
+func displayBody() {
+    let html = MailMessage.Body(contentType: "html", content: "<img src=\"cid:logo\">")
+    let file = FileAttachment(id: "1", name: "logo.png", contentType: "image/png", size: 3, isInline: true,
+                              contentId: "logo", contentBytes: "AAAA")
+    #expect(MailContent.displayBody(html, attachments: [file])?.content.contains("data:image/png;base64,AAAA") == true)
+    let text = MailMessage.Body(contentType: "text", content: "cid:logo")
+    #expect(MailContent.displayBody(text, attachments: [file]) == text)
+    #expect(MailContent.displayBody(nil, attachments: []) == nil)
+}

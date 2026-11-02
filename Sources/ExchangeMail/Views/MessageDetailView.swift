@@ -3,9 +3,9 @@ import QuickLook
 import SwiftUI
 
 struct MessageDetailView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.undoManager) private var undoManager
+    @Environment(AppModel.self) var model
+    @Environment(\.openWindow) var openWindow
+    @Environment(\.undoManager) var undoManager
     @AppStorage("list.threaded") private var threaded = true
 
     var body: some View {
@@ -20,7 +20,7 @@ struct MessageDetailView: View {
                         ThreadStrip()
                         Divider()
                     }
-                    MessageHeader(message: m)
+                    MessageHeader(message: m, attachments: model.listedAttachments) { model.preview($0) }
                     if model.isDraftSelected {
                         draftBar
                     }
@@ -28,15 +28,12 @@ struct MessageDetailView: View {
                         MeetingBar(event: event)
                     }
                     if model.detailHasRemoteContent && !model.remoteContentAllowed {
-                        remoteBar
+                        RemoteContentBar { model.allowRemoteContentForSelection() }
                     }
                     Divider()
                     HTMLView(html: MailContent.page(body: model.detailBody, allowRemote: model.remoteContentAllowed),
                              scroller: model.pageScroller, onPrint: { model.printDisplayed() }) { url in
-                        // 본문의 mailto: 링크는 새 메시지로
-                        let address = url.absoluteString.replacingOccurrences(of: "mailto:", with: "")
-                            .components(separatedBy: "?").first?.removingPercentEncoding ?? ""
-                        openWindow(id: "compose", value: ComposeDraft(to: address))
+                        openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }
                 }
             } else if model.selectedMessageID != nil {
@@ -47,7 +44,8 @@ struct MessageDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .toolbar { toolbar }
+        // 보기 > 도구 막대 사용자화…로 항목을 넣고 뺀다 (S-044).
+        .toolbar(id: "mail") { mailToolbar }
         // 첨부 미리보기 (S-032)
         .quickLookPreview(Binding(get: { model.previewURL }, set: { model.previewURL = $0 }))
     }
@@ -72,7 +70,16 @@ struct MessageDetailView: View {
         .background(.bar)
     }
 
-    private var remoteBar: some View {
+    func compose(_ kind: ComposeKind) {
+        if let draft = model.draft(kind) { openWindow(id: "compose", value: draft) }
+    }
+}
+
+/// 원격 이미지를 막았다는 안내와 불러오기 (본문 열과 메시지 창)
+struct RemoteContentBar: View {
+    let allow: () -> Void
+
+    var body: some View {
         HStack(spacing: Space.sm) {
             Image(systemName: "photo.badge.exclamationmark")
                 .foregroundStyle(.secondary)
@@ -80,50 +87,127 @@ struct MessageDetailView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("불러오기") { model.allowRemoteContentForSelection() }
+            Button("불러오기", action: allow)
                 .controlSize(.small)
+                .help("이 메일의 원격 이미지를 불러옵니다 (⇧⌘I)")
         }
         .padding(.horizontal, Space.margin)
         .padding(.vertical, Space.sm)
         .background(.bar)
     }
+}
+
+/// 메인 창 본문 열 위의 도구 막대 (S-044). 보기 > 도구 막대 사용자화…로 넣고 뺀다.
+/// 목록 열의 필터·정렬·새로 고침·새로운 메시지는 그 열에 붙어 있어 사용자화하지 않는다.
+extension MessageDetailView {
+    @ToolbarContentBuilder
+    var mailToolbar: some CustomizableToolbarContent {
+        ToolbarSpacer(.flexible)
+        organize
+        ToolbarSpacer(.fixed)
+        reply
+        extras
+    }
+
+    private var noSelection: Bool { model.selectedIDs.isEmpty }
 
     @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        // 선택한 메일에 대한 동작은 본문 열 위에, 오른쪽으로 민다.
-        ToolbarSpacer(.flexible)
-        ToolbarItemGroup {
+    private var organize: some CustomizableToolbarContent {
+        ToolbarItem(id: "archive") {
             Button("보관", systemImage: "archivebox") { Task { await model.archiveSelected(undoManager: undoManager) } }
                 .help("보관 (⌃⌘A)")
-                .disabled(model.selectedIDs.isEmpty)
+                .disabled(noSelection)
+        }
+        ToolbarItem(id: "delete") {
             Button("지우기", systemImage: "trash") { Task { await model.deleteSelected(undoManager: undoManager) } }
                 .help("지우기 (Delete)")
-                .disabled(model.selectedIDs.isEmpty)
+                .disabled(noSelection)
+        }
+        ToolbarItem(id: "junk") {
+            Button("정크", systemImage: "xmark.bin") { Task { await model.toggleJunkSelected(undoManager: undoManager) } }
+                .help("정크 메일로 표시 / 정크 아님 (⇧⌘J)")
+                .disabled(noSelection)
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "move") {
+            Button("이동", systemImage: "folder") { model.showMovePicker = true }
+                .help("다른 폴더로 이동 (⇧⌘M)")
+                .disabled(noSelection)
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "flag") {
             Button("깃발", systemImage: "flag") { Task { await model.toggleFlagSelected() } }
                 .help("깃발 달기/떼기 (⇧⌘L)")
-                .disabled(model.selectedIDs.isEmpty)
+                .disabled(noSelection)
         }
-        ToolbarSpacer(.fixed)
-        ToolbarItemGroup {
+    }
+
+    @ToolbarContentBuilder
+    private var reply: some CustomizableToolbarContent {
+        ToolbarItem(id: "reply") {
             Button("답장", systemImage: "arrowshape.turn.up.left") { compose(.reply) }
                 .help("답장 (⌘R)")
                 .disabled(model.detail == nil)
+        }
+        ToolbarItem(id: "replyAll") {
             Button("전체 답장", systemImage: "arrowshape.turn.up.left.2") { compose(.replyAll) }
                 .help("전체 답장 (⇧⌘R)")
                 .disabled(model.detail == nil)
+        }
+        ToolbarItem(id: "forward") {
             Button("전달", systemImage: "arrowshape.turn.up.right") { compose(.forward) }
                 .help("전달 (⇧⌘F)")
                 .disabled(model.detail == nil)
         }
     }
 
-    private func compose(_ kind: ComposeKind) {
-        if let draft = model.draft(kind) { openWindow(id: "compose", value: draft) }
+    /// 처음에는 숨겨 두고 사용자화 시트에서 끌어 넣는 항목
+    @ToolbarContentBuilder
+    private var extras: some CustomizableToolbarContent {
+        ToolbarItem(id: "read") {
+            Button("읽음/읽지 않음", systemImage: "envelope.badge") { Task { await model.toggleReadSelected() } }
+                .help("읽음 또는 읽지 않음으로 표시 (⇧⌘U)")
+                .disabled(noSelection)
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "print") {
+            Button("인쇄", systemImage: "printer") { model.printDisplayed() }
+                .help("인쇄 (⌘P)")
+                .disabled(model.detail == nil || model.multipleSelectionCount > 0)
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "openWindow") {
+            Button("새 창에서 열기", systemImage: "macwindow.on.rectangle") { openInWindow() }
+                .help("새 창에서 열기 (⌘O)")
+                .disabled(model.detail == nil || model.multipleSelectionCount > 0)
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "newMessage") {
+            Button("새로운 메시지", systemImage: "square.and.pencil") { openWindow(id: "compose", value: ComposeDraft()) }
+                .help("새로운 메시지 (⌘N)")
+        }
+        .defaultCustomization(.hidden)
+        ToolbarItem(id: "getMail") {
+            Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
+                .help("받은 메일 가져오기 (⇧⌘N)")
+        }
+        .defaultCustomization(.hidden)
+    }
+
+    private func openInWindow() {
+        switch model.openTarget() {
+        case .compose(let draft): openWindow(id: "compose", value: draft)
+        case .message(let id): openWindow(id: "message", value: id)
+        case nil: break
+        }
     }
 }
 
 struct MessageHeader: View {
     let message: MailMessage
+    /// 목록에 보일 첨부 (인라인 그림 빼고)
+    let attachments: [FileAttachment]
+    let preview: (FileAttachment) -> Void
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -147,13 +231,13 @@ struct MessageHeader: View {
                 .textSelection(.enabled)
             recipients("받는 사람:", message.toRecipients)
             recipients("참조:", message.ccRecipients)
-            if !model.listedAttachments.isEmpty {
+            if !attachments.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing: Space.sm) {
-                        ForEach(model.listedAttachments) { a in
+                        ForEach(attachments) { a in
                             // 누르면 훑어보기, 오른쪽 클릭으로 저장 (S-032)
                             Button {
-                                model.preview(a)
+                                preview(a)
                             } label: {
                                 Label("\(FilenameEncoder.normalize(a.name))  \(a.sizeLabel)", systemImage: "paperclip")
                                     .lineLimit(1)
@@ -161,7 +245,7 @@ struct MessageHeader: View {
                             .buttonStyle(.bordered)
                             .help("훑어보기 (⌘Y). 오른쪽 클릭으로 저장")
                             .contextMenu {
-                                Button("훑어보기") { model.preview(a) }
+                                Button("훑어보기") { preview(a) }
                                 Button("저장…") { model.save(attachment: a) }
                             }
                             // Finder나 데스크톱으로 끌어 저장 (S-035)

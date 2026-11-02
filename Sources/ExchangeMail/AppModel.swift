@@ -314,13 +314,7 @@ final class AppModel {
             detail = m
             addressBook.noteSeen([m], me: auth.email)
             detailAttachments = attachments
-            if let body = m.body {
-                detailBody = body.isHTML
-                    ? .init(contentType: body.contentType, content: MailContent.resolveInlineImages(html: body.content, attachments: attachments))
-                    : body
-            } else {
-                detailBody = nil
-            }
+            detailBody = MailContent.displayBody(m.body, attachments: attachments)
             updateMenu()
             if m.isUnread { await setRead(id: id, true) }
         } catch {

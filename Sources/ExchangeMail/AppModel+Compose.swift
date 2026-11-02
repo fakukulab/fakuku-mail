@@ -10,10 +10,16 @@ extension AppModel {
     func draft(_ kind: ComposeKind) -> ComposeDraft? {
         guard kind != .new else { return ComposeDraft() }
         guard let m = detail else { return nil }
-        let body = detailBody?.isHTML == true
-            ? detailBody?.content ?? ""
-            : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(detailBody?.content ?? ""))</pre>"
-        return ReplyBuilder.draft(kind: kind, message: m, bodyHTML: body, myAddress: auth.email)
+        return draft(kind, message: m, body: detailBody)
+    }
+
+    /// 메일 한 통(본문 열 또는 메시지 창, S-043)에 대한 답장·전달 시작 값
+    func draft(_ kind: ComposeKind, message m: MailMessage, body: MailMessage.Body?) -> ComposeDraft? {
+        guard kind != .new else { return ComposeDraft() }
+        let html = body?.isHTML == true
+            ? body?.content ?? ""
+            : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
+        return ReplyBuilder.draft(kind: kind, message: m, bodyHTML: html, myAddress: auth.email)
     }
 
     // MARK: 초안 (S-022)

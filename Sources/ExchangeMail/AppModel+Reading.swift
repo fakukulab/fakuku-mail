@@ -55,7 +55,12 @@ extension AppModel {
     /// 지금 보는 메일을 머리글과 함께 인쇄한다. 인쇄 창에서 PDF로 저장할 수도 있다.
     func printDisplayed() {
         guard let m = detail else { return }
-        let html = MailContent.printPage(message: m, body: detailBody, allowRemote: remoteContentAllowed)
+        printMessage(m, body: detailBody, allowRemote: remoteContentAllowed)
+    }
+
+    /// 메일 한 통을 인쇄한다 (본문 열 또는 메시지 창, S-043).
+    func printMessage(_ m: MailMessage, body: MailMessage.Body?, allowRemote: Bool) {
+        let html = MailContent.printPage(message: m, body: body, allowRemote: allowRemote)
         let printer = MailPrinter()
         self.printer = printer
         printer.print(html: html, title: m.title) { [weak self] in self?.printer = nil }
