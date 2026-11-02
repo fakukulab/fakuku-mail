@@ -1,7 +1,7 @@
 import ExchangeMailKit
 import SwiftUI
 
-/// 설정 > 서명: 서명 목록, 편집기, 상황별 기본 서명 (S-009, S-010).
+/// 설정 > 서명: 왼쪽 서명 목록, 오른쪽 편집기와 기본 서명 (S-009, S-010). 맥 Mail처럼 고른 서명을 바로 고친다.
 struct SignatureSettings: View {
     @Environment(AppModel.self) private var model
     @State private var selection: UUID?
@@ -10,18 +10,16 @@ struct SignatureSettings: View {
     @State private var source = ""
     /// 편집기에 지금 들어 있는 서명. 사람이 고친 내용은 이 서명에만 저장한다.
     @State private var loadedID: UUID?
-    @State private var ruleScope = RuleScope.all
-
-    private enum RuleScope { case all, account }
 
     private var store: SignatureStore { model.signatures }
 
     var body: some View {
-        HSplitView {
+        HStack(spacing: 0) {
             sidebar
-                .frame(minWidth: 240, idealWidth: 260, maxWidth: 300)
+                .frame(width: 220)
+            Divider()
             editorPane
-                .frame(minWidth: 480)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {
             if selection == nil { selection = store.signatures.first?.id }
@@ -43,108 +41,125 @@ struct SignatureSettings: View {
         }
     }
 
+    /// 왼쪽: 서명 이름과 첫 줄 미리보기, 아래에 + −
     private var sidebar: some View {
         VStack(spacing: 0) {
             List(selection: $selection) {
                 ForEach(store.signatures) { s in
-                    Text(s.name).tag(s.id)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s.name.isEmpty ? "이름 없는 서명" : s.name)
+                            .lineLimit(1)
+                        Text(preview(s))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .padding(.vertical, 2)
+                    .tag(s.id)
                 }
             }
             .overlay {
                 if store.signatures.isEmpty {
                     ContentUnavailableView("서명 없음", systemImage: "signature",
-                                           description: Text("+ 버튼으로 서명을 추가하세요."))
+                                           description: Text("+를 눌러 서명을 만드세요."))
                 }
             }
+            Divider()
             HStack(spacing: 0) {
                 Button("서명 추가", systemImage: "plus") { selection = store.add().id }
                     .help("서명 추가")
                 Button("서명 삭제", systemImage: "minus") { deleteSelected() }
-                    .help("서명 삭제")
+                    .help("고른 서명 삭제")
                     .disabled(selection == nil)
                 Spacer()
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .padding(Space.sm)
-            Divider()
-            rules
-                .padding(Space.md)
         }
     }
 
-    /// 기본 서명 규칙 (S-010, S-021). 로그인한 계정이 있으면 "이 계정"만의 규칙을 따로 정할 수 있다.
-    private var rules: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            Text("기본 서명")
-                .font(.headline)
-            if let email = model.auth.email {
-                Picker("적용 범위", selection: $ruleScope) {
-                    Text("모든 계정").tag(RuleScope.all)
-                    Text("이 계정").tag(RuleScope.account)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .help(ruleScope == .account ? "\(email)에만 적용됩니다" : "계정 규칙이 없으면 이 규칙을 씁니다")
-            }
-            let account = ruleScope == .account ? model.auth.email : nil
-            ForEach(ComposeKind.ruleKinds) { kind in
-                Picker(kind.ruleLabel, selection: Binding(
-                    get: { store.choice(kind, account: account) },
-                    set: { store.setChoice($0, kind: kind, account: account) })) {
-                    if account != nil {
-                        Text("모든 계정 설정 따르기").tag(RuleChoice.inherit)
-                    }
-                    Text("없음").tag(RuleChoice.none)
-                    if !store.signatures.isEmpty { Divider() }
-                    ForEach(store.signatures) { s in
-                        Text(s.name).tag(RuleChoice.signature(s.id))
-                    }
-                }
-            }
-            Text(account.map { "\($0)에서 쓸 때만 적용됩니다. 작성 창에서 언제든 바꿀 수 있습니다." }
-                 ?? "작성 창에서 언제든 다른 서명으로 바꿀 수 있습니다.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
+    /// 오른쪽: 이름, 서식 막대, 편집기, 그 아래 기본 서명
     @ViewBuilder
     private var editorPane: some View {
         if let id = selection, let signature = store.signature(id: id) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: Space.md) {
                 HStack(spacing: Space.sm) {
                     TextField("서명 이름", text: Binding(
                         get: { signature.name },
-                        set: { store.update(id: id, name: $0) }))
+                        set: { store.update(id: id, name: $0) }), prompt: Text("서명 이름"))
                         .textFieldStyle(.roundedBorder)
-                    Toggle("HTML 소스", isOn: $showSource)
+                    Toggle("HTML", isOn: $showSource)
                         .toggleStyle(.button)
-                        .help("HTML을 직접 고칩니다")
+                        .controlSize(.small)
+                        .help("HTML 소스를 직접 고칩니다")
                 }
-                .padding(Space.md)
+                VStack(spacing: 0) {
+                    if showSource {
+                        TextEditor(text: $source)
+                            .font(.system(.body, design: .monospaced))
+                            .onChange(of: source) { _, text in store.update(id: id, html: text) }
+                    } else {
+                        FormatToolbar(controller: editor)
+                        Divider()
+                        RichTextEditor(controller: editor)
+                            // 서명에 그림 파일을 끌어다 놓으면 본문에 넣는다.
+                            .dropDestination(for: URL.self) { urls, _ in
+                                editor.dropped(urls.filter(\.isFileURL))
+                                return true
+                            }
+                    }
+                }
+                .overlay(RoundedRectangle(cornerRadius: Space.xs).strokeBorder(.separator))
+                Text("그림은 끌어다 놓으면 들어갑니다. 고친 내용은 바로 저장됩니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Divider()
-                if showSource {
-                    TextEditor(text: $source)
-                        .font(.system(.body, design: .monospaced))
-                        .onChange(of: source) { _, text in store.update(id: id, html: text) }
-                } else {
-                    FormatToolbar(controller: editor)
-                    Divider()
-                    RichTextEditor(controller: editor)
-                        // 서명에 그림 파일을 끌어다 놓으면 본문에 넣는다.
-                        .dropDestination(for: URL.self) { urls, _ in
-                            editor.dropped(urls.filter(\.isFileURL))
-                            return true
-                        }
-                }
+                rules
             }
+            .padding(Space.lg)
         } else {
             ContentUnavailableView("서명을 고르세요", systemImage: "signature",
-                                   description: Text("왼쪽에서 서명을 고르거나 새로 추가하세요."))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                   description: Text("왼쪽에서 서명을 고르거나 +를 눌러 만드세요."))
         }
+    }
+
+    /// 기본 서명 (S-010): 새 메일, 답장, 전달마다 하나. 작성 창에서 언제든 바꿀 수 있다.
+    private var rules: some View {
+        Grid(alignment: .leading, horizontalSpacing: Space.sm, verticalSpacing: Space.sm) {
+            GridRow {
+                Text("기본 서명")
+                    .font(.headline)
+                    .gridCellColumns(2)
+            }
+            ForEach(ComposeKind.ruleKinds) { kind in
+                GridRow {
+                    Text("\(kind.ruleLabel):")
+                        .gridColumnAlignment(.trailing)
+                    Picker(kind.ruleLabel, selection: Binding(
+                        get: { store.choice(kind, account: nil) },
+                        set: { choice in
+                            store.setChoice(choice, kind: kind, account: nil)
+                            // 예전에 계정별로 정한 값이 있으면 지운다: 이 화면이 정한 값이 그대로 쓰이게.
+                            if let email = model.auth.email { store.setChoice(.inherit, kind: kind, account: email) }
+                        })) {
+                        Text("없음").tag(RuleChoice.none)
+                        if !store.signatures.isEmpty { Divider() }
+                        ForEach(store.signatures) { s in
+                            Text(s.name).tag(RuleChoice.signature(s.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+        }
+    }
+
+    private func preview(_ s: Signature) -> String {
+        let text = HTMLProcessor.plainText(from: s.html)
+            .split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+        return text ?? "빈 서명"
     }
 
     private func load(force: Bool = false) {

@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The Settings window (Command-Comma), laid out like Mail's (S-048): one tab per topic, labels right-aligned
 /// in the left column and controls in the right (`.formStyle(.columns)`). Signatures, rules, and auto reply
-/// edit lists, so they keep their own layouts.
+/// edit lists, so they keep their own layouts. Every tab has the same size (`SettingsView.size`).
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
 
@@ -20,36 +20,40 @@ struct SettingsView: View {
         .noInitialFocus()
     }
 
+    /// 모든 탭이 같은 크기: 탭을 바꿔도 창이 줄거나 늘지 않는다. 넘치면 탭 안에서 스크롤한다.
+    static let size = CGSize(width: 760, height: 560)
+
     @ViewBuilder
     private func page(_ tab: SettingsTab) -> some View {
         switch tab {
         case .signatures:
             SignatureSettings()
-                .frame(width: 820, height: 560)
+                .frame(width: Self.size.width, height: Self.size.height)
         case .rules, .autoReply:
             Form {
                 if tab == .rules { RulesSettings() } else { AutoReplySettings() }
             }
             .formStyle(.grouped)
-            .fitsContent()
-            .frame(width: 600)
+            .frame(width: Self.size.width, height: Self.size.height)
         default:
-            Form {
-                switch tab {
-                case .general: GeneralSettings()
-                case .account: AccountSettings()
-                case .junk: JunkSettings()
-                case .viewing: ViewingSettings()
-                case .composing: ComposingSettings()
-                case .notifications: NotificationSettings()
-                default: EmptyView()
+            ScrollView {
+                Form {
+                    switch tab {
+                    case .general: GeneralSettings()
+                    case .account: AccountSettings()
+                    case .junk: JunkSettings()
+                    case .viewing: ViewingSettings()
+                    case .composing: ComposingSettings()
+                    case .notifications: NotificationSettings()
+                    default: EmptyView()
+                    }
                 }
+                .formStyle(.columns)
+                .padding(.horizontal, Space.section)
+                .padding(.vertical, Space.xl)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .formStyle(.columns)
-            .padding(.horizontal, Space.section)
-            .padding(.vertical, Space.xl)
-            .fitsContent()
-            .frame(width: 640)
+            .frame(width: Self.size.width, height: Self.size.height)
         }
     }
 }
