@@ -418,12 +418,12 @@ private struct MergeSendPane: View {
                         .pickerStyle(.segmented)
                     }
                     // 줄 레이블을 가리는 row()의 labelsHidden 때문에 체크 옆 글자는 따로 둔다.
-                    row("수신 거부") {
+                    row("구독 취소") {
                         HStack(spacing: Space.xs) {
-                            Toggle("수신 거부 단추 넣기", isOn: $options.unsubscribeHeader)
-                            Text("본문 끝에 수신 거부 링크와 수신 거부 헤더 넣기")
+                            Toggle("구독 취소 단추 넣기", isOn: $options.unsubscribeHeader)
+                            Text("본문 끝에 구독 취소 링크와 구독 취소 헤더 넣기")
                         }
-                        .help("본문 맨 끝에 '수신 거부' 링크를 붙이고, List-Unsubscribe 헤더도 넣습니다. "
+                        .help("본문 맨 끝에 '구독 취소' 링크를 붙이고, List-Unsubscribe 헤더도 넣습니다. "
                               + "Gmail·Outlook이 헤더를 보고 '구독 취소' 단추를 보일지는 그 메일 앱이 정합니다.")
                     }
                 }

@@ -28,7 +28,7 @@ public struct OutgoingMessage: Sendable {
     public var importance: String?
     /// 답장 받을 사람 (Reply-To)
     public var replyTo: [MailAddress] = []
-    /// 수신 거부 주소 (List-Unsubscribe, 개별 발송). 받는 쪽 메일 앱이 "구독 취소" 단추를 보여 준다.
+    /// 구독 취소 주소 (List-Unsubscribe, 개별 발송). 받는 쪽 메일 앱이 "구독 취소" 단추를 보여 준다.
     public var listUnsubscribe: String?
 
     public init(from: MailAddress, to: [MailAddress], cc: [MailAddress] = [], bcc: [MailAddress] = [],

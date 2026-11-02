@@ -19,7 +19,7 @@ struct ComposeSender {
         var importance = "normal"
         /// 답장 받을 사람 (Reply-To)
         var replyTo = ""
-        /// 수신 거부 주소 (개별 발송)
+        /// 구독 취소 주소 (개별 발송)
         var listUnsubscribe: String?
     }
 

@@ -153,9 +153,9 @@ public enum MailDate {
     }
 }
 
-// MARK: 수신 거부 (List-Unsubscribe, RFC 2369 / RFC 8058)
+// MARK: 구독 취소 (List-Unsubscribe, RFC 2369 / RFC 8058)
 
-/// 받은 메일의 수신 거부 방법. 메일링 리스트·뉴스레터·개별 발송 메일에 붙는다.
+/// 받은 메일의 구독 취소 방법. 메일링 리스트·뉴스레터·개별 발송 메일에 붙는다.
 public struct Unsubscribe: Equatable, Sendable {
     public var mailto: URL?
     public var web: URL?

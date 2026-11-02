@@ -35,3 +35,5 @@
 | 보내기 취소 | `ComposeModel.sendCountdown` | 보내기 뒤 정해 둔 초 동안 되돌리기 |
 | 나중에 보내기 | `ScheduledSend`, `ComposeModel.schedule` | Exchange 지연 발송 |
 | 회의 초대 | `MailEvent`, `MeetingBar` | 수락·미정·거절 (S-038 보류) |
+
+| 구독 취소 | Unsubscribe (List-Unsubscribe). "수신 거부"라고 쓰지 않는다. |

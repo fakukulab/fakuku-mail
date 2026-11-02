@@ -204,7 +204,7 @@ final class AppModel {
     private(set) var allowRemoteFor: String?
 
     var errorMessage: String?
-    /// 오류가 아닌 알림 (수신 거부 완료 등)
+    /// 오류가 아닌 알림 (구독 취소 완료 등)
     var noticeMessage: String?
     /// 스냅숏에서 로그인 화면을 찍을 때만 켠다.
     var previewSignIn = false

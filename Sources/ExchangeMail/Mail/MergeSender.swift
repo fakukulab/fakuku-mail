@@ -25,7 +25,7 @@ final class MergeSender {
         var pacing = SendPacing.Preset.careful.pacing
         /// List-Unsubscribe 헤더 (받는 쪽 메일 앱의 "구독 취소" 단추)
         var unsubscribeHeader = true
-        /// 본문 끝의 수신 거부 안내 문구
+        /// 본문 끝의 구독 취소 안내 문구
         var unsubscribeFooter = false
         var signatureID: UUID?
         var importance = "normal"
@@ -50,13 +50,13 @@ final class MergeSender {
     var remainingCount: Int { entries.filter { $0.state == .pending || $0.state == .sending }.count }
     var isActive: Bool { status == .running || status == .paused }
 
-    /// 본문 끝의 수신 거부 줄 (눈에 보이는 링크). 누르면 보낸 사람에게 "수신 거부" 메일이 열린다.
+    /// 본문 끝의 구독 취소 줄 (눈에 보이는 링크). 누르면 보낸 사람에게 "구독 취소" 메일이 열린다.
     static func footerHTML(me: String) -> String {
-        let subject = "수신 거부 Unsubscribe".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe"
+        let subject = "구독 취소 Unsubscribe".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe"
         let link = "mailto:\(me)?subject=\(subject)"
         return """
         <div style="margin-top:24px;font-size:12px;color:#888888">이 메일을 더 받고 싶지 않으시면 \
-        <a href="\(link)">수신 거부</a>를 눌러 주세요. \
+        <a href="\(link)">구독 취소</a>를 눌러 주세요. \
         If you no longer wish to receive these emails, <a href="\(link)">unsubscribe</a>.</div>
         """
     }
@@ -79,7 +79,7 @@ final class MergeSender {
     /// 한 사람에게 보낼 MIME
     static func mime(_ template: MergeTemplate, for member: MergeMember, options: Options, app: AppModel) throws -> Data {
         let me = app.auth.email ?? ""
-        // 수신 거부 체크 하나가 헤더(List-Unsubscribe)와 본문 끝의 수신 거부 링크를 함께 넣는다.
+        // 구독 취소 체크 하나가 헤더(List-Unsubscribe)와 본문 끝의 구독 취소 링크를 함께 넣는다.
         let rendered = render(template, for: member, signature: app.signatures.signature(id: options.signatureID),
                               footer: options.unsubscribeHeader, me: me)
         let to = AddressParser.format([MailAddress(name: member.name.isEmpty ? nil : member.name, address: member.email)])
@@ -90,7 +90,7 @@ final class MergeSender {
             fixEnabled: UserDefaults.standard.object(forKey: "fixEnabled") as? Bool ?? true,
             importance: options.importance, replyTo: "",
             listUnsubscribe: options.unsubscribeHeader && !me.isEmpty
-                ? "mailto:\(me)?subject=\(("수신 거부 Unsubscribe").addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe")"
+                ? "mailto:\(me)?subject=\(("구독 취소 Unsubscribe").addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe")"
                 : nil)
         let plan = try ComposeSender.prepare(input, options: ComposeSender.defaultOptions(), forDraft: false)
         guard plan.uploads.isEmpty else { throw MergeProblem.tooLarge }
