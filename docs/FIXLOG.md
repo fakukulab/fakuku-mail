@@ -62,3 +62,10 @@ Symptom: "main actor-isolated conformance of 'Category' to 'Decodable' cannot sa
 Cause: the app target's default isolation is the main actor, so a struct declared there (even inside a function) has a main-actor Decodable conformance; `GraphList<T: Decodable & Sendable>` needs a nonisolated one.
 Fix: `OutlookCategory` lives in ExchangeMailKit (no default isolation).
 Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, not in the app target.
+
+## 2026-11-02 도구 막대 사용자화를 누르면 앱이 꺼짐 (S-044)
+- 증상: 메인 창에서 보기 > 도구 막대 사용자화…를 누르면 앱이 종료된다. 메시지 창은 괜찮다.
+- 원인: 사용자화 시트는 도구 막대 항목을 창의 SwiftUI 환경 밖에서 다시 그린다. 필터·정렬 메뉴가
+  `@Environment(AppModel.self)`로 모델을 읽어, 환경에 모델이 없어 멈췄다.
+- 고침: `FilterMenu(model:)`, `SortMenu(model:)`로 모델을 직접 넘긴다. 도구 막대 항목 안의 뷰는 환경 객체를 읽지 않는다.
+- 이전 단계: 열마다 따로 단 `.toolbar`는 창 전체의 사용자화를 껐다 → NavigationSplitView에 `.toolbar(id:)` 하나.

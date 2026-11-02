@@ -312,7 +312,8 @@ struct OfflineBar: View {
 
 /// 목록 필터 메뉴 (S-041). 켜져 있으면 깔때기가 채워진다.
 struct FilterMenu: View {
-    @Environment(AppModel.self) private var model
+    /// 환경이 아니라 직접 받는다: 도구 막대 사용자화 시트는 항목을 창의 환경 밖에서 그린다 (S-044).
+    let model: AppModel
 
     var body: some View {
         @Bindable var model = model
@@ -349,7 +350,8 @@ struct FilterMenu: View {
 
 /// 정렬 기준 메뉴 (S-042)
 struct SortMenu: View {
-    @Environment(AppModel.self) private var model
+    /// 환경이 아니라 직접 받는다: 도구 막대 사용자화 시트는 항목을 창의 환경 밖에서 그린다 (S-044).
+    let model: AppModel
 
     var body: some View {
         @Bindable var model = model

@@ -17,8 +17,8 @@ extension MailSplitView {
 
     @ToolbarContentBuilder
     private var list: some CustomizableToolbarContent {
-        ToolbarItem(id: "filter") { FilterMenu() }
-        ToolbarItem(id: "sort") { SortMenu() }
+        ToolbarItem(id: "filter") { FilterMenu(model: model) }
+        ToolbarItem(id: "sort") { SortMenu(model: model) }
         ToolbarItem(id: "listGetMail") {
             Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
                 .help("받은 메일 가져오기 (⇧⌘N)")
