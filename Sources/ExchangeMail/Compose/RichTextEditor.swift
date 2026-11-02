@@ -148,7 +148,7 @@ final class RichTextController: NSObject, WKNavigationDelegate {
         webView.window?.makeFirstResponder(webView)
         webView.evaluateJavaScript("selectForWriting()") { _, _ in
             MainActor.assumeIsolated {
-                NSApp.sendAction(Selector(("showWritingTools:")), to: nil, from: webView)
+                _ = NSApp.sendAction(#selector(NSResponder.showWritingTools(_:)), to: nil, from: webView)
             }
         }
     }

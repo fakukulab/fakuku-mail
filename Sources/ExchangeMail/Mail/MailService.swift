@@ -248,19 +248,16 @@ final class GraphMailService: MailService {
         }
         guard !inline.isEmpty else { return list }
         // 인라인 그림: contentId와 내용이 필요하다. 하나씩 전체를 받는다 (병렬).
-        let ids = inline.map { list[$0].id }
-        let fetched = await withTaskGroup(of: (String, FileAttachment?).self) { group in
-            for id in ids {
-                group.addTask { @MainActor [self] in
-                    let one = try? await self.request("GET", "/me/messages/\(messageID)/attachments/\(id)")
-                    return (id, one.flatMap { try? self.decoder.decode(FileAttachment.self, from: $0) })
-                }
-            }
-            var out: [String: FileAttachment] = [:]
-            for await (id, a) in group { if let a { out[id] = a } }
-            return out
+        // 요청을 한꺼번에 띄우고(네트워크는 동시에 진행), 받은 순서대로 해석한다.
+        let downloads = inline.map { i in
+            let id = list[i].id
+            return (i, Task { try? await self.request("GET", "/me/messages/\(messageID)/attachments/\(id)") })
         }
-        for i in inline { if let full = fetched[list[i].id] { list[i] = full } }
+        for (i, task) in downloads {
+            if let data = await task.value, let full = try? decoder.decode(FileAttachment.self, from: data) {
+                list[i] = full
+            }
+        }
         return list
     }
 
