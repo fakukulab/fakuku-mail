@@ -1,7 +1,7 @@
 #!/bin/zsh
 # App Intents(Siri·단축어) 메타데이터를 만든다: <app>/Contents/Resources/Metadata.appintents
 # Xcode는 빌드 중에 appintentsmetadataprocessor를 부른다. 이 앱은 swift build로 빌드하므로 여기서 직접 부른다.
-# Usage: tools/make_intents.sh <App.app> <build products dir> <app sources dir>
+# Usage: tools/make_intents.sh <App.app> <build scratch dir> <app sources dir>
 set -euo pipefail
 app=$1; products=$2; sources=$3
 name="ExchangeMail"
@@ -11,7 +11,12 @@ trap 'rm -rf "$work"' EXIT
 
 # 컴파일러가 남긴 인텐트 정보(.swiftconstvalues) 목록
 # $products(…/build/release)는 …/arm64-apple-macosx/release를 가리키는 심볼릭 링크다: -L로 따라간다.
-find -L "$products" -path "*$name.build*" -name "*.swiftconstvalues" > "$work/constvalues.txt" 2>/dev/null || true
+# build.sh가 정한 자리(intents/)를 먼저, 없으면 빌드 폴더 전체에서 찾는다.
+if [[ -s "$products/intents/$name.swiftconstvalues" ]]; then
+  echo "$products/intents/$name.swiftconstvalues" > "$work/constvalues.txt"
+else
+  find -L "$products" -name "*.swiftconstvalues" -path "*$name*" > "$work/constvalues.txt" 2>/dev/null || true
+fi
 echo "make_intents: 인텐트 정보 파일 $(wc -l < "$work/constvalues.txt" | tr -d ' ')개"
 if [[ ! -s "$work/constvalues.txt" ]]; then
   echo "make_intents: .swiftconstvalues가 없습니다 (swift build에 -emit-const-values가 빠졌나요?)" >&2

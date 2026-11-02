@@ -27,7 +27,11 @@ intents_protocols="$scratch/intents-protocols.json"
 mkdir -p "$scratch"
 echo '["AppIntent","AppEntity","AppEnum","EntityQuery","AppShortcutsProvider","DynamicOptionsProvider","TransientAppEntity","AppIntentsPackage"]' > "$intents_protocols"
 # swift build에는 -Xfrontend가 없으므로 -Xswiftc로 한 번 더 감싼다.
-intent_flags=(-Xswiftc -emit-const-values
+# 출력 위치를 정해 준다: 위치가 없으면 swift build(전체 모듈 최적화)에서는 파일이 생기지 않았다.
+constvalues="$scratch/intents/ExchangeMail.swiftconstvalues"
+mkdir -p "$scratch/intents"
+rm -f "$constvalues"
+intent_flags=(-Xswiftc -emit-const-values -Xswiftc -emit-const-values-path -Xswiftc "$constvalues"
               -Xswiftc -Xfrontend -Xswiftc -const-gather-protocols-file -Xswiftc -Xfrontend -Xswiftc "$intents_protocols")
 log=$(swift build -c $config --package-path "$here" --scratch-path "$scratch" "${intent_flags[@]}" 2>&1 || true)
 if [[ "$log" == *"unknown argument"* || "$log" == *"unsupported option"* ]]; then
@@ -64,7 +68,7 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
 # Siri·단축어 메타데이터 (Contents/Resources/Metadata.appintents). 실패해도 앱은 설치한다.
-"$here/tools/make_intents.sh" "$app" "$scratch/$config" "$here/Sources/ExchangeMail" || echo "warning: Siri 명령 메타데이터를 만들지 못했습니다 (앱은 정상 설치)"
+"$here/tools/make_intents.sh" "$app" "$scratch" "$here/Sources/ExchangeMail" || echo "warning: Siri 명령 메타데이터를 만들지 못했습니다 (앱은 정상 설치)"
 xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity})"
