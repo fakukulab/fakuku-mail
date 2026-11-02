@@ -16,6 +16,11 @@ struct ComposeView: View {
     @State private var showSchedule = false
     /// 첨부 카드의 미리 보기 (Quick Look)
     @State private var previewURL: URL?
+    /// 머리글 필드 (보기 메뉴와 도구 막대의 머리글 필드 단추)
+    @AppStorage(Prefs.fieldCc) private var fieldCc = true
+    @AppStorage(Prefs.fieldBcc) private var fieldBcc = false
+    @AppStorage(Prefs.fieldReplyTo) private var fieldReplyTo = false
+    @AppStorage(Prefs.fieldPriority) private var fieldPriority = true
     /// 설정 > 작성 > 다음으로 끝나지 않는 주소 표시
     @AppStorage(Prefs.highlightExternal) private var highlightExternal = false
     @AppStorage(Prefs.internalDomains) private var internalDomains = ""
@@ -124,44 +129,46 @@ struct ComposeView: View {
 
     // MARK: 머리글
 
-    /// 맥 Mail처럼: 레이블은 왼쪽, 구분선은 양옆 여백 안쪽. 받는 사람 줄 끝에 우선 순위, 참조 줄 끝에 숨은 참조,
-    /// 마지막 줄은 보낸 사람과 서명.
+    /// 맥 Mail처럼: 레이블은 왼쪽, 구분선은 왼쪽 여백부터 창 끝까지. 참조·숨은 참조·답장 받을 사람·우선 순위는
+    /// 보기 메뉴나 도구 막대의 머리글 필드 단추로 보이고 감춘다 (값이 들어 있으면 늘 보인다).
     private var header: some View {
         @Bindable var compose = compose
         return VStack(spacing: 0) {
             row("받는 사람:") {
-                TextField("받는 사람", text: $compose.to, prompt: Text("이름 <주소>, 주소…"))
+                TextField("받는 사람", text: $compose.to)
                     .focused($focus, equals: .to)
                     .addressSuggestions(for: compose.to, from: model.addressBook)
-                priorityMenu
             }
             rule
-            row("참조:") {
-                TextField("참조", text: $compose.cc)
-                    .focused($focus, equals: .cc)
-                    .addressSuggestions(for: compose.cc, from: model.addressBook)
-                if !compose.showBcc {
-                    Button("숨은 참조") {
-                        compose.showBcc = true
-                        focus = .bcc
-                    }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .help("숨은 참조 칸 보이기")
+            if fieldCc || !compose.cc.isEmpty {
+                row("참조:") {
+                    TextField("참조", text: $compose.cc)
+                        .focused($focus, equals: .cc)
+                        .addressSuggestions(for: compose.cc, from: model.addressBook)
                 }
-            }
-            if compose.showBcc {
                 rule
+            }
+            if fieldBcc || !compose.bcc.isEmpty {
                 row("숨은 참조:") {
                     TextField("숨은 참조", text: $compose.bcc)
                         .focused($focus, equals: .bcc)
                         .addressSuggestions(for: compose.bcc, from: model.addressBook)
                 }
+                rule
             }
-            rule
+            if fieldReplyTo || !compose.replyTo.isEmpty {
+                row("답장 받을 사람:") {
+                    TextField("답장 받을 사람", text: $compose.replyTo)
+                        .addressSuggestions(for: compose.replyTo, from: model.addressBook)
+                }
+                rule
+            }
             row("제목:") {
                 TextField("제목", text: $compose.subject)
                     .focused($focus, equals: .subject)
+                if fieldPriority || compose.importance != "normal" {
+                    priorityMenu
+                }
             }
             rule
             row("보낸 사람:") {
@@ -193,37 +200,36 @@ struct ComposeView: View {
         return "\(name) – \(email)"
     }
 
-    /// 우선 순위 (!! 높음, ! 보통, – 낮음). 보통이 아니면 강조색으로 보인다.
+    /// 우선 순위 팝업 (!! 높음, ! 보통, – 낮음). 제목 줄 오른쪽 끝, 맥 Mail과 같은 자리.
     private var priorityMenu: some View {
         @Bindable var compose = compose
-        let symbol = switch compose.importance {
-        case "high": "exclamationmark.2"
-        case "low": "arrow.down"
-        default: "exclamationmark"
+        return Picker("우선 순위", selection: $compose.importance) {
+            Text("!!  우선 순위 높음").tag("high")
+            Text("!   우선 순위 보통").tag("normal")
+            Text("–   우선 순위 낮음").tag("low")
         }
-        return Menu {
-            Picker("우선 순위", selection: $compose.importance) {
-                Label("우선 순위 높음", systemImage: "exclamationmark.2").tag("high")
-                Label("우선 순위 보통", systemImage: "exclamationmark").tag("normal")
-                Label("우선 순위 낮음", systemImage: "minus").tag("low")
-            }
-            .pickerStyle(.inline)
-            .labelsHidden()
-        } label: {
-            Image(systemName: symbol)
-                .foregroundStyle(compose.importance == "normal" ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
-        }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(.borderless)
-        .fixedSize()
+        .labelsHidden()
+        .frame(width: 72)
         .help(compose.importance == "high" ? "우선 순위 높음" : compose.importance == "low" ? "우선 순위 낮음" : "우선 순위 보통")
         .accessibilityLabel("우선 순위")
     }
 
-    /// 양옆 여백 안쪽에만 긋는 구분선
+    /// 머리글 필드 단추 (도구 막대): 참조, 숨은 참조, 답장 받을 사람, 우선 순위를 보이고 감춘다.
+    private var fieldsMenu: some View {
+        Menu {
+            Toggle("참조 주소 필드", isOn: $fieldCc)
+            Toggle("숨은 참조 주소 필드", isOn: $fieldBcc)
+            Toggle("답장 받을 사람 주소 필드", isOn: $fieldReplyTo)
+            Toggle("우선 순위 필드", isOn: $fieldPriority)
+        } label: {
+            Label("머리글 필드", systemImage: "list.bullet.rectangle")
+        }
+        .help("머리글 필드 보이기·감추기")
+    }
+
+    /// 왼쪽 여백부터 창 오른쪽 끝까지 긋는 구분선 (맥 Mail)
     private var rule: some View {
-        Divider().padding(.horizontal, Space.margin)
+        Divider().padding(.leading, Space.margin)
     }
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
@@ -317,6 +323,9 @@ struct ComposeView: View {
             .keyboardShortcut("s")
             .disabled(compose.savingDraft)
             .help("임시 보관함에 저장 (⌘S)")
+        }
+        ToolbarItem {
+            fieldsMenu
         }
         ToolbarItemGroup {
             Button("파일 첨부", systemImage: "paperclip") { attach() }

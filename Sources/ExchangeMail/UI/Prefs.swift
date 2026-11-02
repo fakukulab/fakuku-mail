@@ -10,6 +10,11 @@ enum Prefs {
     static let highlightExternal = "compose.highlightExternal" // Bool, false
     static let internalDomains = "compose.internalDomains"  // String "@corp.com, @corp.co.kr"
     static let quoteOriginal = "compose.quoteOriginal"      // Bool, true
+    // 작성 창 머리글 필드 (보기 메뉴, 작성 창의 머리글 필드 단추)
+    static let fieldCc = "compose.field.cc"                 // Bool, true
+    static let fieldBcc = "compose.field.bcc"               // Bool, false
+    static let fieldReplyTo = "compose.field.replyTo"       // Bool, false
+    static let fieldPriority = "compose.field.priority"     // Bool, true
     // 보기
     static let previewLines = "view.previewLines"           // Int, 2 (0~5)
     static let boldUnread = "view.boldUnread"               // Bool, true

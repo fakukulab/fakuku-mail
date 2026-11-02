@@ -26,6 +26,8 @@ public struct OutgoingMessage: Sendable {
     public var references: [String]
     /// 우선 순위: "high", "low". nil이나 "normal"이면 헤더를 넣지 않는다.
     public var importance: String?
+    /// 답장 받을 사람 (Reply-To)
+    public var replyTo: [MailAddress] = []
 
     public init(from: MailAddress, to: [MailAddress], cc: [MailAddress] = [], bcc: [MailAddress] = [],
                 subject: String, html: String, attachments: [OutgoingAttachment] = [],
@@ -184,6 +186,7 @@ public enum MIMEBuilder {
         h += "From: \(header(msg.from))\r\n"
         if !msg.to.isEmpty { h += "To: \(addressList(msg.to))\r\n" }
         if !msg.cc.isEmpty { h += "Cc: \(addressList(msg.cc))\r\n" }
+        if !msg.replyTo.isEmpty { h += "Reply-To: \(addressList(msg.replyTo))\r\n" }
         // Graph는 Bcc 헤더로 숨은 참조를 받고, 받는 사람에게는 이 헤더를 지워서 보낸다.
         if !msg.bcc.isEmpty { h += "Bcc: \(addressList(msg.bcc))\r\n" }
         h += "Subject: \(encodedWords(msg.subject))\r\n"

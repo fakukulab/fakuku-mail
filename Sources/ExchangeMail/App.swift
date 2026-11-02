@@ -21,6 +21,11 @@ struct ExchangeMailApp: App {
     @ObservedObject private var menu = MenuState.shared
     /// 보기 > 대화별로 정리. App이 들고 있어야 바꿀 때 메뉴(체크 표시)가 다시 그려진다.
     @AppStorage("list.threaded") private var threaded = true
+    /// 작성 창 머리글 필드 (보기 메뉴의 체크 표시가 바뀌도록 App이 들고 있다)
+    @AppStorage(Prefs.fieldCc) private var fieldCc = true
+    @AppStorage(Prefs.fieldBcc) private var fieldBcc = false
+    @AppStorage(Prefs.fieldReplyTo) private var fieldReplyTo = false
+    @AppStorage(Prefs.fieldPriority) private var fieldPriority = true
 
     var body: some Scene {
         Window("FAKUKU Mail", id: "main") {
@@ -35,7 +40,8 @@ struct ExchangeMailApp: App {
         .commands {
             SidebarCommands()
             ToolbarCommands()
-            MailCommands(model: model, menu: menu.snapshot, threaded: $threaded)
+            MailCommands(model: model, menu: menu.snapshot, threaded: $threaded,
+                         fieldCc: $fieldCc, fieldBcc: $fieldBcc, fieldReplyTo: $fieldReplyTo, fieldPriority: $fieldPriority)
         }
 
         WindowGroup("새로운 메시지", id: "compose", for: ComposeDraft.self) { $draft in
@@ -132,6 +138,10 @@ struct MailCommands: Commands {
     /// 앞에 있는 작성 창의 편집기. 포맷 메뉴가 쓴다.
     @FocusedValue(\.richTextEditor) private var editor
     @Binding var threaded: Bool
+    @Binding var fieldCc: Bool
+    @Binding var fieldBcc: Bool
+    @Binding var fieldReplyTo: Bool
+    @Binding var fieldPriority: Bool
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -194,6 +204,14 @@ struct MailCommands: Commands {
         Button("모든 필터 해제") { model.listFilter = MailFilter() }
             .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(!menu.filterActive)
+        Divider()
+        // 작성 창 머리글 필드 (맥 Mail 보기 메뉴와 같은 자리·단축키)
+        Toggle("참조 주소 필드", isOn: $fieldCc)
+        Toggle("숨은 참조 주소 필드", isOn: $fieldBcc)
+            .keyboardShortcut("b", modifiers: [.command, .option])
+        Toggle("답장 받을 사람 주소 필드", isOn: $fieldReplyTo)
+            .keyboardShortcut("r", modifiers: [.command, .option])
+        Toggle("우선 순위 필드", isOn: $fieldPriority)
         Divider()
         // 원본 보기: 모든 헤더와 본문 (M17)
         Button("원본 보기") {

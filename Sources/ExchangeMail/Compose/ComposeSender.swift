@@ -17,6 +17,8 @@ struct ComposeSender {
         var fixEnabled: Bool
         /// 우선 순위: high, normal, low
         var importance = "normal"
+        /// 답장 받을 사람 (Reply-To)
+        var replyTo = ""
     }
 
     enum Problem: LocalizedError, Equatable {
@@ -87,8 +89,9 @@ struct ComposeSender {
         let to = AddressParser.parse(input.to)
         let cc = AddressParser.parse(input.cc)
         let bcc = AddressParser.parse(input.bcc)
+        let replyTo = AddressParser.parse(input.replyTo)
         if validate {
-            let invalid = to.invalid + cc.invalid + bcc.invalid
+            let invalid = to.invalid + cc.invalid + bcc.invalid + replyTo.invalid
             guard invalid.isEmpty else { throw Problem.invalidAddresses(invalid) }
             guard !(to.valid + cc.valid + bcc.valid).isEmpty else { throw Problem.noRecipients }
         }
@@ -98,10 +101,12 @@ struct ComposeSender {
             guard let data = try? Data(contentsOf: url) else { throw Problem.unreadableFile(url.lastPathComponent) }
             attachments.append(OutgoingAttachment(filename: url.lastPathComponent, mimeType: mimeType(for: url), data: data))
         }
-        return OutgoingMessage(from: input.from, to: to.valid, cc: cc.valid, bcc: bcc.valid,
+        var message = OutgoingMessage(from: input.from, to: to.valid, cc: cc.valid, bcc: bcc.valid,
                                subject: input.subject, html: wrap(input.bodyHTML), attachments: attachments,
                                inReplyTo: input.draft.inReplyTo, references: input.draft.references,
                                importance: input.importance == "normal" ? nil : input.importance)
+        message.replyTo = replyTo.valid
+        return message
     }
 
     private static func finish(_ message: OutgoingMessage, from: MailAddress, options: FixOptions, date: Date) throws -> Data {

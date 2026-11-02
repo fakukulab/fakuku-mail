@@ -248,3 +248,12 @@ func priorityHeaders() {
     let normal = mime(message(nil))
     #expect(!normal.contains("Importance:") && !normal.contains("X-Priority:"))
 }
+
+@Test("답장 받을 사람은 Reply-To 헤더로")
+func replyToHeader() {
+    var msg = OutgoingMessage(from: MailAddress(address: "a@b.com"), to: [MailAddress(address: "c@d.com")],
+                              subject: "s", html: "<p>x</p>")
+    #expect(!mime(msg).contains("Reply-To:"))
+    msg.replyTo = [MailAddress(address: "team@b.com")]
+    #expect(mime(msg).contains("Reply-To: team@b.com\r\n"))
+}

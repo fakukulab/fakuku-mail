@@ -15,6 +15,8 @@ final class ComposeModel {
     var showBcc = false
     /// 우선 순위: high, normal, low (작성 창 머리글의 ! 메뉴)
     var importance = "normal"
+    /// 답장 받을 사람 (보기 > 답장 받을 사람 주소 필드)
+    var replyTo = ""
     var subject = ""
     var files: [URL] = []
     var forwarded: [FileAttachment] = []
@@ -146,12 +148,12 @@ final class ComposeModel {
     func input(app: AppModel) -> ComposeSender.Input {
         ComposeSender.Input(
             from: MailAddress(name: app.auth.displayName, address: app.auth.email ?? ""),
-            to: to, cc: cc, bcc: showBcc ? bcc : "", subject: subject, bodyHTML: editor.html,
+            to: to, cc: cc, bcc: bcc, subject: subject, bodyHTML: editor.html,
             files: files,
             extraAttachments: forwarded.compactMap { a in
                 a.data.map { OutgoingAttachment(filename: a.name, mimeType: a.contentType ?? "application/octet-stream", data: $0) }
             },
-            draft: draft, fixEnabled: fixEnabled, importance: importance)
+            draft: draft, fixEnabled: fixEnabled, importance: importance, replyTo: replyTo)
     }
 
     /// 보내고 성공하면 true. 실패하거나 보내기를 취소하면 false (실패면 `error`에 이유).
@@ -182,7 +184,7 @@ final class ComposeModel {
     /// 보낸 뒤: 받는 사람을 주소록에 남기고, 임시 보관함의 초안은 지운다 (실패해도 보낸 것은 그대로다).
     private func afterSending(app: AppModel) async {
         finished = true
-        let sentTo = [to, cc, showBcc ? bcc : ""].flatMap { AddressParser.parse($0).valid }
+        let sentTo = [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
         app.addressBook.noteSent(sentTo, me: app.auth.email)
         if let id = savedDraftID {
             try? await app.service.deleteMessage(id: id)
@@ -248,7 +250,7 @@ final class ComposeModel {
 
     /// 내용 요약. 칸, 본문, 첨부가 같으면 같은 값.
     var fingerprint: String {
-        [to, cc, showBcc ? bcc : "", subject, importance, "\(bodyRevision)",
+        [to, cc, bcc, replyTo, subject, importance, "\(bodyRevision)",
          files.map(\.path).joined(separator: "|"), forwarded.map(\.id).joined(separator: "|")]
             .joined(separator: "\u{1F}")
     }
