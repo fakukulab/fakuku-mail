@@ -74,7 +74,7 @@ extension FlagColor {
         guard let image = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: label)?
                 .withSymbolConfiguration(config) else { return Image(systemName: "flag.fill") }
         image.isTemplate = false
-        return Image(nsImage: image)
+        return Image(nsImage: image).renderingMode(.original)
     }
 
     /// 깃발 색 메뉴의 단축키 ⌥⌘1~7
@@ -97,6 +97,8 @@ struct FlagColorItems: View {
                 } icon: {
                     c.flagImage
                 }
+                // macOS 메뉴는 기본으로 Label의 글자만 보인다. 아이콘(색 깃발)도 보이게 한다.
+                .labelStyle(.titleAndIcon)
             }
             if shortcuts {
                 item.keyboardShortcut(c.shortcut, modifiers: [.command, .option])
