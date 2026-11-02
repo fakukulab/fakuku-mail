@@ -1,3 +1,4 @@
+import AppKit
 import ExchangeMailKit
 import SwiftUI
 
@@ -11,13 +12,8 @@ struct SourceWindow: View {
     var body: some View {
         Group {
             if let text {
-                ScrollView {
-                    Text(text)
-                        .font(.system(.callout, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Space.lg)
-                }
+                // 원본은 수백 KB가 넘기 쉬워 SwiftUI Text로는 그려지지 않는다(흰 화면). AppKit 글 보기를 쓴다.
+                PlainTextView(text: text)
             } else if let failure {
                 ContentUnavailableView("원본을 불러올 수 없습니다", systemImage: "doc.text.magnifyingglass",
                                        description: Text(failure))
@@ -39,5 +35,31 @@ struct SourceWindow: View {
             }
         }
         .noInitialFocus()
+    }
+}
+
+/// 큰 글을 빠르게 보이는 읽기 전용 글 보기 (선택·복사·찾기 가능)
+struct PlainTextView: NSViewRepresentable {
+    let text: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSTextView.scrollableTextView()
+        if let view = scroll.documentView as? NSTextView {
+            view.isEditable = false
+            view.isSelectable = true
+            view.usesFindBar = true
+            view.isIncrementalSearchingEnabled = true
+            view.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize + 1, weight: .regular)
+            view.textColor = .labelColor
+            view.backgroundColor = .textBackgroundColor
+            view.textContainerInset = NSSize(width: Space.lg, height: Space.lg)
+            view.string = text
+        }
+        return scroll
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let view = nsView.documentView as? NSTextView, view.string != text else { return }
+        view.string = text
     }
 }

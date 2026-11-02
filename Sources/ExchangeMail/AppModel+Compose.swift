@@ -38,6 +38,32 @@ extension AppModel {
         if selectedFolder?.kind == "drafts" { await loadMessages(keepSelection: true) }
     }
 
+    /// 모두 다운로드: 폴더를 고르면 첨부를 모두 NFC 이름으로 저장한다. 같은 이름이 있으면 번호를 붙인다.
+    func saveAll(_ attachments: [FileAttachment]) {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "여기에 저장"
+        guard panel.runModal() == .OK, let dir = panel.url else { return }
+        var skipped: [String] = []
+        for a in attachments {
+            guard let data = a.data else { skipped.append(a.name); continue }
+            let name = FilenameEncoder.normalize(a.name)
+            var url = dir.appending(path: name)
+            var n = 2
+            while FileManager.default.fileExists(atPath: url.path) {
+                let base = (name as NSString).deletingPathExtension, ext = (name as NSString).pathExtension
+                url = dir.appending(path: ext.isEmpty ? "\(base) \(n)" : "\(base) \(n).\(ext)")
+                n += 1
+            }
+            do { try data.write(to: url) } catch { skipped.append(a.name) }
+        }
+        if !skipped.isEmpty {
+            errorMessage = "저장하지 못한 첨부: \(skipped.joined(separator: ", ")). Outlook 웹에서 받아 주세요."
+        }
+    }
+
     func save(attachment: FileAttachment) {
         guard let data = attachment.data else {
             errorMessage = "이 첨부는 파일이 아니라서 저장할 수 없습니다. Outlook 웹에서 열어 주세요."

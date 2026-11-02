@@ -1,5 +1,6 @@
 import AppKit
 import ExchangeMailKit
+import QuickLook
 import SwiftUI
 
 /// 작성 창: 새 메시지, 답장, 전체 답장, 전달. 상태와 동작은 ComposeModel에 있다.
@@ -13,6 +14,8 @@ struct ComposeView: View {
     @State private var compose: ComposeModel
     @State private var dropTargeted = false
     @State private var showSchedule = false
+    /// 첨부 카드의 미리 보기 (Quick Look)
+    @State private var previewURL: URL?
     /// 보내기 취소를 기다리는 초 (설정 > 보내기, S-036)
     @AppStorage("send.undoDelay") private var undoDelay = 10
     @FocusState private var focus: Field?
@@ -27,6 +30,13 @@ struct ComposeView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            // 첨부는 Outlook처럼 제목 아래, 본문 위에 카드로 (M17)
+            if !compose.files.isEmpty || !compose.forwarded.isEmpty {
+                attachmentCards
+                    .padding(.horizontal, Space.margin)
+                    .padding(.vertical, Space.sm)
+                Divider()
+            }
             if let left = compose.sendCountdown {
                 UndoSendBar(seconds: left) { compose.cancelSend() }
                 Divider()
@@ -34,7 +44,7 @@ struct ComposeView: View {
             FormatToolbar(controller: compose.editor)
             Divider()
             RichTextEditor(controller: compose.editor)
-            if !compose.files.isEmpty || !compose.forwarded.isEmpty || movedImageCount > 0 || compose.uploadFraction != nil {
+            if compose.uploadFraction != nil || compose.hasLargeAttachments || movedImageCount > 0 {
                 Divider()
                 attachmentBar
             }
@@ -42,6 +52,7 @@ struct ComposeView: View {
         .navigationTitle(compose.windowTitle)
         .navigationSubtitle(draftStatus)
         .toolbar { toolbar }
+        .quickLookPreview($previewURL)
         // 포맷 메뉴가 이 창의 편집기에 동작한다 (M17).
         .focusedSceneValue(\.richTextEditor, compose.editor)
         .alert(compose.errorTitle, isPresented: Binding(get: { compose.error != nil },
@@ -167,26 +178,29 @@ struct ComposeView: View {
 
     private var movedImageCount: Int { compose.movedImageCount(imagesAsAttachments: imagesAsAttachments) }
 
+    /// 붙인 파일과 전달할 원본 첨부: 누르면 미리 보기, ⌄ 메뉴로 열기·다운로드·제거
+    private var attachmentCards: some View {
+        AttachmentStrip {
+            ForEach(compose.files, id: \.self) { url in
+                AttachmentCard(name: FilenameEncoder.normalize(url.lastPathComponent),
+                               size: (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil,
+                               preview: { previewURL = url },
+                               open: { NSWorkspace.shared.open(url) },
+                               save: { AttachmentFiles.saveCopy(of: url) },
+                               remove: { compose.removeFile(url) })
+            }
+            ForEach(compose.forwarded) { a in
+                AttachmentCard(name: FilenameEncoder.normalize(a.name), size: a.size,
+                               preview: { previewURL = model.previewFile(for: a) },
+                               open: { if let url = model.previewFile(for: a) { NSWorkspace.shared.open(url) } },
+                               save: { model.save(attachment: a) },
+                               remove: { compose.removeForwarded(a) })
+            }
+        }
+    }
+
     private var attachmentBar: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            if !compose.files.isEmpty || !compose.forwarded.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: Space.sm) {
-                        ForEach(compose.files, id: \.self) { url in
-                            AttachmentChip(name: FilenameEncoder.normalize(url.lastPathComponent),
-                                           size: (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil) {
-                                compose.removeFile(url)
-                            }
-                        }
-                        ForEach(compose.forwarded) { a in
-                            AttachmentChip(name: FilenameEncoder.normalize(a.name), size: a.size) {
-                                compose.removeForwarded(a)
-                            }
-                        }
-                    }
-                }
-                .scrollIndicators(.never)
-            }
             if let fraction = compose.uploadFraction {
                 ProgressView(value: fraction) {
                     Text(compose.uploadStatus ?? "큰 첨부 올리는 중")
@@ -278,34 +292,6 @@ struct ComposeView: View {
 }
 
 /// 첨부 칩: 보낼 이름(NFC)과 크기, 빼기 버튼.
-struct AttachmentChip: View {
-    let name: String
-    let size: Int?
-    let remove: () -> Void
-
-    var body: some View {
-        HStack(spacing: Space.xs) {
-            Image(systemName: "paperclip")
-                .foregroundStyle(.secondary)
-            Text(name)
-                .lineLimit(1)
-            if let size {
-                Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                    .foregroundStyle(.secondary)
-            }
-            Button("빼기", systemImage: "xmark.circle.fill", action: remove)
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .help("첨부에서 빼기")
-        }
-        .font(.callout)
-        .padding(.horizontal, Space.sm)
-        .padding(.vertical, Space.xs)
-        .background(.quaternary, in: Capsule())
-    }
-}
-
 extension View {
     /// 받는 사람 칸 자동완성 (S-018). 마지막 항목으로 주소록을 찾고, 고르면 그 항목을 주소로 바꾼다.
     func addressSuggestions(for text: String, from book: AddressBookStore) -> some View {

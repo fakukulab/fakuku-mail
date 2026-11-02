@@ -1,3 +1,4 @@
+import AppKit
 import ExchangeMailKit
 import QuickLook
 import SwiftUI
@@ -168,28 +169,21 @@ struct MessageHeader: View {
             recipients("받는 사람:", message.toRecipients)
             recipients("참조:", message.ccRecipients)
             if !attachments.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: Space.sm) {
-                        ForEach(attachments) { a in
-                            // 누르면 훑어보기, 오른쪽 클릭으로 저장 (S-032)
-                            Button {
-                                preview(a)
-                            } label: {
-                                Label("\(FilenameEncoder.normalize(a.name))  \(a.sizeLabel)", systemImage: "paperclip")
-                                    .lineLimit(1)
-                            }
-                            .buttonStyle(.bordered)
-                            .help("훑어보기 (⌘Y). 오른쪽 클릭으로 저장")
-                            .contextMenu {
-                                Button("훑어보기") { preview(a) }
-                                Button("저장…") { model.save(attachment: a) }
-                            }
-                            // Finder나 데스크톱으로 끌어 저장 (S-035)
+                // Outlook처럼 파일 종류 아이콘·이름·크기 카드. 누르면 훑어보기, ⌄ 메뉴, Finder로 끌어 저장 (S-032, S-035)
+                AttachmentStrip {
+                    ForEach(attachments) { a in
+                        AttachmentCard(name: FilenameEncoder.normalize(a.name), size: a.size,
+                                       preview: { preview(a) },
+                                       open: { if let url = model.previewFile(for: a) { NSWorkspace.shared.open(url) } },
+                                       save: { model.save(attachment: a) })
                             .onDrag { model.dragProvider(for: a) }
-                        }
                     }
                 }
-                .scrollIndicators(.never)
+                if attachments.count > 1 {
+                    Button("모두 다운로드…") { model.saveAll(attachments) }
+                        .buttonStyle(.link)
+                        .font(.callout)
+                }
             }
         }
         .padding(.horizontal, Space.margin)
