@@ -412,20 +412,32 @@ final class AppModel {
         Task { await loadDetail() }
     }
 
-    /// 회의 초대에 답한다 (S-038). 답한 상태를 본문 막대에 바로 보인다.
+    /// 회의 초대에 답한다 (S-038). Exchange는 응답을 비동기로 처리하므로, 보낸 뒤 일정을 다시 읽어
+    /// 서버가 실제로 기록한 상태를 막대에 보인다. 몇 초 안에 반영되지 않으면 서버 상태와 함께 알린다.
     func respondToMeeting(_ response: MeetingResponse) async {
         guard let eventID = detail?.event?.id else { return }
         do {
             try await service.respond(toEvent: eventID, with: response)
-            let value = switch response {
-            case .accept: "accepted"
-            case .tentativelyAccept: "tentativelyAccepted"
-            case .decline: "declined"
-            }
-            detail?.event?.responseStatus = .init(response: value)
         } catch {
             report(error, quietIfOffline: false)
+            return
         }
+        var serverValue: String?
+        for wait in [1.0, 2.0, 3.0] {
+            try? await Task.sleep(for: .seconds(wait))
+            do {
+                let fresh = try await service.event(id: eventID)
+                serverValue = fresh.responseStatus?.response
+                if detail?.event?.id == eventID { detail?.event = fresh }
+                if serverValue == response.graphValue { return }
+            } catch {
+                errorMessage = "회의 응답은 보냈지만 일정을 다시 찾을 수 없습니다. 주최자가 일정을 바꿨거나 취소했을 수 있습니다. "
+                    + "Outlook 웹에서 확인해 주세요.\n(\(error.localizedDescription))"
+                return
+            }
+        }
+        errorMessage = "회의 응답(\(response.label))을 보냈지만 Exchange 일정에 아직 반영되지 않았습니다. "
+            + "지금 서버 상태: \(MeetingResponse.describe(serverValue)). 잠시 뒤 Outlook 일정에서 다시 확인해 주세요."
     }
 
     func allowRemoteContentForSelection() {

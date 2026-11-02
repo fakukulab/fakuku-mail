@@ -51,6 +51,8 @@ protocol MailService: AnyObject {
     func scheduleDraft(id: String, at date: Date) async throws
     /// 회의 초대에 답한다 (S-038, Calendars.ReadWrite)
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws
+    /// 일정을 서버에서 다시 읽는다 (응답이 실제로 반영됐는지 확인)
+    func event(id: String) async throws -> MailEvent
 }
 
 struct GraphError: LocalizedError {
@@ -303,6 +305,12 @@ final class GraphMailService: MailService {
 
     func scheduleDraft(id: String, at date: Date) async throws {
         _ = try await request("PATCH", "/me/messages/\(id)", body: try json(ScheduledSend.patchBody(sendAt: date)))
+    }
+
+    func event(id: String) async throws -> MailEvent {
+        let data = try await request("GET", "/me/events/\(id)",
+                                     query: ["$select": "id,subject,start,end,location,isAllDay,responseStatus"])
+        return try decoder.decode(MailEvent.self, from: data)
     }
 
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {

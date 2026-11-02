@@ -607,3 +607,11 @@ func scheduledSend() throws {
     #expect(!ScheduledSend.isValid(at.addingTimeInterval(30), now: at))
     #expect(ScheduledSend.isValid(at.addingTimeInterval(120), now: at))
 }
+
+@Test("회의 응답 서버 값")
+func meetingResponseValues() {
+    #expect(MeetingResponse.accept.graphValue == "accepted")
+    #expect(MeetingResponse.describe("tentativelyAccepted") == "미정")
+    #expect(MeetingResponse.describe("notResponded") == "아직 응답 안 함")
+    #expect(MeetingResponse.describe(nil) == "아직 응답 안 함")
+}

@@ -341,6 +341,14 @@ final class DemoMailService: MailService {
         scheduled.append((id, date))
     }
 
+    func event(id: String) async throws -> MailEvent {
+        try checkOnline()
+        for list in store.values {
+            if let e = list.compactMap(\.event).first(where: { $0.id == id }) { return e }
+        }
+        throw URLError(.fileDoesNotExist)
+    }
+
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
         try checkOnline()
         for (folder, list) in store {

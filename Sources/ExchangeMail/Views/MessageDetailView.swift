@@ -289,8 +289,12 @@ struct MeetingBar: View {
                 }
             }
             Spacer()
-            if let done = event.response {
-                Label(done.doneLabel, systemImage: "checkmark.circle")
+            // 서버가 기록한 내 응답 (보낸 뒤 다시 읽어 온 값)
+            if busy {
+                ProgressView().controlSize(.small)
+            } else {
+                Label(MeetingResponse.describe(event.responseStatus?.response),
+                      systemImage: event.response == nil ? "questionmark.circle" : "checkmark.circle")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

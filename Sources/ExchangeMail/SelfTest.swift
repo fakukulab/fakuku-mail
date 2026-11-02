@@ -588,7 +588,10 @@ enum SelfTest {
                 check("S-038 회의 초대를 열면 일정이 보인다",
                       model.detail?.event?.location?.displayName == "3층 회의실" && !(model.detail?.event?.whenText().isEmpty ?? true))
                 await model.respondToMeeting(.accept)
-                check("S-038 수락하면 답한 상태가 보인다", model.detail?.event?.response == .accept)
+                check("S-038 수락하면 서버에서 다시 읽은 상태가 보인다",
+                      model.detail?.event?.response == .accept && model.errorMessage == nil)
+                await model.respondToMeeting(.tentativelyAccept)
+                check("S-038 수락한 뒤 미정으로 바꿀 수 있다", model.detail?.event?.response == .tentativelyAccept)
             } else {
                 check("S-038 데모 받은 편지함에 회의 초대가 있다", false)
             }

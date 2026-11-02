@@ -95,6 +95,27 @@ public enum MeetingResponse: String, CaseIterable, Sendable {
         }
     }
 
+    /// Graph responseStatus.response 값
+    public var graphValue: String {
+        switch self {
+        case .accept: "accepted"
+        case .tentativelyAccept: "tentativelyAccepted"
+        case .decline: "declined"
+        }
+    }
+
+    /// 서버 상태를 사람이 읽는 말로
+    public static func describe(_ graphValue: String?) -> String {
+        switch graphValue {
+        case "accepted": "수락함"
+        case "tentativelyAccepted": "미정"
+        case "declined": "거절함"
+        case "organizer": "주최자"
+        case "notResponded", "none", nil: "아직 응답 안 함"
+        default: graphValue ?? ""
+        }
+    }
+
     init?(graphValue: String) {
         switch graphValue {
         case "accepted": self = .accept

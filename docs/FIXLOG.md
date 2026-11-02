@@ -45,3 +45,13 @@ The header was also placed before a full HTML document's `<html>` instead of ins
 Fix: `MailWebView` overrides `printView(_:)` (AppKit's `print:` as Swift names it) and calls the app's header print; the menu is enabled whenever a message
 is shown (`canPrint`); the header goes right inside `<body>`, and plain-text mail becomes HTML first.
 Rule: When a web view shows content the app prints, override `printView(_:)` so every path prints the same thing. AppKit's `print:` is `printView(_:)` in Swift.
+
+## 2026-11-02 Meeting answer showed "수락함" but the calendar did not change (investigating)
+
+Symptom: on a same-org Teams invite, Accept showed "수락함", but the meeting did not appear in the Outlook calendar,
+and Tentative afterwards did not change the label.
+Cause (so far): the app set the label from the request's 2xx alone. Exchange answers meeting responses asynchronously,
+so a 2xx does not prove the calendar changed, and the label hid the real server state.
+Fix: after responding, the app reads the event back (1, 2, 3 s) and shows the server's responseStatus; if it does not
+match, or the event cannot be found, it says so with the server state. Root cause on the server side still open.
+Rule: Never show a server-side state the app only assumed; read it back and show what the server says.
