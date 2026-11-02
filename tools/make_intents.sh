@@ -10,7 +10,9 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 # 컴파일러가 남긴 인텐트 정보(.swiftconstvalues) 목록
-find "$products" -path "*$name.build*" -name "*.swiftconstvalues" > "$work/constvalues.txt"
+# $products(…/build/release)는 …/arm64-apple-macosx/release를 가리키는 심볼릭 링크다: -L로 따라간다.
+find -L "$products" -path "*$name.build*" -name "*.swiftconstvalues" > "$work/constvalues.txt" 2>/dev/null || true
+echo "make_intents: 인텐트 정보 파일 $(wc -l < "$work/constvalues.txt" | tr -d ' ')개"
 if [[ ! -s "$work/constvalues.txt" ]]; then
   echo "make_intents: .swiftconstvalues가 없습니다 (swift build에 -emit-const-values가 빠졌나요?)" >&2
   exit 1
@@ -22,6 +24,7 @@ sdk=$(xcrun --sdk macosx --show-sdk-path)
 xcode_version=$(xcodebuild -version 2>/dev/null | awk '/Build version/ {print $3}')
 arch=$(uname -m)
 
+echo "make_intents: appintentsmetadataprocessor 실행 (Xcode ${xcode_version:-?}, $arch)"
 xcrun appintentsmetadataprocessor \
   --toolchain-dir "$toolchain" \
   --module-name "$name" \
