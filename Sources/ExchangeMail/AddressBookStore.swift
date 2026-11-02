@@ -35,6 +35,11 @@ final class AddressBookStore {
         scheduleSave()
     }
 
+    func remove(_ address: String) {
+        book.remove(address)
+        scheduleSave()
+    }
+
     func suggestions(for text: String) -> [MailAddress] {
         book.suggestions(for: text)
     }

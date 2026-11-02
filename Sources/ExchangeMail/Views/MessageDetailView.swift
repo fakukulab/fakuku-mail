@@ -139,48 +139,34 @@ struct MessageHeader: View {
     let preview: (FileAttachment) -> Void
     @Environment(AppModel.self) private var model
 
+    /// 맥 Mail처럼: 왼쪽에 보낸 사람 머리글자 원, 오른쪽에 보낸 사람(굵게)·날짜, 제목, 받는 사람·참조 주소 단추.
+    /// 주소 단추를 누르면 주소 메뉴(복사, VIP, 차단, 새 메일, 이전 수신자에서 제거, 검색)가 열린다.
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            HStack(alignment: .firstTextBaseline) {
-                if let vip = model.mailboxes.vip(for: message) {
-                    VIPBadge(vip: vip)
-                }
-                Text(message.from?.emailAddress.display ?? "(보낸 사람 없음)")
-                    .font(.headline)
-                    .textSelection(.enabled)
-                    // 보낸 사람을 VIP로 (S-045)
-                    .contextMenu {
-                        if model.mailboxes.vip(for: message) == nil {
-                            Button("VIP로 지정…") { model.editVIP(for: message) }
-                        } else {
-                            Button("VIP 이름·아이콘 변경…") { model.editVIP(for: message) }
-                            Button("VIP에서 빼기") {
-                                if let address = message.from?.emailAddress.address { model.removeVIP(address: address) }
-                            }
+        VStack(alignment: .leading, spacing: Space.md) {
+            HStack(alignment: .top, spacing: Space.md) {
+                SenderAvatar(name: message.from?.emailAddress.display ?? "?")
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                        if let vip = model.mailboxes.vip(for: message) {
+                            VIPBadge(vip: vip)
                         }
+                        if let from = message.from {
+                            AddressToken(recipient: from, prominent: true)
+                        } else {
+                            Text("(보낸 사람 없음)").font(.headline)
+                        }
+                        Spacer(minLength: Space.sm)
+                        Text(message.receivedDateTime.map { MailDate.long($0) } ?? "")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
-                if let address = message.from?.emailAddress.address, message.from?.emailAddress.name?.isEmpty == false {
-                    Text("<\(address)>")
-                        .foregroundStyle(.secondary)
+                    Text(message.title)
+                        .font(.title3)
                         .textSelection(.enabled)
+                    recipients("받는 사람:", message.toRecipients)
+                    recipients("참조:", message.ccRecipients)
                 }
-                let isVIP = model.mailboxes.vip(for: message) != nil
-                Button(isVIP ? "VIP 변경" : "VIP로 지정", systemImage: isVIP ? "star.fill" : "star") {
-                    model.editVIP(for: message)
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .help(isVIP ? "VIP 이름·아이콘 변경 (오른쪽 클릭으로 VIP에서 빼기)" : "보낸 사람을 VIP로 지정 (⌃⌘V)")
-                Spacer()
-                Text(message.receivedDateTime.map { MailDate.long($0) } ?? "")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
-            Text(message.title)
-                .font(.title3.weight(.semibold))
-                .textSelection(.enabled)
-            recipients("받는 사람:", message.toRecipients)
-            recipients("참조:", message.ccRecipients)
             if !attachments.isEmpty {
                 // Outlook처럼 파일 종류 아이콘·이름·크기 카드. 누르면 훑어보기, ⌄ 메뉴, Finder로 끌어 저장 (S-032, S-035)
                 AttachmentStrip {
@@ -209,11 +195,117 @@ struct MessageHeader: View {
             HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                 Text(label)
                     .foregroundStyle(.secondary)
-                Text(list.map(\.emailAddress.display).joined(separator: ", "))
-                    .lineLimit(2)
-                    .textSelection(.enabled)
+                // 받는 사람이 많으면 줄을 넘겨 늘어놓는다.
+                FlowLayout(spacing: Space.xs) {
+                    ForEach(Array(list.enumerated()), id: \.offset) { index, r in
+                        AddressToken(recipient: r, trailingComma: index < list.count - 1)
+                    }
+                }
             }
             .font(.callout)
+        }
+    }
+}
+
+/// 보낸 사람 머리글자 원 (연락처 사진 대신)
+struct SenderAvatar: View {
+    let name: String
+
+    private var initials: String {
+        let words = name.split(whereSeparator: { $0 == " " || $0 == "." }).filter { !$0.isEmpty }
+        guard let first = words.first?.first else { return "?" }
+        // 한글 이름은 첫 글자, 영문은 두 단어 첫 글자
+        if first.unicodeScalars.first.map({ (0xAC00...0xD7A3).contains($0.value) }) == true { return String(first) }
+        let second = words.dropFirst().first?.first.map(String.init) ?? ""
+        return (String(first) + second).uppercased()
+    }
+
+    var body: some View {
+        Text(initials)
+            .font(.headline)
+            .foregroundStyle(Palette.accentText)
+            .frame(width: 40, height: 40)
+            .background(Palette.accent.opacity(0.15), in: Circle())
+            .accessibilityHidden(true)
+    }
+}
+
+/// 머리글의 주소 하나: 이름(없으면 주소)을 단추로 보이고, 누르면 주소 메뉴를 연다.
+struct AddressToken: View {
+    let recipient: Recipient
+    var prominent = false
+    var trailingComma = false
+    @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
+
+    private var address: String { recipient.emailAddress.address ?? "" }
+    private var name: String { recipient.emailAddress.display }
+
+    var body: some View {
+        Menu {
+            Text(address)
+            Divider()
+            Button("주소 복사") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(recipient.emailAddress.mailAddress?.editable ?? address, forType: .string)
+            }
+            if model.mailboxes.vip(address: address) == nil {
+                Button("VIP에 추가…") { model.editVIP(address: address, name: recipient.emailAddress.name) }
+            } else {
+                Button("VIP 이름·아이콘 변경…") { model.editVIP(address: address, name: recipient.emailAddress.name) }
+                Button("VIP에서 빼기") { model.removeVIP(address: address) }
+            }
+            Button("발신자 차단") { Task { await model.block(address: address) } }
+            Button("새로운 이메일") {
+                openWindow(id: "compose", value: ComposeDraft(to: recipient.emailAddress.mailAddress?.editable ?? address))
+            }
+            Divider()
+            Button("이전 수신자 목록에서 제거") { model.addressBook.remove(address) }
+            Divider()
+            Button("'\(name)' 검색") {
+                model.searchScope = .all
+                model.searchText = recipient.emailAddress.name?.isEmpty == false ? (recipient.emailAddress.name ?? address) : address
+                Task { await model.loadMessages() }
+            }
+        } label: {
+            Text(name + (trailingComma ? "," : ""))
+                .font(prominent ? .headline : .callout)
+                .foregroundStyle(.primary)
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help(address)
+        .disabled(address.isEmpty)
+    }
+}
+
+/// 왼쪽부터 늘어놓다 폭이 차면 다음 줄로 넘기는 배치 (받는 사람 목록)
+struct FlowLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0 && x + s.width > width { x = 0; y += line + spacing; line = 0 }
+            x += s.width + spacing
+            line = max(line, s.height)
+            widest = max(widest, x - spacing)
+        }
+        return CGSize(width: min(widest, width), height: y + line)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, line: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + s.width > bounds.maxX { x = bounds.minX; y += line + spacing; line = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
+            x += s.width + spacing
+            line = max(line, s.height)
         }
     }
 }

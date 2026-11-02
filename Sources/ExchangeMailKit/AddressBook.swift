@@ -27,6 +27,11 @@ public struct AddressBook: Codable, Equatable, Sendable {
     }
 
     /// 내가 보낸 받는 사람.
+    /// 이전 수신자 목록에서 지운다 (자동완성에 다시 나오지 않게)
+    public mutating func remove(_ address: String) {
+        entries.removeValue(forKey: address.lowercased())
+    }
+
     public mutating func noteSent(_ addresses: [MailAddress], me: String?, at date: Date = Date()) {
         note(addresses, me: me, date: date, sent: true)
     }

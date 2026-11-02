@@ -61,6 +61,11 @@ extension AppModel {
         editingVIP = mailboxes.vip(address: address) ?? VIP(address: address, name: m.from?.emailAddress.name ?? "")
     }
 
+    /// 주소 하나로 VIP 편집기를 연다 (머리글 주소 메뉴)
+    func editVIP(address: String, name: String?) {
+        editingVIP = mailboxes.vip(address: address) ?? VIP(address: address, name: name ?? "")
+    }
+
     func saveVIP(_ vip: VIP) {
         mailboxes.save(vip)
         editingVIP = nil
