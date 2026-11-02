@@ -165,9 +165,10 @@ struct ArchivedMailView: View {
             .gridProbe("archive-header", area: "archive-message")
             .padding(Space.margin)
             Divider()
-            HTMLView(html: page) { url in
+            // 끝 클로저는 onPrint(인자 없음)에 붙으므로 onMailto는 이름을 붙여 넘긴다.
+            HTMLView(html: page, onMailto: { url in
                 openWindow(id: "compose", value: ComposeDraft.mailto(url))
-            }
+            })
         }
         .gridArea("archive-message")
     }
