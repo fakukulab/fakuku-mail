@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import SwiftUI
 import WebKit
 
