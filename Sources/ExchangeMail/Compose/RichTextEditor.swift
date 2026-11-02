@@ -235,6 +235,8 @@ struct RichTextEditor: NSViewRepresentable {
 /// 글꼴·크기·색·굵게·정렬·목록·링크·그림 도구 막대 (작성 창과 서명 편집기 공용).
 struct FormatToolbar: View {
     let controller: RichTextController
+    /// 서식 막대에 Siri로 글쓰기 단추를 둘지 (작성 창은 창 도구 막대에 둔다)
+    var showsWritingTools = true
     @State private var family = "Apple SD Gothic Neo"
     @State private var size = 14
     @State private var color = Color.primary
@@ -291,10 +293,11 @@ struct FormatToolbar: View {
             Button("그림", systemImage: "photo") { pickImage() }
                 .labelStyle(.iconOnly)
                 .help("그림 넣기")
-            Divider().frame(height: Space.lg)
-            Button("Siri로 글쓰기", systemImage: "apple.intelligence") { controller.showWritingTools() }
-                .labelStyle(.titleAndIcon)
-                .help("고쳐 쓰기, 교정, 요약, 말투 바꾸기 (⌃⌘W). 고른 글이 없으면 본문 전체. Apple Intelligence를 켜야 합니다.")
+            if showsWritingTools {
+                Button("Siri로 글쓰기", systemImage: "apple.writing.tools") { controller.showWritingTools() }
+                    .labelStyle(.iconOnly)
+                    .help("Siri로 글쓰기")
+            }
             Spacer(minLength: 0)
         }
         .controlSize(.small)

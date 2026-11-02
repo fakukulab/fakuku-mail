@@ -66,7 +66,7 @@ struct ComposeView: View {
                 UndoSendBar(seconds: left) { compose.cancelSend() }
                 Divider()
             }
-            FormatToolbar(controller: compose.editor)
+            FormatToolbar(controller: compose.editor, showsWritingTools: false)
             Divider()
             RichTextEditor(controller: compose.editor)
             if compose.uploadFraction != nil || compose.hasLargeAttachments || movedImageCount > 0 {
@@ -333,6 +333,11 @@ struct ComposeView: View {
             .keyboardShortcut("s")
             .disabled(compose.savingDraft)
             .help("임시 보관함에 저장 (⌘S)")
+        }
+        // 맥 Mail처럼 창 도구 막대의 아이콘 단추 (⌃⌘W)
+        ToolbarItem {
+            Button("Siri로 글쓰기", systemImage: "apple.writing.tools") { compose.editor.showWritingTools() }
+                .help("Siri로 글쓰기")
         }
         ToolbarItem {
             fieldsMenu
