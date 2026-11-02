@@ -909,3 +909,26 @@ func appendToBody() {
     #expect(MailMerge.appendToBody("<html><body><p>x</p></BODY></html>", "<p>F</p>") == "<html><body><p>x</p><p>F</p></BODY></html>")
     #expect(MailMerge.appendToBody("<p>x</p>", "<p>F</p>") == "<p>x</p><p>F</p>")
 }
+
+@Test("Exchange가 나눈 대화도 답장 제목이면 한 줄로, 보낸 편지함의 내 답장도 센다")
+func groupConversationsBySubjectAndRelated() {
+    func m(_ id: String, _ conv: String, _ subject: String, _ hours: Double, from: String = "kim@x.com") -> MailMessage {
+        MailMessage(id: id, conversationId: conv, subject: subject, from: Recipient(name: nil, address: from),
+                    receivedDateTime: Date(timeIntervalSince1970: 1_714_557_600 - hours * 3_600))
+    }
+    let inbox = [
+        m("1", "A", "견적 요청", 5),
+        m("2", "B", "RE: 견적 요청", 1),          // 바깥 메일 앱 답장: Exchange가 다른 대화로 나눔
+        m("3", "C", "안녕하세요", 2),
+        m("4", "D", "안녕하세요", 3),             // 답장이 아닌 같은 제목: 합치지 않는다
+    ]
+    let sent = [m("s1", "A", "회신: 견적 요청", 4, from: "me@corp.com"), m("s2", "Z", "다른 건", 6, from: "me@corp.com")]
+    let groups = Conversations.group(inbox, related: sent)
+    #expect(groups.count == 3)
+    let quote = groups.first { $0.messageIDs.contains("1") }
+    #expect(quote?.messageIDs == ["2", "1"])
+    #expect(quote?.count == 3)
+    #expect(quote?.participants(me: "me@corp.com").contains("나") == true)
+    #expect(Conversations.normalizedSubject("RE: FW: 회신: Re[2]:  견적   요청").base == "견적 요청")
+    #expect(Conversations.normalizedSubject("견적").wasReply == false)
+}

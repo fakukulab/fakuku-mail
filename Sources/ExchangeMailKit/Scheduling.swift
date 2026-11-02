@@ -169,3 +169,64 @@ public enum ScheduledSend {
         date.timeIntervalSince(now) >= 60
     }
 }
+
+// MARK: 회의 응답 뒤 일정 확인 (S-038)
+
+/// 수락한 회의가 실제로 내 일정(캘린더 보기)에 들어갔는지 확인한 결과
+public struct MeetingCheck: Equatable, Sendable {
+    /// 응답을 보낸 일정의 상태 (accepted 등)
+    public var response: String?
+    /// 그 일정이 들어 있는 캘린더 이름
+    public var calendarName: String?
+    public var isCancelled: Bool
+    /// 회의 시간대의 캘린더 보기에서 같은 회의(iCalUId)를 찾았는지
+    public var foundInCalendarView: Bool
+    /// 캘린더 보기에 있는 같은 회의의 응답 상태
+    public var calendarViewResponse: String?
+    /// 같은 회의(iCalUId)인 다른 일정 id (메일에 딸린 일정과 캘린더의 일정이 다를 때)
+    public var otherEventIDs: [String]
+    /// Outlook 웹에서 이 일정을 여는 주소
+    public var webLink: URL?
+
+    public init(response: String?, calendarName: String?, isCancelled: Bool, foundInCalendarView: Bool,
+                calendarViewResponse: String?, otherEventIDs: [String], webLink: URL?) {
+        self.response = response
+        self.calendarName = calendarName
+        self.isCancelled = isCancelled
+        self.foundInCalendarView = foundInCalendarView
+        self.calendarViewResponse = calendarViewResponse
+        self.otherEventIDs = otherEventIDs
+        self.webLink = webLink
+    }
+
+    /// 사람에게 보일 한 줄 요약
+    public var summary: String {
+        var parts: [String] = []
+        parts.append("서버 응답: \(MeetingResponse.describe(response))")
+        if let calendarName { parts.append("캘린더: \(calendarName)") }
+        if isCancelled { parts.append("주최자가 취소한 회의") }
+        parts.append(foundInCalendarView
+            ? "일정 보기에 있음 (\(MeetingResponse.describe(calendarViewResponse)))"
+            : "일정 보기에서 찾지 못함")
+        if !otherEventIDs.isEmpty { parts.append("같은 회의의 다른 일정 \(otherEventIDs.count)개") }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// 회의 확인용 Graph 응답 (GraphList에 넣으려면 Kit에 둔다: 앱 타깃 타입은 메인 액터에 묶인다)
+public struct EventDetail: Decodable, Sendable {
+    public struct Calendar: Decodable, Sendable { public let name: String? }
+    public let iCalUId: String?
+    public let isCancelled: Bool?
+    public let webLink: String?
+    public let start: GraphDateTime?
+    public let end: GraphDateTime?
+    public let responseStatus: MailEvent.ResponseStatus?
+    public let calendar: Calendar?
+}
+
+public struct EventRef: Decodable, Sendable {
+    public let id: String
+    public let iCalUId: String?
+    public let responseStatus: MailEvent.ResponseStatus?
+}

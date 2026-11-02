@@ -205,6 +205,10 @@ final class AppModel {
     var errorMessage: String?
     /// 오류가 아닌 알림 (구독 취소 완료 등)
     var noticeMessage: String?
+    /// 마지막 회의 응답 뒤 일정 확인 결과 (회의 막대의 '일정에서 보기')
+    var meetingCheck: MeetingCheck?
+    /// 대화별로 정리할 때 함께 세는 다른 폴더의 메일 (받은 편지함이면 보낸 편지함, 보낸 편지함이면 받은 편지함)
+    var relatedMessages: [MailMessage] = []
     /// 스냅숏에서 로그인 화면을 찍을 때만 켠다.
     var previewSignIn = false
 
@@ -342,6 +346,7 @@ final class AppModel {
             // 서버 폴더가 아닌 상자·모든 폴더 검색은 서버 필터를 쓰지 않으므로 앱이 다 건다.
             let serverFiltered = page.serverFiltered && !VirtualMailbox.isVirtual(folderID) && search.isEmpty
             messages = arrange(page.messages, serverFiltered: serverFiltered)
+            Task { await loadRelated(for: folderID, searching: !search.isEmpty) }
             addressBook.noteSeen(page.messages, me: auth.email)
             nextLink = page.nextLink
             if let pending = pendingOpenID, messages.contains(where: { $0.id == pending }) {
@@ -353,6 +358,24 @@ final class AppModel {
         } catch {
             report(error)
         }
+    }
+
+    /// 대화별 정리용 관련 메일: 받은 편지함 등은 보낸 편지함의 최근 메일, 보낸 편지함은 받은 편지함의 최근 메일.
+    /// 그래서 내 답장이 있는 대화는 어느 폴더에서나 같은 모양(수, 참여자)으로 보인다.
+    func loadRelated(for folderID: String, searching: Bool) async {
+        guard Self.organizeByConversation, !searching, !VirtualMailbox.isVirtual(folderID) else {
+            relatedMessages = []
+            return
+        }
+        let kind = folders.first { $0.id == folderID }?.kind ?? folderID
+        guard !["drafts", "deleteditems", "junkemail", "outbox"].contains(kind) else {
+            relatedMessages = []
+            return
+        }
+        let other = kind == "sentitems" ? "inbox" : "sentitems"
+        let list = (try? await service.messages(folderID: other, search: nil).messages) ?? []
+        guard folderID == selectedFolderID else { return }
+        relatedMessages = list
     }
 
     /// 목록 끝에 닿으면 다음 쪽을 더 불러온다.
@@ -552,15 +575,27 @@ final class AppModel {
                 let fresh = try await service.event(id: eventID)
                 serverValue = fresh.responseStatus?.response
                 if detail?.event?.id == eventID { detail?.event = fresh }
-                if serverValue == response.graphValue { return }
+                if serverValue == response.graphValue { break }
             } catch {
                 errorMessage = "회의 응답은 보냈지만 일정을 다시 찾을 수 없습니다. 주최자가 일정을 바꿨거나 취소했을 수 있습니다. "
                     + "Outlook 웹에서 확인해 주세요.\n(\(error.localizedDescription))"
                 return
             }
         }
-        errorMessage = "회의 응답(\(response.label))을 보냈지만 Exchange 일정에 아직 반영되지 않았습니다. "
-            + "지금 서버 상태: \(MeetingResponse.describe(serverValue)). 잠시 뒤 Outlook 일정에서 다시 확인해 주세요."
+        // 메일에 딸린 일정의 상태만으로는 부족하다: 실제 일정(캘린더 보기)에 그 회의가 들어갔는지 확인한다.
+        guard response != .decline, let check = try? await service.meetingCheck(eventID: eventID) else { return }
+        meetingCheck = check
+        if !check.otherEventIDs.isEmpty {
+            // 캘린더에 있는 같은 회의가 다른 일정이면 그 일정에도 같은 응답을 보낸다.
+            for other in check.otherEventIDs { try? await service.respond(toEvent: other, with: response) }
+            try? await Task.sleep(for: .seconds(2))
+            if let again = try? await service.meetingCheck(eventID: eventID) { meetingCheck = again }
+        }
+        let final = meetingCheck ?? check
+        if !final.foundInCalendarView || final.isCancelled || final.calendarViewResponse != response.graphValue {
+            noticeMessage = "회의 응답(\(response.label))을 보냈습니다. 확인 결과: \(final.summary). "
+                + "아래 '일정에서 보기'로 Outlook 웹 일정을 열어 확인해 주세요."
+        }
     }
 
     /// 설정 > 보기 > '읽음으로 표시' 동작: 바로(기본), 5초 뒤(그때도 보고 있으면), 하지 않음

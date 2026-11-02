@@ -471,6 +471,13 @@ final class DemoMailService: MailService {
         throw URLError(.fileDoesNotExist)
     }
 
+    func meetingCheck(eventID: String) async throws -> MeetingCheck {
+        let e = try await event(id: eventID)
+        return MeetingCheck(response: e.responseStatus?.response, calendarName: "캘린더", isCancelled: false,
+                            foundInCalendarView: true, calendarViewResponse: e.responseStatus?.response,
+                            otherEventIDs: [], webLink: nil)
+    }
+
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
         try checkOnline()
         for (folder, list) in store {

@@ -165,8 +165,10 @@ enum SelfTest {
             let defaults = UserDefaults.standard
             let savedThreaded = defaults.object(forKey: "list.threaded")
             defaults.set(true, forKey: "list.threaded")
+            await model.loadRelated(for: "inbox", searching: false)
             let quote = model.conversations.first { $0.id == "conv-quote" }
-            check("S-025 견적 대화는 목록에서 한 줄(2통)이다", quote?.count == 2 && quote?.latest.id == "m1")
+            check("S-025 견적 대화는 목록에서 한 줄(이 폴더 2통)이다", quote?.messages.count == 2 && quote?.latest.id == "m1")
+            check("대화 수에는 보낸 편지함의 내 답장도 센다 (어느 폴더에서나 같은 모양)", quote?.count == 3)
             await model.setRead(id: "m7", false)
             await open("m2")
             await open("m1")

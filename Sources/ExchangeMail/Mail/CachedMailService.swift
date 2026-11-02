@@ -182,6 +182,10 @@ final class CachedMailService: MailService {
         try await write("일정을 확인할") { try await remote.event(id: id) }
     }
 
+    func meetingCheck(eventID: String) async throws -> MeetingCheck {
+        try await write("일정을 확인할") { try await remote.meetingCheck(eventID: eventID) }
+    }
+
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
         try await write("회의 초대에 답할") { try await remote.respond(toEvent: eventID, with: response) }
     }

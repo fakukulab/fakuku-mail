@@ -78,6 +78,8 @@ protocol MailService: AnyObject {
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws
     /// 일정을 서버에서 다시 읽는다 (응답이 실제로 반영됐는지 확인)
     func event(id: String) async throws -> MailEvent
+    /// 응답한 회의가 실제 일정(캘린더 보기)에 있는지, 같은 회의의 다른 일정이 있는지 (S-038)
+    func meetingCheck(eventID: String) async throws -> MeetingCheck
     /// 받은 편지함 서버 규칙 (S-039, MailboxSettings.ReadWrite)
     func rules() async throws -> [MessageRule]
     func createRule(_ rule: MessageRule) async throws -> MessageRule
@@ -436,6 +438,43 @@ final class GraphMailService: MailService {
         let data = try await request("GET", "/me/events/\(id)",
                                      query: ["$select": "id,subject,start,end,location,isAllDay,responseStatus"])
         return try decoder.decode(MailEvent.self, from: data)
+    }
+
+    func meetingCheck(eventID: String) async throws -> MeetingCheck {
+        let data = try await request("GET", "/me/events/\(eventID)", query: [
+            "$select": "id,iCalUId,isCancelled,webLink,start,end,responseStatus",
+            "$expand": "calendar($select=name)",
+        ])
+        let d = try decoder.decode(EventDetail.self, from: data)
+        var found = false
+        var viewResponse: String?
+        var others: [String] = []
+        if let uid = d.iCalUId, let start = d.start?.date, let end = d.end?.date {
+            // 회의 앞뒤 하루를 넉넉히 본다 (시간대 차이).
+            let f = ISO8601DateFormatter()
+            let view = try await request("GET", "/me/calendarView", query: [
+                "startDateTime": f.string(from: start.addingTimeInterval(-86_400)),
+                "endDateTime": f.string(from: end.addingTimeInterval(86_400)),
+                "$select": "id,iCalUId,responseStatus", "$top": "100",
+            ])
+            let items = try decoder.decode(GraphList<EventRef>.self, from: view).value
+            if let match = items.first(where: { $0.iCalUId == uid }) {
+                found = true
+                viewResponse = match.responseStatus?.response
+                if match.id != eventID { others.append(match.id) }
+            }
+            // 다른 캘린더에 같은 회의가 따로 있는지
+            let same = try? await request("GET", "/me/events", query: [
+                "$filter": "iCalUId eq '\(uid.replacingOccurrences(of: "'", with: "''"))'", "$select": "id,iCalUId,responseStatus",
+            ])
+            if let same, let list = try? decoder.decode(GraphList<EventRef>.self, from: same).value {
+                for e in list where e.id != eventID && !others.contains(e.id) { others.append(e.id) }
+            }
+        }
+        return MeetingCheck(response: d.responseStatus?.response, calendarName: d.calendar?.name,
+                            isCancelled: d.isCancelled ?? false, foundInCalendarView: found,
+                            calendarViewResponse: viewResponse, otherEventIDs: others,
+                            webLink: d.webLink.flatMap(URL.init(string:)))
     }
 
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {

@@ -10,7 +10,7 @@ extension AppModel {
 
     /// 지금 폴더 목록을 대화로 묶은 것
     var conversations: [Conversation] {
-        let groups = Conversations.group(messages)
+        let groups = Conversations.group(messages, related: relatedMessages)
         // 정렬 기준이 날짜 내림차순이 아니면 대화의 최근 메일로 정렬한다 (S-042).
         guard listSort != MailSort() else { return groups }
         let order = listSort.apply(groups.map(\.latest)).map(\.id)

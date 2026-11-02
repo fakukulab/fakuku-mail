@@ -421,6 +421,12 @@ struct MeetingBar: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            // 응답 뒤 일정 확인 결과가 있으면 Outlook 웹 일정에서 바로 확인한다 (S-038)
+            if let link = model.meetingCheck?.webLink {
+                Button("일정에서 보기") { NSWorkspace.shared.open(link) }
+                    .controlSize(.small)
+                    .help(model.meetingCheck?.summary ?? "")
+            }
             ControlGroup {
                 ForEach(MeetingResponse.allCases, id: \.self) { r in
                     Button(r.label) {
