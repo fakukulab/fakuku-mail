@@ -378,65 +378,85 @@ private struct MergeSendPane: View {
         }
     }
 
+    /// 왼쪽: 1 무엇을 누구에게 → 2 어떻게 → 요약과 단추. 오른쪽: 받는 사람마다의 미리보기.
     private var setup: some View {
         HStack(alignment: .top, spacing: Space.xl) {
-            Form {
-                Picker("템플릿:", selection: $templateID) {
-                    Text("고르세요").tag(UUID?.none)
-                    ForEach(model.merge.templates) { Text($0.name).tag(UUID?.some($0.id)) }
-                }
-                Picker("그룹:", selection: $groupID) {
-                    Text("고르세요").tag(UUID?.none)
-                    ForEach(model.merge.groups) { Text("\($0.name) (\($0.sendable.count)명)").tag(UUID?.some($0.id)) }
-                }
-                Picker("서명:", selection: $options.signatureID) {
-                    Text("없음").tag(UUID?.none)
-                    ForEach(model.signatures.signatures) { Text($0.name).tag(UUID?.some($0.id)) }
-                }
-                Picker("우선 순위:", selection: $options.importance) {
-                    Text("보통").tag("normal")
-                    Text("높음").tag("high")
-                    Text("낮음").tag("low")
-                }
-                Picker("발송 간격:", selection: $preset) {
-                    ForEach(SendPacing.Preset.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
-                .onChange(of: preset) { _, p in options.pacing = p.pacing }
-                LabeledContent("수신 거부:") {
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        Toggle("List-Unsubscribe 헤더 넣기", isOn: $options.unsubscribeHeader)
-                        Toggle("본문 끝에 수신 거부 안내 문구", isOn: $options.unsubscribeFooter)
-                    }
-                }
-                LabeledContent("") {
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text("스팸으로 보이지 않게:").font(.callout.weight(.semibold))
-                        Group {
-                            Text("• 한 사람에게 한 통씩, 받는 사람 칸에 그 사람만 넣어 보냅니다 (숨은 참조 대량 발송 아님).")
-                            Text("• 정해진 간격 안에서 무작위로 쉬고, 시간당 한도를 넘지 않습니다.")
-                            Text("• 이름 같은 자리표시자로 사람마다 내용이 다릅니다.")
-                            Text("• Exchange가 제한하면(429) 쉬었다가 다시 보냅니다. 보낸 메일은 보낸 편지함에 하나씩 남습니다.")
+            VStack(alignment: .leading, spacing: Space.lg) {
+                step(1, "무엇을 누구에게") {
+                    row("템플릿") {
+                        Picker("템플릿", selection: $templateID) {
+                            Text("고르세요").tag(UUID?.none)
+                            ForEach(model.merge.templates) { Text($0.name).tag(UUID?.some($0.id)) }
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    row("받는 그룹") {
+                        Picker("받는 그룹", selection: $groupID) {
+                            Text("고르세요").tag(UUID?.none)
+                            ForEach(model.merge.groups) { Text("\($0.name) (\($0.sendable.count)명)").tag(UUID?.some($0.id)) }
+                        }
                     }
                 }
-                LabeledContent("") {
-                    HStack(spacing: Space.sm) {
-                        Button("나에게 시험 발송") { sendTest() }
-                            .disabled(!ready)
-                        Button("발송 시작…") { confirm = true }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!ready)
+                step(2, "어떻게") {
+                    row("발송 간격") {
+                        Picker("발송 간격", selection: $preset) {
+                            ForEach(SendPacing.Preset.allCases, id: \.self) { Text($0.label).tag($0) }
+                        }
+                        .onChange(of: preset) { _, p in options.pacing = p.pacing }
+                    }
+                    row("서명") {
+                        Picker("서명", selection: $options.signatureID) {
+                            Text("없음").tag(UUID?.none)
+                            ForEach(model.signatures.signatures) { Text($0.name).tag(UUID?.some($0.id)) }
+                        }
+                    }
+                    row("우선 순위") {
+                        Picker("우선 순위", selection: $options.importance) {
+                            Text("보통").tag("normal")
+                            Text("높음").tag("high")
+                            Text("낮음").tag("low")
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    row("수신 거부") {
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            Toggle("List-Unsubscribe 헤더", isOn: $options.unsubscribeHeader)
+                            Toggle("본문 끝에 안내 문구", isOn: $options.unsubscribeFooter)
+                        }
                     }
                 }
+                DisclosureGroup("스팸으로 보이지 않게 이렇게 보냅니다") {
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Text("• 한 사람에게 한 통씩, 받는 사람 칸에 그 사람만 (숨은 참조 대량 발송 아님)")
+                        Text("• 간격 안에서 무작위로 쉬고, 시간당 한도를 넘지 않음")
+                        Text("• 자리표시자로 사람마다 내용이 다름")
+                        Text("• Exchange가 제한하면(429) 쉬었다가 다시 보냄")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Space.xs)
+                }
+                .font(.callout)
+                Spacer(minLength: 0)
+                Divider()
+                Text(summaryText)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let message {
-                    LabeledContent("") { SettingsNote(message) }
+                    SettingsNote(message)
+                }
+                HStack(spacing: Space.sm) {
+                    Button("나에게 시험 발송") { sendTest() }
+                        .disabled(!ready)
+                    Spacer()
+                    Button("발송 시작…") { confirm = true }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!ready)
                 }
             }
-            .formStyle(.columns)
-            .frame(width: 440)
+            .frame(width: 380)
             preview
         }
         .onAppear {
@@ -449,6 +469,42 @@ private struct MergeSendPane: View {
         } message: {
             Text(confirmText)
         }
+    }
+
+    /// 단계 한 덩어리: "1  무엇을 누구에게" 제목과 그 아래 줄들
+    private func step<Content: View>(_ number: Int, _ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            HStack(spacing: Space.sm) {
+                Text("\(number)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Palette.onAccent)
+                    .frame(width: 20, height: 20)
+                    .background(Palette.accent, in: Circle())
+                Text(title).font(.headline)
+            }
+            content()
+        }
+    }
+
+    /// 단계 안의 한 줄: 같은 너비 레이블 + 컨트롤
+    private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 72, alignment: .trailing)
+            content()
+                .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// 보내기 전 한 줄 요약
+    private var summaryText: String {
+        guard let template, let group else { return "템플릿과 받는 그룹을 고르세요." }
+        let count = group.sendable.count
+        guard count > 0 else { return "\(group.name) 그룹에 보낼 사람이 없습니다. 그룹 탭에서 사람을 넣으세요." }
+        let minutes = Int(options.pacing.estimatedSeconds(count: count) / 60)
+        return "'\(template.name)'을(를) \(group.name)의 \(count)명에게 한 통씩 보냅니다. 약 \(minutes)분 걸립니다."
     }
 
     private var ready: Bool { template != nil && !(group?.sendable.isEmpty ?? true) && model.isSignedIn }

@@ -52,7 +52,8 @@ Mail stays on the server (Microsoft Graph). Local data: signatures in
 - Windows open calm: `.noInitialFocus()` on every window and sheet (no focus ring or selected text on open), `.fitsContent()` on sheets (no scroll bar with nothing to scroll); every Settings tab has the same fixed size (`SettingsView.size`) so the window does not jump between tabs. System scroll bars. Both in `UI/WindowBehavior.swift`.
 - Settings: Mail's tabs in `SettingsView.swift` (일반, 계정, 정크 메일, 서체 및 색상, 보기, 작성, 서명, 규칙, 자동 응답, 알림).
   Setting keys and defaults live in `UI/Prefs.swift`; models read them with `Prefs.bool`/`Prefs.string`.
-  Each is one `.formStyle(.columns)` Form: right-aligned labels ending in a colon, controls in the right column,
+  Each tab is a left-aligned VStack styled by `SettingsRowStyle`: every row is a `LabeledContent` with a fixed-width,
+  right-aligned label ending in a colon and controls left-aligned after it (controls inside use `.labelsHidden()`),
   notes as `SettingsNote`. Signatures, rules, and auto reply edit lists and keep their own layouts. Add a case to `SettingsTab` for a new tab.
 - Window chrome (title bar, toolbar, sidebar, menus, sheets) stays system. Buttons use system styles, like `.borderedProminent`.
 - Colors: `.primary`, `.secondary`, `.tint`, and system colors. Never fixed grays or white for text.

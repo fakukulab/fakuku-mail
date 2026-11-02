@@ -45,7 +45,7 @@ struct SettingsView: View {
             .frame(width: Self.size.width, height: Self.size.height)
         default:
             ScrollView {
-                Form {
+                VStack(alignment: .leading, spacing: Space.lg) {
                     switch tab {
                     case .general: GeneralSettings()
                     case .account: AccountSettings()
@@ -57,12 +57,28 @@ struct SettingsView: View {
                     default: EmptyView()
                     }
                 }
-                .formStyle(.columns)
+                // 모든 탭이 같은 너비의 레이블 열(오른쪽 정렬)과 왼쪽 맞춤 컨트롤 열을 쓴다.
+                .labeledContentStyle(SettingsRowStyle())
                 .padding(.horizontal, Self.marginX)
                 .padding(.vertical, Self.marginY)
-                .frame(maxWidth: .infinity, alignment: .top)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .frame(width: Self.size.width, height: Self.size.height)
+        }
+    }
+}
+
+/// 설정 한 줄: 같은 너비의 레이블 열(오른쪽 정렬, 콜론) + 왼쪽 맞춤 컨트롤 열.
+/// 탭마다 레이블 길이가 달라도 컨트롤이 같은 자리에서 시작한다.
+struct SettingsRowStyle: LabeledContentStyle {
+    static let labelWidth: CGFloat = 180
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+            configuration.label
+                .frame(width: Self.labelWidth, alignment: .trailing)
+            configuration.content
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
@@ -126,12 +142,15 @@ struct GeneralSettings: View {
 
     var body: some View {
         Section {
-            Picker("새 메일 확인:", selection: $refreshMinutes) {
-                Text("1분마다").tag(1)
-                Text("2분마다").tag(2)
-                Text("5분마다").tag(5)
-                Text("15분마다").tag(15)
-                Text("수동").tag(0)
+            LabeledContent("새 메일 확인:") {
+                Picker("새 메일 확인", selection: $refreshMinutes) {
+                    Text("1분마다").tag(1)
+                    Text("2분마다").tag(2)
+                    Text("5분마다").tag(5)
+                    Text("15분마다").tag(15)
+                    Text("수동").tag(0)
+                }
+                    .labelsHidden()
             }
             .fixedSize()
             LabeledContent("Dock 배지:") {
@@ -210,8 +229,14 @@ struct AccountSettings: View {
             }
         }
         Section {
-            TextField("클라이언트 ID:", text: $clientID)
-            TextField("테넌트:", text: $tenant, prompt: Text("비우면 common"))
+            LabeledContent("클라이언트 ID:") {
+                TextField("클라이언트 ID", text: $clientID)
+                    .labelsHidden()
+            }
+            LabeledContent("테넌트:") {
+                TextField("테넌트", text: $tenant, prompt: Text("비우면 common"))
+                    .labelsHidden()
+            }
             LabeledContent("리디렉션 URI:") {
                 Text(model.auth.redirectURI)
                     .textSelection(.enabled)
@@ -275,6 +300,7 @@ struct BlockedSettings: View {
                         get: { model.blockEnabled },
                         set: { on in save(model.blockedAddresses, model.blockMode, on) }))
                         .disabled(busy || model.blockedAddresses.isEmpty)
+                    Text("차단된 주소에서 메일이 오면:")
                     Picker("차단된 주소에서 메일이 오면", selection: Binding(
                         get: { model.blockMode },
                         set: { mode in save(model.blockedAddresses, mode, model.blockEnabled) })) {
@@ -282,6 +308,7 @@ struct BlockedSettings: View {
                         Text("지운 편지함으로 이동").tag(BlockedSenders.Mode.trash)
                     }
                     .pickerStyle(.radioGroup)
+                    .labelsHidden()
                     .disabled(busy || model.blockedAddresses.isEmpty)
                     if model.blockedAddresses.isEmpty {
                         SettingsNote(model.blockedLoaded ? "차단한 보낸 사람이 없습니다. 메일을 오른쪽 클릭해 \"보낸 사람 차단\"을 고르거나 아래에 주소를 넣으세요."
@@ -356,8 +383,11 @@ struct FontSettings: View {
 
     var body: some View {
         Section {
-            Picker("메시지 목록 글자 크기:", selection: $listSize) {
-                ForEach([11, 12, 13, 14, 15, 16, 18], id: \.self) { Text("\($0)").tag($0) }
+            LabeledContent("메시지 목록 글자 크기:") {
+                Picker("메시지 목록 글자 크기", selection: $listSize) {
+                    ForEach([11, 12, 13, 14, 15, 16, 18], id: \.self) { Text("\($0)").tag($0) }
+                }
+                    .labelsHidden()
             }
             .fixedSize()
             LabeledContent("메시지 서체:") {
@@ -460,20 +490,29 @@ struct ViewingSettings: View {
             LabeledContent("목록:") {
                 Toggle("대화별로 정리", isOn: $threaded)
             }
-            Picker("정렬 기준:", selection: $model.listSort.key) {
-                ForEach(MailSort.Key.allCases, id: \.self) { Text($0.label).tag($0) }
+            LabeledContent("정렬 기준:") {
+                Picker("정렬 기준", selection: $model.listSort.key) {
+                    ForEach(MailSort.Key.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                    .labelsHidden()
             }
             .fixedSize()
-            Picker("순서:", selection: $model.listSort.descending) {
-                Text(model.listSort.key == .date ? "새로운 항목 우선" : "내림차순").tag(true)
-                Text(model.listSort.key == .date ? "오래된 항목 우선" : "오름차순").tag(false)
+            LabeledContent("순서:") {
+                Picker("순서", selection: $model.listSort.descending) {
+                    Text(model.listSort.key == .date ? "새로운 항목 우선" : "내림차순").tag(true)
+                    Text(model.listSort.key == .date ? "오래된 항목 우선" : "오름차순").tag(false)
+                }
+                    .labelsHidden()
             }
             .fixedSize()
         }
         Section {
-            Picker("목록 미리보기:", selection: $previewLines) {
-                Text("없음").tag(0)
-                ForEach(1...5, id: \.self) { Text("\($0)줄").tag($0) }
+            LabeledContent("목록 미리보기:") {
+                Picker("목록 미리보기", selection: $previewLines) {
+                    Text("없음").tag(0)
+                    ForEach(1...5, id: \.self) { Text("\($0)줄").tag($0) }
+                }
+                    .labelsHidden()
             }
             .fixedSize()
             LabeledContent("목록:") {
@@ -482,10 +521,13 @@ struct ViewingSettings: View {
                     Toggle("메시지를 지우거나 보관한 후 자동으로 다음 메시지 보기", isOn: $selectNext)
                 }
             }
-            Picker("'읽음으로 표시' 동작:", selection: $markRead) {
-                Text("메시지를 열면 바로").tag("now")
-                Text("5초 동안 보고 있으면").tag("delay")
-                Text("직접 표시할 때만").tag("never")
+            LabeledContent("'읽음으로 표시' 동작:") {
+                Picker("'읽음으로 표시' 동작", selection: $markRead) {
+                    Text("메시지를 열면 바로").tag("now")
+                    Text("5초 동안 보고 있으면").tag("delay")
+                    Text("직접 표시할 때만").tag("never")
+                }
+                    .labelsHidden()
             }
             .fixedSize()
         }
@@ -531,15 +573,21 @@ struct ComposingSettings: View {
 
     var body: some View {
         Section {
-            Picker("맞춤법 검사:", selection: $spellcheck) {
-                Text("입력할 때").tag(true)
-                Text("안 함").tag(false)
+            LabeledContent("맞춤법 검사:") {
+                Picker("맞춤법 검사", selection: $spellcheck) {
+                    Text("입력할 때").tag(true)
+                    Text("안 함").tag(false)
+                }
+                    .labelsHidden()
             }
             .fixedSize()
-            Picker("자동으로 나를 포함:", selection: $autoIncludeMe) {
-                Text("안 함").tag("none")
-                Text("참조에").tag("cc")
-                Text("숨은 참조에").tag("bcc")
+            LabeledContent("자동으로 나를 포함:") {
+                Picker("자동으로 나를 포함", selection: $autoIncludeMe) {
+                    Text("안 함").tag("none")
+                    Text("참조에").tag("cc")
+                    Text("숨은 참조에").tag("bcc")
+                }
+                    .labelsHidden()
             }
             .fixedSize()
         }
@@ -558,11 +606,14 @@ struct ComposingSettings: View {
             }
         }
         Section {
-            Picker("보내기 취소:", selection: $undoDelay) {
-                Text("끔").tag(0)
-                Text("5초").tag(5)
-                Text("10초").tag(10)
-                Text("20초").tag(20)
+            LabeledContent("보내기 취소:") {
+                Picker("보내기 취소", selection: $undoDelay) {
+                    Text("끔").tag(0)
+                    Text("5초").tag(5)
+                    Text("10초").tag(10)
+                    Text("20초").tag(20)
+                }
+                    .labelsHidden()
             }
             .fixedSize()
             LabeledContent("") {
