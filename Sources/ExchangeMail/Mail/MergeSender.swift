@@ -67,9 +67,12 @@ final class MergeSender {
     static func render(_ template: MergeTemplate, for member: MergeMember, signature: Signature?,
                        footer: Bool, me: String = "") -> (subject: String, html: String) {
         let subject = MailMerge.render(template.subject, for: member, html: false)
-        var html = MailMerge.render(template.html, for: member, html: true)
-        if signature != nil { html += SignatureComposer.block(for: signature) }
-        if footer && !me.isEmpty { html += footerHTML(me: me) }
+        var extra = ""
+        if signature != nil { extra += SignatureComposer.block(for: signature) }
+        if footer && !me.isEmpty { extra += footerHTML(me: me) }
+        // 가져온 HTML 템플릿은 </body></html>로 끝나므로, 그 뒤가 아니라 </body> 앞에 넣는다
+        // (</html> 뒤의 내용은 Outlook 등이 버린다).
+        let html = MailMerge.appendToBody(MailMerge.render(template.html, for: member, html: true), extra)
         return (subject, html)
     }
 

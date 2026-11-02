@@ -101,6 +101,17 @@ public enum MailMerge {
         }
     }
 
+    /// HTML 문서의 </body> 바로 앞에 덧붙인다. </body>가 없으면 끝에 붙인다.
+    public static func appendToBody(_ html: String, _ extra: String) -> String {
+        guard !extra.isEmpty else { return html }
+        if let close = html.range(of: "</body>", options: [.caseInsensitive, .backwards]) {
+            var out = html
+            out.insert(contentsOf: extra, at: close.lowerBound)
+            return out
+        }
+        return html + extra
+    }
+
     /// 본문에 쓰인 자리표시자 이름들 (미리보기 경고용)
     public static func placeholders(in text: String) -> [String] {
         guard let re = try? NSRegularExpression(pattern: #"\{\{\s*([^{}]+?)\s*\}\}"#) else { return [] }

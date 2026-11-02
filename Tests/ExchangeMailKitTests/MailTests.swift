@@ -903,3 +903,9 @@ func unsubscribeHeader() {
     #expect(Unsubscribe.from(headers: [InternetHeader(name: "Subject", value: "x")]) == nil)
     #expect(Unsubscribe.from(headers: [InternetHeader(name: "list-unsubscribe", value: "<mailto:a@b.com>")])?.oneClick == false)
 }
+
+@Test("가져온 HTML 문서에는 </body> 앞에 덧붙인다")
+func appendToBody() {
+    #expect(MailMerge.appendToBody("<html><body><p>x</p></BODY></html>", "<p>F</p>") == "<html><body><p>x</p><p>F</p></BODY></html>")
+    #expect(MailMerge.appendToBody("<p>x</p>", "<p>F</p>") == "<p>x</p><p>F</p>")
+}
