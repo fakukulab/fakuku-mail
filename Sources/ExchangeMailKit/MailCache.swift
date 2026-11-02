@@ -75,6 +75,8 @@ public struct MailCache: Sendable {
     /// 오래된 본문부터 지워 `maxMessages`만 남긴다.
     public func prune() {
         let dir = root.appending(path: "messages", directoryHint: .isDirectory)
+        // 대부분은 한도 안이다: 파일 수만 빠르게 세고, 넘을 때만 날짜를 읽는다.
+        guard ((try? FileManager.default.contentsOfDirectory(atPath: dir.path).count) ?? 0) > maxMessages else { return }
         let keys: [URLResourceKey] = [.contentModificationDateKey]
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys),
               files.count > maxMessages else { return }

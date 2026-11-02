@@ -9,7 +9,8 @@ struct DraftPreview {
     var bodyHTML: String
 }
 
-struct MessagePage {
+/// 백그라운드(캐시 저장)로 넘기므로 메인 액터에 묶지 않는다.
+nonisolated struct MessagePage: Sendable {
     var messages: [MailMessage]
     var nextLink: String?
     /// 필터를 서버가 걸었는지 (아니면 앱이 다 건다: 검색 중, 오프라인 캐시, 데모)
@@ -235,9 +236,32 @@ final class GraphMailService: MailService {
         try await request("GET", "/me/messages/\(messageID)/attachments/\(attachmentID)/$value")
     }
 
+    /// 첨부 목록. 내용(contentBytes)은 받지 않는다: 큰 파일까지 다 받으면 메일 하나 여는 데 수 MB가 오간다.
+    /// 본문에 들어가는 인라인 그림만 내용을 함께(병렬로) 받는다. 파일은 열거나 저장할 때 받는다 (loadedAttachment).
     func attachments(messageID: String) async throws -> [FileAttachment] {
-        let data = try await request("GET", "/me/messages/\(messageID)/attachments")
-        return try decoder.decode(GraphList<FileAttachment>.self, from: data).value
+        let data = try await request("GET", "/me/messages/\(messageID)/attachments",
+                                     query: ["$select": "id,name,contentType,size,isInline"])
+        var list = try decoder.decode(GraphList<FileAttachment>.self, from: data).value
+        let inline = list.indices.filter { i in
+            let a = list[i]
+            return a.isInline == true && (a.odataType ?? "").hasSuffix("fileAttachment")
+        }
+        guard !inline.isEmpty else { return list }
+        // 인라인 그림: contentId와 내용이 필요하다. 하나씩 전체를 받는다 (병렬).
+        let ids = inline.map { list[$0].id }
+        let fetched = await withTaskGroup(of: (String, FileAttachment?).self) { group in
+            for id in ids {
+                group.addTask { @MainActor [self] in
+                    let one = try? await self.request("GET", "/me/messages/\(messageID)/attachments/\(id)")
+                    return (id, one.flatMap { try? self.decoder.decode(FileAttachment.self, from: $0) })
+                }
+            }
+            var out: [String: FileAttachment] = [:]
+            for await (id, a) in group { if let a { out[id] = a } }
+            return out
+        }
+        for i in inline { if let full = fetched[list[i].id] { list[i] = full } }
+        return list
     }
 
     // MARK: 바꾸기

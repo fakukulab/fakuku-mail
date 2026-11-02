@@ -183,10 +183,9 @@ final class AppModel {
             shownMessageID = nil
             thread = []
             updateMenu()
-            Task {
-                await loadDetail()
-                await loadThread()
-            }
+            // 본문과 대화를 동시에 불러온다 (대화가 본문을 기다리지 않게).
+            Task { await loadDetail() }
+            Task { await loadThread() }
         }
     }
     /// 대화 보기에서 펼친 메일 (S-025). nil이면 목록에서 고른 메일.
@@ -380,18 +379,22 @@ final class AppModel {
             return
         }
         do {
+            // 본문을 먼저 보이고(첨부를 기다리지 않는다), 첨부 목록과 인라인 그림은 뒤이어 채운다.
             let m = try await service.message(id: id)
-            var attachments: [FileAttachment] = []
-            if (m.hasAttachments ?? false) || (m.body?.content.contains("cid:") ?? false) {
-                attachments = try await service.attachments(messageID: id)
-            }
             guard id == displayedMessageID else { return }
             detail = m
-            addressBook.noteSeen([m], me: auth.email)
-            detailAttachments = attachments
-            detailBody = MailContent.displayBody(m.body, attachments: attachments)
+            detailAttachments = []
+            detailBody = MailContent.displayBody(m.body, attachments: [])
             updateMenu()
-            if m.isUnread { await markReadAfterOpening(id) }
+            addressBook.noteSeen([m], me: auth.email)
+            if m.isUnread { Task { await markReadAfterOpening(id) } }
+            if (m.hasAttachments ?? false) || (m.body?.content.contains("cid:") ?? false) {
+                let attachments = try await service.attachments(messageID: id)
+                guard id == displayedMessageID else { return }
+                detailAttachments = attachments
+                detailBody = MailContent.displayBody(m.body, attachments: attachments)
+                updateMenu()
+            }
         } catch {
             report(error)
         }

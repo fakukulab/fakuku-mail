@@ -12,6 +12,8 @@ final class CachedMailService: MailService {
     /// 오프라인 상태가 바뀔 때 (AppModel이 막대를 띄운다)
     var onOfflineChange: ((Bool) -> Void)?
     private(set) var isOffline = false
+    /// 캐시 파일 쓰기용 (메인 스레드 밖, 순서대로)
+    private static let writer = DispatchQueue(label: "ExchangeMail.cache-writer", qos: .utility)
 
     init(remote: any MailService, base: URL, account: @escaping () -> String?, enabled: @escaping () -> Bool) {
         self.remote = remote
@@ -35,12 +37,14 @@ final class CachedMailService: MailService {
     }
 
     /// 서버에서 읽고 저장한다. 오프라인이면 `fallback`(저장된 것)을, 그것도 없으면 오류를 던진다.
-    private func read<T>(_ load: () async throws -> T, save: (MailCache, T) -> Void,
-                         fallback: (MailCache) -> T?) async throws -> T {
+    private func read<T: Sendable>(_ load: () async throws -> T, save: @escaping @Sendable (MailCache, T) -> Void,
+                                   fallback: (MailCache) -> T?) async throws -> T {
         do {
             let value = try await load()
             setOffline(false)
-            if let c = writableCache { save(c, value) }
+            // 저장(JSON 만들기, 파일 쓰기, 오래된 것 정리)은 메인 스레드 밖에서 한다: 화면이 멈추지 않게.
+            // 한 줄로 차례대로 쓴다 (본문을 쓴 뒤에 그 메일의 첨부를 쓰도록).
+            if let c = writableCache { Self.writer.async { save(c, value) } }
             return value
         } catch let error where OfflineError.isOffline(error) {
             setOffline(true)
