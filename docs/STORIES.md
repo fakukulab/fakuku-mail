@@ -404,11 +404,19 @@ Status: todo (보류: 같은 회사 Teams 초대에서 "수락함"은 떴지만 
 
 ### S-039 규칙
 As the user, 설정 > 규칙에서 "보낸 사람/제목에 ~가 있으면 → 폴더로 이동·읽음·중요도 높음·지우기" 규칙을 만들고 켜고 끄고 지운다 (서버 규칙, MailboxSettings.ReadWrite). Graph 규칙에는 깃발 동작이 없어 중요도 높음으로 바꿨다.
-Status: todo
+Acceptance:
+- [unit] 조건(보낸 사람/제목, 쉼표로 여러 단어)과 동작 하나로 Graph 규칙 본문을 만들고, 목록 줄에 "제목에 '견적' 포함 → 프로젝트로 이동"처럼 보인다.
+- [self] 규칙을 만들고, 끄고, 지운다.
+- [manual] 설정 > 규칙에서 만든 규칙이 Outlook 웹의 받은 편지함 규칙에도 보이고, 새 메일에 적용된다.
+Status: doing (코드 완료, 맥 빌드·실제 계정 확인 대기)
 
 ### S-040 부재중 자동 응답
 As the user, 설정 > 자동 응답에서 자동 응답을 켜고, 기간과 조직 안·밖에 보낼 글을 정한다.
-Status: todo
+Acceptance:
+- [unit] 기간이 있으면 scheduled, 없으면 alwaysEnabled. 글은 이스케이프한 HTML(줄바꿈은 <br>)로 저장하고, 읽을 때 평문으로 되돌린다.
+- [self] 자동 응답을 저장하고 다시 읽으면 같은 값이다.
+- [manual] 켠 뒤 다른 계정에서 메일을 보내면 자동 응답이 온다. Outlook 웹의 자동 회신 설정에도 같은 값이 보인다.
+Status: doing (코드 완료, 맥 빌드·실제 계정 확인 대기)
 
 ## Later
 - Sparkle 업데이트와 공증 배포 (기획안 7장)

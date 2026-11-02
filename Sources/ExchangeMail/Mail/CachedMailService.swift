@@ -116,6 +116,30 @@ final class CachedMailService: MailService {
         try await write("예약할") { try await remote.scheduleDraft(id: id, at: date) }
     }
 
+    func rules() async throws -> [MessageRule] {
+        try await write("규칙을 불러올") { try await remote.rules() }
+    }
+
+    func createRule(_ rule: MessageRule) async throws -> MessageRule {
+        try await write("규칙을 만들") { try await remote.createRule(rule) }
+    }
+
+    func setRule(id: String, enabled: Bool) async throws {
+        try await write("규칙을 바꿀") { try await remote.setRule(id: id, enabled: enabled) }
+    }
+
+    func deleteRule(id: String) async throws {
+        try await write("규칙을 지울") { try await remote.deleteRule(id: id) }
+    }
+
+    func automaticReplies() async throws -> AutomaticReplies {
+        try await write("자동 응답을 불러올") { try await remote.automaticReplies() }
+    }
+
+    func setAutomaticReplies(_ settings: AutomaticReplies) async throws {
+        try await write("자동 응답을 저장할") { try await remote.setAutomaticReplies(settings) }
+    }
+
     func event(id: String) async throws -> MailEvent {
         try await write("일정을 확인할") { try await remote.event(id: id) }
     }

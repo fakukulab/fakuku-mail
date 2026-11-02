@@ -615,3 +615,47 @@ func meetingResponseValues() {
     #expect(MeetingResponse.describe("notResponded") == "아직 응답 안 함")
     #expect(MeetingResponse.describe(nil) == "아직 응답 안 함")
 }
+
+// S-039 규칙, S-040 자동 응답
+
+@Test("간단한 규칙을 Graph 규칙으로 만든다")
+func ruleDraft() throws {
+    let draft = RuleDraft(name: "", field: .subject, text: " 견적,  발주 ,", action: .move(folderID: "f1"))
+    #expect(draft.words == ["견적", "발주"])
+    let rule = draft.rule(sequence: 3)
+    #expect(rule.displayName == "견적, 발주")
+    #expect(rule.conditions?.subjectContains == ["견적", "발주"])
+    #expect(rule.conditions?.senderContains == nil)
+    #expect(rule.actions?.moveToFolder == "f1")
+    let body = rule.createBody
+    #expect(body["sequence"] as? Int == 3)
+    #expect((body["conditions"] as? [String: Any])?["subjectContains"] as? [String] == ["견적", "발주"])
+    #expect((body["actions"] as? [String: Any])?["moveToFolder"] as? String == "f1")
+    #expect(body["id"] == nil)
+    #expect(rule.summary { $0 == "f1" ? "프로젝트" : nil } == "제목에 '견적', '발주' 포함 → 프로젝트로 이동")
+    #expect(!RuleDraft(name: "x", field: .sender, text: " , ", action: .markRead).isValid)
+}
+
+@Test("규칙 목록 JSON을 읽는다")
+func ruleDecode() throws {
+    let json = #"{"value":[{"id":"r1","displayName":"견적","sequence":1,"isEnabled":true,"conditions":{"senderContains":["a@x.com"]},"actions":{"markAsRead":true,"stopProcessingRules":false}}]}"#
+    let list = try GraphJSON.decoder().decode(GraphList<MessageRule>.self, from: Data(json.utf8))
+    #expect(list.value.first?.conditions?.senderContains == ["a@x.com"])
+    #expect(list.value.first?.summary { _ in nil } == "보낸 사람에 'a@x.com' 포함 → 읽음으로 표시")
+}
+
+@Test("자동 응답: 기간이 있으면 scheduled, 글은 HTML로")
+func automaticReplies() throws {
+    let start = Date(timeIntervalSince1970: 1_714_557_600)
+    let a = AutomaticReplies.make(on: true, start: start, end: start.addingTimeInterval(86_400), audience: "all",
+                                  internalText: "휴가 중입니다.\n<급한 일>은 팀장에게", externalText: "Out of office")
+    #expect(a.status == "scheduled")
+    #expect(a.scheduledStartDateTime == GraphDateTime(dateTime: "2024-05-01T10:00:00", timeZone: "UTC"))
+    #expect(a.internalReplyMessage == "휴가 중입니다.<br>&lt;급한 일&gt;은 팀장에게")
+    #expect(AutomaticReplies.plain(a.internalReplyMessage) == "휴가 중입니다.\n<급한 일>은 팀장에게")
+    #expect(AutomaticReplies.make(on: true, start: nil, end: nil, audience: "none", internalText: "", externalText: "").status == "alwaysEnabled")
+    #expect(!AutomaticReplies.make(on: false, start: start, end: start, audience: "none", internalText: "", externalText: "").isOn)
+    let encoded = try JSONEncoder().encode(a)
+    let back = try JSONDecoder().decode(AutomaticReplies.self, from: encoded)
+    #expect(back == a)
+}

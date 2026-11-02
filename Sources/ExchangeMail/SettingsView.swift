@@ -32,6 +32,8 @@ struct SettingsView: View {
                 case .attachments: AttachFixSettings()
                 case .notifications: NotificationSettings()
                 case .sending: SendingSettings()
+                case .rules: RulesSettings()
+                case .autoReply: AutoReplySettings()
                 case .appearance: AppearanceSettings()
                 case .signatures: EmptyView()
                 }
@@ -45,7 +47,7 @@ struct SettingsView: View {
 
 /// The Settings tabs. Snapshot mode walks through every case.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case account, signatures, attachments, sending, notifications, appearance
+    case account, signatures, attachments, sending, rules, autoReply, notifications, appearance
 
     var id: String { rawValue }
 
@@ -55,6 +57,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .signatures: "서명"
         case .attachments: "첨부 보정"
         case .sending: "보내기"
+        case .rules: "규칙"
+        case .autoReply: "자동 응답"
         case .notifications: "알림"
         case .appearance: "모양"
         }
@@ -66,6 +70,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .signatures: "signature"
         case .attachments: "paperclip"
         case .sending: "paperplane"
+        case .rules: "line.3.horizontal.decrease.circle"
+        case .autoReply: "arrowshape.turn.up.backward.badge.clock"
         case .notifications: "bell.badge"
         case .appearance: "paintpalette"
         }

@@ -30,3 +30,8 @@
 | 깃발, 깃발 표시 | `FollowupFlag`, `FolderOrder.flaggedID` | 중요 표시와 그 메일을 모은 스마트 폴더 |
 | 정크 메일로 표시 / 정크 아님 | `toggleJunkSelected` | 정크 메일 폴더로 / 받은 편지함으로 |
 | 하위 폴더 | `MailFolder.depth`, `FolderOrder.tree` | 사이드바에서 들여 쓴 폴더 |
+| 규칙 | `MessageRule`, `RuleDraft`, `RulesSettings` | Exchange 받은 편지함 서버 규칙 |
+| 자동 응답 | `AutomaticReplies`, `AutoReplySettings` | 부재중 자동 회신 |
+| 보내기 취소 | `ComposeModel.sendCountdown` | 보내기 뒤 정해 둔 초 동안 되돌리기 |
+| 나중에 보내기 | `ScheduledSend`, `ComposeModel.schedule` | Exchange 지연 발송 |
+| 회의 초대 | `MailEvent`, `MeetingBar` | 수락·미정·거절 (S-038 보류) |

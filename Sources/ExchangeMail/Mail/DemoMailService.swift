@@ -341,6 +341,45 @@ final class DemoMailService: MailService {
         scheduled.append((id, date))
     }
 
+    private(set) var ruleList: [MessageRule] = []
+    private(set) var autoReplies = AutomaticReplies()
+    private var ruleCounter = 0
+
+    func rules() async throws -> [MessageRule] {
+        try checkOnline()
+        return ruleList
+    }
+
+    func createRule(_ rule: MessageRule) async throws -> MessageRule {
+        try checkOnline()
+        ruleCounter += 1
+        var saved = rule
+        saved.id = "rule\(ruleCounter)"
+        ruleList.append(saved)
+        return saved
+    }
+
+    func setRule(id: String, enabled: Bool) async throws {
+        try checkOnline()
+        guard let i = ruleList.firstIndex(where: { $0.id == id }) else { throw URLError(.fileDoesNotExist) }
+        ruleList[i].isEnabled = enabled
+    }
+
+    func deleteRule(id: String) async throws {
+        try checkOnline()
+        ruleList.removeAll { $0.id == id }
+    }
+
+    func automaticReplies() async throws -> AutomaticReplies {
+        try checkOnline()
+        return autoReplies
+    }
+
+    func setAutomaticReplies(_ settings: AutomaticReplies) async throws {
+        try checkOnline()
+        autoReplies = settings
+    }
+
     func event(id: String) async throws -> MailEvent {
         try checkOnline()
         for list in store.values {

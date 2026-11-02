@@ -596,6 +596,28 @@ enum SelfTest {
                 check("S-038 데모 받은 편지함에 회의 초대가 있다", false)
             }
 
+            // M12: 규칙, 자동 응답 (설정 화면이 쓰는 서비스 호출 그대로)
+            let ruleDraft = RuleDraft(name: "견적 메일", field: .subject, text: "견적", action: .move(folderID: "projects"))
+            if let made = try? await model.service.createRule(ruleDraft.rule(sequence: 1)) {
+                let listed = (try? await model.service.rules()) ?? []
+                check("S-039 규칙을 만들면 목록에 보인다", listed.contains { $0.id == made.id && $0.actions?.moveToFolder == "projects" })
+                try? await model.service.setRule(id: made.id, enabled: false)
+                let toggled = (try? await model.service.rules())?.first { $0.id == made.id }
+                check("S-039 규칙을 끌 수 있다", toggled?.isEnabled == false)
+                try? await model.service.deleteRule(id: made.id)
+                let afterDelete = (try? await model.service.rules()) ?? []
+                check("S-039 규칙을 지우면 사라진다", !afterDelete.contains { $0.id == made.id })
+            } else {
+                check("S-039 규칙을 만든다", false)
+            }
+            let away = AutomaticReplies.make(on: true, start: Date(), end: Date().addingTimeInterval(86_400), audience: "contactsOnly",
+                                             internalText: "휴가 중입니다.", externalText: "I am away.")
+            try? await model.service.setAutomaticReplies(away)
+            let readBack = try? await model.service.automaticReplies()
+            check("S-040 자동 응답을 저장하고 다시 읽는다",
+                  readBack?.status == "scheduled" && AutomaticReplies.plain(readBack?.internalReplyMessage) == "휴가 중입니다."
+                      && readBack?.externalAudience == "contactsOnly")
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

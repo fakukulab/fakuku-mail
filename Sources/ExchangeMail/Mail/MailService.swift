@@ -53,6 +53,14 @@ protocol MailService: AnyObject {
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws
     /// 일정을 서버에서 다시 읽는다 (응답이 실제로 반영됐는지 확인)
     func event(id: String) async throws -> MailEvent
+    /// 받은 편지함 서버 규칙 (S-039, MailboxSettings.ReadWrite)
+    func rules() async throws -> [MessageRule]
+    func createRule(_ rule: MessageRule) async throws -> MessageRule
+    func setRule(id: String, enabled: Bool) async throws
+    func deleteRule(id: String) async throws
+    /// 부재중 자동 응답 (S-040)
+    func automaticReplies() async throws -> AutomaticReplies
+    func setAutomaticReplies(_ settings: AutomaticReplies) async throws
 }
 
 struct GraphError: LocalizedError {
@@ -305,6 +313,37 @@ final class GraphMailService: MailService {
 
     func scheduleDraft(id: String, at date: Date) async throws {
         _ = try await request("PATCH", "/me/messages/\(id)", body: try json(ScheduledSend.patchBody(sendAt: date)))
+    }
+
+    private let rulesPath = "/me/mailFolders/inbox/messageRules"
+
+    func rules() async throws -> [MessageRule] {
+        let data = try await request("GET", rulesPath)
+        return try decoder.decode(GraphList<MessageRule>.self, from: data).value
+            .sorted { ($0.sequence ?? 0) < ($1.sequence ?? 0) }
+    }
+
+    func createRule(_ rule: MessageRule) async throws -> MessageRule {
+        let data = try await request("POST", rulesPath, body: try json(rule.createBody))
+        return try decoder.decode(MessageRule.self, from: data)
+    }
+
+    func setRule(id: String, enabled: Bool) async throws {
+        _ = try await request("PATCH", "\(rulesPath)/\(id)", body: try json(["isEnabled": enabled]))
+    }
+
+    func deleteRule(id: String) async throws {
+        _ = try await request("DELETE", "\(rulesPath)/\(id)")
+    }
+
+    func automaticReplies() async throws -> AutomaticReplies {
+        let data = try await request("GET", "/me/mailboxSettings/automaticRepliesSetting")
+        return try decoder.decode(AutomaticReplies.self, from: data)
+    }
+
+    func setAutomaticReplies(_ settings: AutomaticReplies) async throws {
+        struct Body: Encodable { let automaticRepliesSetting: AutomaticReplies }
+        _ = try await request("PATCH", "/me/mailboxSettings", body: try JSONEncoder().encode(Body(automaticRepliesSetting: settings)))
     }
 
     func event(id: String) async throws -> MailEvent {
