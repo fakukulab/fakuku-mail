@@ -111,6 +111,9 @@ final class AppModel {
     var categories: [String] = []
     /// VIP와 스마트 메일상자 (S-045, S-046)
     let mailboxes = MailboxStore(url: Store.directory.appending(path: "mailboxes.json"))
+    /// 개별 발송 템플릿·그룹과 실행기 (M18)
+    let merge = MergeStore(url: Store.directory.appending(path: "merge.json"))
+    let mergeSender = MergeSender()
     /// 열린 VIP 편집 시트 (이름·아이콘)
     var editingVIP: VIP?
     /// 열린 스마트 메일상자 편집 시트

@@ -790,6 +790,31 @@ enum SelfTest {
             check("차단: 모두 풀면 규칙도 지운다",
                   model.blockedRule == nil && !rulesAfterUnblock.contains(where: BlockedSenders.isBlockRule))
 
+            // M18: 개별 발송 (간격은 셀프 테스트에서 바로 넘긴다)
+            if let demo = model.demoService {
+                let sentBefore = demo.sent.count
+                let tpl = model.merge.addTemplate(name: "시험 템플릿")
+                var filled = tpl
+                filled.subject = "{{이름}}님께 안내"
+                filled.html = "<p>{{이름}}님({{회사}}) 안녕하세요.</p>"
+                model.merge.save(filled)
+                var group = model.merge.addGroup(name: "시험 그룹")
+                group.members = MailMerge.members(fromCSV: "이름,이메일,회사\n가,a@ex.com,에이\n나,b@ex.com,비\n가2,A@ex.com,중복\n").members
+                model.merge.save(group)
+                let sender = model.mergeSender
+                sender.sleeper = { _ in }
+                sender.start(template: filled, group: group, options: MergeSender.Options(), app: model)
+                for _ in 0..<50 where sender.isActive { try? await Task.sleep(for: .seconds(0.1)) }
+                let sent = demo.sent.dropFirst(sentBefore).map { String(decoding: $0, as: UTF8.self) }
+                check("M18 그룹의 사람마다 한 통씩 (겹친 주소는 한 번)", sender.status == .finished && sent.count == 2)
+                check("M18 받는 사람 칸에는 그 사람만", sent.allSatisfy { $0.components(separatedBy: "@ex.com").count == 2 })
+                check("M18 자리표시자가 사람마다 채워진다", sent.contains { $0.contains("에이") } && sent.contains { $0.contains("비") })
+                check("M18 수신 거부 헤더", sent.allSatisfy { $0.contains("List-Unsubscribe:") })
+                sender.clear()
+                model.merge.removeTemplate(filled.id)
+                model.merge.removeGroup(group.id)
+            }
+
             // M17: 맥 Mail 메뉴
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))

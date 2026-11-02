@@ -840,3 +840,29 @@ func blockedSenders() {
     #expect(BlockedSenders.mode(of: trash) == .trash)
     #expect(BlockedSenders.isBlockRule(trash))
 }
+
+@Test("개별 발송: 자리표시자, CSV, 발송 간격")
+func mailMerge() {
+    let m = MergeMember(name: "김<철수>", email: "kim@corp.com", fields: ["회사": "A&B"])
+    #expect(MailMerge.render("{{이름}}님 ({{ 회사 }}) {{없음}}", for: m, html: true) == "김&lt;철수&gt;님 (A&amp;B) ")
+    #expect(MailMerge.render("{{name}} <{{email}}>", for: m, html: false) == "김<철수> <kim@corp.com>")
+    #expect(MailMerge.placeholders(in: "{{이름}} {{회사}} {{이름}}") == ["이름", "회사"])
+
+    let csv = "이름,이메일,회사\n홍길동,hong@x.com,\"가나, 다라\"\n잘못,not-an-email,X\n,lee@y.com,\n"
+    let r = MailMerge.members(fromCSV: csv)
+    #expect(r.members.map(\.email) == ["hong@x.com", "lee@y.com"])
+    #expect(r.members.first?.fields["회사"] == "가나, 다라")
+    #expect(r.skipped == 1)
+    #expect(MailMerge.members(fromCSV: "name;email\nA;a@b.com").members.first?.name == "A")
+
+    let g = MergeGroup(name: "g", members: [MergeMember(name: "a", email: "a@x.com"), MergeMember(name: "A", email: "A@x.com"),
+                                            MergeMember(name: "b", email: "bad")])
+    #expect(g.sendable.count == 1)
+
+    let p = SendPacing.Preset.careful.pacing
+    #expect(p.gap(random: 0) == 60 && p.gap(random: 1) == 120)
+    let now = Date()
+    let thirty = (0..<30).map { now.addingTimeInterval(-Double($0) * 60) }
+    #expect(p.hourlyWait(sentAt: thirty, now: now) > 0)
+    #expect(p.hourlyWait(sentAt: Array(thirty.prefix(29)), now: now) == 0)
+}

@@ -28,6 +28,8 @@ public struct OutgoingMessage: Sendable {
     public var importance: String?
     /// 답장 받을 사람 (Reply-To)
     public var replyTo: [MailAddress] = []
+    /// 수신 거부 주소 (List-Unsubscribe, 개별 발송). 받는 쪽 메일 앱이 "구독 취소" 단추를 보여 준다.
+    public var listUnsubscribe: String?
 
     public init(from: MailAddress, to: [MailAddress], cc: [MailAddress] = [], bcc: [MailAddress] = [],
                 subject: String, html: String, attachments: [OutgoingAttachment] = [],
@@ -187,6 +189,7 @@ public enum MIMEBuilder {
         if !msg.to.isEmpty { h += "To: \(addressList(msg.to))\r\n" }
         if !msg.cc.isEmpty { h += "Cc: \(addressList(msg.cc))\r\n" }
         if !msg.replyTo.isEmpty { h += "Reply-To: \(addressList(msg.replyTo))\r\n" }
+        if let u = msg.listUnsubscribe, !u.isEmpty { h += "List-Unsubscribe: <\(u)>\r\n" }
         // Graph는 Bcc 헤더로 숨은 참조를 받고, 받는 사람에게는 이 헤더를 지워서 보낸다.
         if !msg.bcc.isEmpty { h += "Bcc: \(addressList(msg.bcc))\r\n" }
         h += "Subject: \(encodedWords(msg.subject))\r\n"

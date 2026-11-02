@@ -257,3 +257,11 @@ func replyToHeader() {
     msg.replyTo = [MailAddress(address: "team@b.com")]
     #expect(mime(msg).contains("Reply-To: team@b.com\r\n"))
 }
+
+@Test("개별 발송 메일에는 List-Unsubscribe 헤더")
+func listUnsubscribeHeader() {
+    var msg = OutgoingMessage(from: MailAddress(address: "a@b.com"), to: [MailAddress(address: "c@d.com")],
+                              subject: "s", html: "<p>x</p>")
+    msg.listUnsubscribe = "mailto:a@b.com?subject=unsubscribe"
+    #expect(mime(msg).contains("List-Unsubscribe: <mailto:a@b.com?subject=unsubscribe>\r\n"))
+}

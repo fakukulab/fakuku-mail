@@ -19,6 +19,8 @@ struct ComposeSender {
         var importance = "normal"
         /// 답장 받을 사람 (Reply-To)
         var replyTo = ""
+        /// 수신 거부 주소 (개별 발송)
+        var listUnsubscribe: String?
     }
 
     enum Problem: LocalizedError, Equatable {
@@ -106,6 +108,7 @@ struct ComposeSender {
                                inReplyTo: input.draft.inReplyTo, references: input.draft.references,
                                importance: input.importance == "normal" ? nil : input.importance)
         message.replyTo = replyTo.valid
+        message.listUnsubscribe = input.listUnsubscribe
         return message
     }
 

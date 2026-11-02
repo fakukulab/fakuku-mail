@@ -63,6 +63,15 @@ struct ExchangeMailApp: App {
         .defaultSize(width: 820, height: 760)
         .windowToolbarStyle(.unified)
 
+        // 개별 발송 (M18)
+        Window("개별 발송", id: "merge") {
+            MergeWindow()
+                .environment(model)
+                .themed()
+                .frame(minWidth: 900, minHeight: 600)
+        }
+        .defaultSize(width: 1040, height: 720)
+
         // 원본 보기 (M17)
         WindowGroup("원본", id: "source", for: String.self) { $id in
             SourceWindow(messageID: id ?? "")
@@ -309,6 +318,9 @@ struct MailCommands: Commands {
 
     @ViewBuilder
     private var messageMenu: some View {
+        Button("개별 발송…") { openWindow(id: "merge") }
+            .keyboardShortcut("m", modifiers: [.command, .option, .shift])
+            .disabled(!menu.signedIn)
         Button("다시 보내기") { if let d = model.sendAgainDraft() { openWindow(id: "compose", value: d) } }
             .keyboardShortcut("d", modifiers: [.command, .option])
             .disabled(reader != nil || !menu.hasMessage)
