@@ -735,3 +735,58 @@ func displayBody() {
     #expect(MailContent.displayBody(text, attachments: [file]) == text)
     #expect(MailContent.displayBody(nil, attachments: []) == nil)
 }
+
+@Test("스마트 메일상자: 모두/하나라도, 서버 필터, 폴더")
+func smartMailbox() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    var m = MailMessage(id: "a", subject: "견적서 보냅니다", from: Recipient(name: "김 팀장", address: "Kim@Contoso.com"),
+                        receivedDateTime: now.addingTimeInterval(-86_400), hasAttachments: true)
+    m.isRead = false
+    m.parentFolderId = "AAMkFolder"
+    var box = SmartMailbox(name: "견적", conditions: [.init(field: .subject, value: "견적"), .init(field: .unread)])
+    #expect(box.matches(m, vips: [], now: now))
+    m.isRead = true
+    #expect(!box.matches(m, vips: [], now: now))
+    box.matchAll = false
+    #expect(box.matches(m, vips: [], now: now))
+    #expect(box.graphFilter(now: now) == nil)                       // 하나라도: 서버에서 좁히지 않는다
+
+    let recent = SmartMailbox(name: "최근 첨부", conditions: [.init(field: .attachments), .init(field: .receivedWithinDays, value: "3"),
+                                                          .init(field: .sender, value: "contoso")])
+    #expect(recent.matches(m, vips: [], now: now))
+    #expect(recent.graphFilter(now: now)?.hasPrefix("receivedDateTime ge ") == true)
+    #expect(recent.graphFilter(now: now)?.contains("hasAttachments eq true") == true)
+    #expect(!recent.matches(m, vips: [], now: now.addingTimeInterval(5 * 86_400)))
+
+    let vip = SmartMailbox(name: "VIP", conditions: [.init(field: .vip)])
+    #expect(vip.matches(m, vips: ["kim@contoso.com"], now: now))
+    #expect(!vip.matches(m, vips: [], now: now))
+
+    let folder = SmartMailbox(name: "폴더", conditions: [.init(field: .folder, value: "AAMkFolder")])
+    #expect(folder.serverFolderID == "AAMkFolder")
+    #expect(folder.matches(m, vips: [], now: now))
+    #expect(!SmartMailbox(name: "폴더", conditions: [.init(field: .folder, value: "aamkfolder")]).matches(m, vips: [], now: now))
+
+    #expect(!SmartMailbox(name: "", conditions: [.init(field: .unread)]).isValid)
+    #expect(!SmartMailbox(name: "빈 조건", conditions: [.init(field: .sender, value: " ")]).isValid)
+    #expect(!SmartMailbox(name: "일수", conditions: [.init(field: .receivedWithinDays, value: "abc")]).isValid)
+}
+
+@Test("VIP와 사이드바 상자 id")
+func vipAndVirtualIDs() {
+    let vip = VIP(address: " Kim@Contoso.com ", name: "")
+    #expect(vip.id == "kim@contoso.com")
+    #expect(vip.title == "Kim@Contoso.com")
+    let m = MailMessage(id: "a", subject: "s", from: Recipient(name: nil, address: "kim@contoso.com"), receivedDateTime: Date())
+    #expect(vip.isSender(of: m))
+    #expect(VirtualMailbox(id: VirtualMailbox.id(forVIP: "Kim@Contoso.com")) == .vip(address: "kim@contoso.com"))
+    #expect(VirtualMailbox(id: FolderOrder.flaggedID) == .flagged)
+    #expect(VirtualMailbox(id: VirtualMailbox.allVIPsID) == .allVIPs)
+    let box = SmartMailbox(name: "x", conditions: [])
+    #expect(VirtualMailbox(id: box.id) == .smart(id: box.id))
+    #expect(VirtualMailbox(id: "inbox") == nil)
+    #expect(!VirtualMailbox.isVirtual("AAMkFolder"))
+    let saved = LocalMailboxes(vips: [vip], smart: [box])
+    let data = try? JSONEncoder().encode(saved)
+    #expect(data.flatMap { try? JSONDecoder().decode(LocalMailboxes.self, from: $0) } == saved)
+}

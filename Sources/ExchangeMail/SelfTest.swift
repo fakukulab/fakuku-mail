@@ -693,6 +693,63 @@ enum SelfTest {
                 else { check("S-043 초안은 작성 창에서 이어서 쓴다", false) }
             }
 
+            // M15: VIP (S-045), 스마트 메일상자 (S-046)
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.6))
+            if let m = model.messages.first(where: { $0.from?.emailAddress.address != nil }),
+               let address = m.from?.emailAddress.address {
+                model.removeVIP(address: address)
+                model.editVIP(for: m)
+                check("S-045 VIP로 지정하면 편집기가 그 사람으로 열린다", model.editingVIP?.address == address)
+                var vip = model.editingVIP ?? VIP(address: address, name: "")
+                vip.name = "중요한 분"
+                vip.symbol = "crown.fill"
+                model.saveVIP(vip)
+                check("S-045 VIP는 이름·아이콘과 함께 저장된다",
+                      model.mailboxes.vip(for: m)?.symbol == "crown.fill" && model.editingVIP == nil)
+                let reloaded = MailboxStore(url: Store.directory.appending(path: "mailboxes.json"))
+                check("S-045 VIP는 앱을 다시 열어도 남는다", reloaded.vip(address: address)?.name == "중요한 분")
+                model.selectedFolderID = VirtualMailbox.id(forVIP: address)
+                try? await Task.sleep(for: .seconds(0.6))
+                check("S-045 VIP 메일상자에는 그 사람이 보낸 메일만",
+                      !model.messages.isEmpty
+                          && model.messages.allSatisfy { $0.from?.emailAddress.address?.lowercased() == address.lowercased() })
+                check("S-045 목록 제목은 VIP 표시 이름", model.listTitle == "중요한 분")
+                model.selectedFolderID = VirtualMailbox.allVIPsID
+                try? await Task.sleep(for: .seconds(0.6))
+                check("S-045 모든 VIP 상자에 VIP 메일이 모인다", !model.messages.isEmpty)
+                model.removeVIP(address: address)
+                check("S-045 VIP에서 빼면 사라진다", model.mailboxes.vip(for: m) == nil)
+            } else {
+                check("S-045 받은 편지함에 보낸 사람이 있는 메일", false)
+            }
+
+            let unreadAttach = SmartMailbox(name: "안 읽은 첨부", symbol: "paperclip", matchAll: true,
+                                            conditions: [.init(field: .unread), .init(field: .attachments)])
+            model.saveSmart(unreadAttach)
+            try? await Task.sleep(for: .seconds(0.6))
+            check("S-046 만들면 사이드바에 생기고 골라진다",
+                  model.selectedFolderID == unreadAttach.id && model.mailboxes.smart.contains { $0.id == unreadAttach.id })
+            check("S-046 모두 만족이면 모든 조건에 맞는 메일만",
+                  model.messages.allSatisfy { $0.isUnread && $0.hasAttachments == true })
+            let strictCount = model.messages.count
+            var either = unreadAttach
+            either.matchAll = false
+            model.saveSmart(either)
+            try? await Task.sleep(for: .seconds(0.6))
+            check("S-046 하나라도 만족이면 더 넓게 모인다",
+                  model.messages.count >= strictCount && !model.messages.isEmpty
+                      && model.messages.allSatisfy { $0.isUnread || $0.hasAttachments == true })
+            let sentBox = SmartMailbox(name: "보낸 메일", conditions: [.init(field: .folder, value: "sentitems")])
+            model.saveSmart(sentBox)
+            try? await Task.sleep(for: .seconds(0.6))
+            check("S-046 폴더 조건은 그 폴더의 메일만",
+                  !model.messages.isEmpty && model.messages.allSatisfy { $0.parentFolderId == "sentitems" })
+            model.removeSmart(id: sentBox.id)
+            model.removeSmart(id: unreadAttach.id)
+            check("S-046 지우면 사이드바에서 빠지고 받은 편지함으로 돌아간다",
+                  model.mailboxes.smart.isEmpty && model.selectedFolderID == "inbox")
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

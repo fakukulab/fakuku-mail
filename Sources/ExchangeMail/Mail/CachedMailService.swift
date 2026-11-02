@@ -110,6 +110,14 @@ final class CachedMailService: MailService {
         try await write("검색할") { try await remote.searchAll(text) }
     }
 
+    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
+        try await write("스마트 메일상자를 불러올") { try await remote.collectMessages(folderID: folderID, filter: filter) }
+    }
+
+    func messages(fromSender address: String) async throws -> MessagePage {
+        try await write("VIP 메일을 불러올") { try await remote.messages(fromSender: address) }
+    }
+
     func flaggedMessages() async throws -> MessagePage {
         try await read({ try await remote.flaggedMessages() },
                        save: { $0.saveList(folderID: FolderOrder.flaggedID, messages: $1.messages, nextLink: nil) },

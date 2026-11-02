@@ -55,6 +55,10 @@ protocol MailService: AnyObject {
     func flaggedMessages() async throws -> MessagePage
     /// 사서함 전체 검색 (S-033). 결과에는 parentFolderId가 있다.
     func searchAll(_ text: String) async throws -> MessagePage
+    /// 스마트 메일상자 (S-046): `folderID`가 nil이면 모든 폴더. 최근 순. `filter`는 Graph `$filter`.
+    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage
+    /// 한 사람이 보낸 메일, 모든 폴더, 최근 순 (S-045 VIP)
+    func messages(fromSender address: String) async throws -> MessagePage
     /// 폴더 만들기·이름 바꾸기·지우기 (S-031). `parentID`가 nil이면 맨 위에 만든다.
     func createFolder(name: String, parentID: String?) async throws -> MailFolder
     func renameFolder(id: String, name: String) async throws
@@ -319,6 +323,25 @@ final class GraphMailService: MailService {
         let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
         let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
         return MessagePage(messages: list.value, nextLink: list.nextLink)
+    }
+
+    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
+        let r = folderID == nil
+            ? GraphQuery.collect(filter: filter)
+            : GraphQuery.messageList(search: nil, filter: filter, oldestFirst: false, top: 100)
+        let path = folderID.map { "/me/mailFolders/\($0)/messages" } ?? "/me/messages"
+        let data = try await request("GET", path, query: r.query, headers: r.headers)
+        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+        return MessagePage(messages: sorted, nextLink: list.nextLink, serverFiltered: false)
+    }
+
+    func messages(fromSender address: String) async throws -> MessagePage {
+        // KQL from: 검색. 이름이 비슷한 다른 사람이 섞일 수 있어 주소로 다시 거른다.
+        let page = try await searchAll("from:\(address)")
+        let mine = page.messages.filter { $0.from?.emailAddress.address?.lowercased() == address.lowercased() }
+        return MessagePage(messages: mine.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) },
+                           nextLink: nil, serverFiltered: false)
     }
 
     func flaggedMessages() async throws -> MessagePage {

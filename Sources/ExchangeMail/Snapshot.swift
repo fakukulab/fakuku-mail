@@ -9,6 +9,7 @@ import SwiftUI
 ///   every well-known folder (inbox with the first message open, sentitems, drafts, archive, deleteditems),
 ///   signin (the sign-in page), compose (a reply window with a signature and a quote),
 ///   message (a message opened in its own window, S-043),
+///   mailboxes (the VIP and smart mailbox editor sheets: vip-editor, smart-editor),
 ///   and settings-<tab> for every Settings tab. Then quits.
 /// Each PNG gets a <page>-<mode>-layout.json with the grid probes (tools/check-layout.swift).
 /// APP_SNAPSHOT_PAGES=inbox,compose limits the pages. Add "settings" to include Settings.
@@ -88,6 +89,32 @@ enum Snapshot {
                         capture(to: "\(dir)/message-\(mode).png", window: window)
                     }
                     window?.close()
+                }
+            }
+
+            // VIP·스마트 메일상자 편집 시트 (S-045, S-046)
+            if wanted("mailboxes") {
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.8))
+                let sheets: [(String, () -> Void)] = [
+                    ("vip", { model.editingVIP = VIP(address: "kim@contoso.com", name: "김 팀장", symbol: "crown.fill") }),
+                    ("smart", {
+                        model.editingSmart = SmartMailbox(name: "이번 주 첨부", symbol: "paperclip", matchAll: true,
+                                                          conditions: [.init(field: .attachments),
+                                                                       .init(field: .receivedWithinDays, value: "7"),
+                                                                       .init(field: .sender, value: "contoso")])
+                    }),
+                ]
+                for (name, open) in sheets {
+                    open()
+                    for mode in ["light", "dark"] {
+                        NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                        try? await Task.sleep(for: .seconds(1))
+                        capture(to: "\(dir)/\(name)-editor-\(mode).png", window: main?.attachedSheet ?? main)
+                    }
+                    model.editingVIP = nil
+                    model.editingSmart = nil
+                    try? await Task.sleep(for: .seconds(0.6))
                 }
             }
 

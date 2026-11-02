@@ -83,6 +83,8 @@ struct MenuSnapshot: Equatable {
     var filterActive = false
     var isDraft = false
     var hasRemoteContent = false
+    /// 본문의 보낸 사람이 VIP (S-045)
+    var senderIsVIP = false
 }
 
 final class MenuState: ObservableObject {
@@ -146,6 +148,9 @@ struct MailCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .control])
             .disabled(!menu.signedIn)
+            Button("새 스마트 메일상자…") { model.newSmartMailbox() }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                .disabled(!menu.signedIn)
         }
         CommandMenu("메시지") {
             Button("답장") { compose(.reply) }
@@ -208,6 +213,16 @@ struct MailCommands: Commands {
             .keyboardShortcut("l", modifiers: [.command, .shift])
             .disabled(reader == nil && !menu.hasSelection)
             Divider()
+            // VIP (S-045)
+            Button(vipTargetIsVIP ? "VIP에서 빼기" : "보낸 사람을 VIP로 지정…") {
+                guard let m = vipTarget, let address = m.from?.emailAddress.address else { return }
+                if vipTargetIsVIP { model.removeVIP(address: address) } else { model.editVIP(for: m) }
+            }
+            .keyboardShortcut("v", modifiers: [.command, .control])
+            .disabled(!hasMessage)
+            Button("VIP 이름·아이콘 변경…") { if let m = vipTarget { model.editVIP(for: m) } }
+                .disabled(!vipTargetIsVIP)
+            Divider()
             Button("원격 이미지 불러오기") {
                 if let reader { reader.allowRemoteContent() } else { model.allowRemoteContentForSelection() }
             }
@@ -222,6 +237,13 @@ struct MailCommands: Commands {
 
     /// 답장·전달할 메일이 있다: 앞의 메시지 창, 또는 메인 창의 본문
     private var hasMessage: Bool { reader != nil || menu.hasMessage }
+
+    /// VIP 메뉴가 다룰 메일: 앞의 메시지 창, 또는 메인 창의 본문
+    private var vipTarget: MailMessage? { reader?.message ?? model.detail }
+    private var vipTargetIsVIP: Bool {
+        if let m = reader?.message { return model.mailboxes.vip(for: m) != nil }
+        return menu.senderIsVIP
+    }
 
     private var flagLabel: String {
         if let reader { return reader.message?.isFlagged == true ? "깃발 떼기" : "깃발 달기" }

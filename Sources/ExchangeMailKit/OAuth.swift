@@ -134,6 +134,14 @@ public enum GraphQuery {
     public static func flagged(top: Int = pageSize) -> Request {
         Request(query: ["$filter": "flag/flagStatus eq 'flagged'", "$select": listSelect, "$top": "\(top)"], headers: [:])
     }
+    /// 스마트 메일상자 (S-046): 모든 폴더에서 최근 메일. `$filter`가 있으면 `$orderby`를 빼고 정렬은 앱에서 한다
+    /// (모든 폴더 요청에 둘을 함께 쓰면 Graph가 거절할 수 있다).
+    public static func collect(filter: String?, top: Int = 100) -> Request {
+        var q = ["$select": listSelect, "$top": "\(top)"]
+        if let filter, !filter.isEmpty { q["$filter"] = filter } else { q["$orderby"] = "receivedDateTime desc" }
+        return Request(query: q, headers: [:])
+    }
+
     /// 대화 보기의 한 줄에 필요한 값 (본문은 펼칠 때 따로 가져온다)
     public static let threadSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments"
 

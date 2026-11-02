@@ -15,7 +15,7 @@ struct MessageListView: View {
                 // 대화 한 줄의 tag는 대화의 최근 메일 id다.
                 let conversations = model.conversations
                 ForEach(conversations) { c in
-                    ConversationRow(conversation: c, me: model.auth.email)
+                    ConversationRow(conversation: c, me: model.auth.email, vip: model.mailboxes.vip(for: c.latest))
                         .tag(c.latest.id)
                         .draggable(model.dragPayload(for: c.latest.id))
                         .onAppear {
@@ -24,7 +24,7 @@ struct MessageListView: View {
                 }
             } else {
                 ForEach(model.messages) { m in
-                    MessageRow(message: m, folderTag: model.folderTag(for: m))
+                    MessageRow(message: m, folderTag: model.folderTag(for: m), vip: model.mailboxes.vip(for: m))
                         .tag(m.id)
                         .draggable(model.dragPayload(for: m.id))
                         .onAppear {
@@ -65,7 +65,7 @@ struct MessageListView: View {
                 if model.listFilter.isActive { FilterBar() }
             }
         }
-        .navigationTitle(model.selectedFolderID == FolderOrder.flaggedID ? "깃발 표시" : (model.selectedFolder?.displayName ?? "메일"))
+        .navigationTitle(model.listTitle)
         .navigationSubtitle(subtitle)
         .toolbar(id: "mail") { listToolbar }
     }
@@ -121,6 +121,17 @@ struct MessageListView: View {
                 }
             }
             .disabled(single == nil)
+            // VIP (S-045)
+            if let m = single {
+                if model.mailboxes.vip(for: m) == nil {
+                    Button("보낸 사람을 VIP로 지정…") { model.editVIP(for: m) }
+                } else {
+                    Button("VIP 이름·아이콘 변경…") { model.editVIP(for: m) }
+                    Button("VIP에서 빼기") {
+                        if let address = m.from?.emailAddress.address { model.removeVIP(address: address) }
+                    }
+                }
+            }
             Divider()
             Button("답장") { if let m = single { compose(.reply, for: m) } }
                 .disabled(single == nil)
@@ -169,6 +180,8 @@ struct MessageRow: View {
     let message: MailMessage
     /// 다른 폴더의 메일이면 그 폴더 이름 (모든 폴더 검색, 깃발 표시)
     var folderTag: String? = nil
+    /// 보낸 사람이 VIP면 그 사람의 아이콘을 이름 앞에 (S-045)
+    var vip: VIP? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.sm) {
@@ -179,6 +192,9 @@ struct MessageRow: View {
                 .accessibilityLabel(message.isUnread ? "읽지 않음" : "")
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    if let vip {
+                        VIPBadge(vip: vip)
+                    }
                     Text(message.from?.emailAddress.display ?? "(보낸 사람 없음)")
                         .fontWeight(message.isUnread ? .semibold : .regular)
                         .lineLimit(1)
@@ -226,6 +242,8 @@ struct MessageRow: View {
 struct ConversationRow: View {
     let conversation: Conversation
     let me: String?
+    /// 마지막 메일을 VIP가 보냈으면 (S-045)
+    var vip: VIP? = nil
 
     var body: some View {
         let latest = conversation.latest
@@ -237,6 +255,9 @@ struct ConversationRow: View {
                 .accessibilityLabel(conversation.isUnread ? "읽지 않음" : "")
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                    if let vip {
+                        VIPBadge(vip: vip)
+                    }
                     Text(conversation.participants(me: me).joined(separator: ", "))
                         .fontWeight(conversation.isUnread ? .semibold : .regular)
                         .lineLimit(1)

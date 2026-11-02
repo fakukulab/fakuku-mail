@@ -85,6 +85,12 @@ final class AppModel {
     }
     /// Outlook 범주 이름 (필터 메뉴)
     var categories: [String] = []
+    /// VIP와 스마트 메일상자 (S-045, S-046)
+    let mailboxes = MailboxStore(url: Store.directory.appending(path: "mailboxes.json"))
+    /// 열린 VIP 편집 시트 (이름·아이콘)
+    var editingVIP: VIP?
+    /// 열린 스마트 메일상자 편집 시트
+    var editingSmart: SmartMailbox?
 
     static func savedSort() -> MailSort {
         guard !Store.isOverridden, let data = UserDefaults.standard.data(forKey: "list.sort"),
@@ -253,11 +259,11 @@ final class AppModel {
         defer { isLoading = false }
         do {
             let page: MessagePage
-            if !search.isEmpty && (searchScope == .all || folderID == FolderOrder.flaggedID) {
-                // 모든 폴더 검색 (S-033). 깃발 표시는 서버 폴더가 아니라서 그 안의 검색도 전체 검색이다.
+            if !search.isEmpty && (searchScope == .all || VirtualMailbox.isVirtual(folderID)) {
+                // 모든 폴더 검색 (S-033). 깃발 표시·VIP·스마트 메일상자는 서버 폴더가 아니라서 그 안의 검색도 전체 검색이다.
                 page = try await service.searchAll(search)
-            } else if folderID == FolderOrder.flaggedID {
-                page = try await service.flaggedMessages()
+            } else if let box = VirtualMailbox(id: folderID) {
+                page = try await loadVirtual(box)
             } else {
                 page = try await service.messages(folderID: folderID, search: search.isEmpty ? nil : search,
                                                   filter: listFilter.isActive ? listFilter : nil,
@@ -265,8 +271,8 @@ final class AppModel {
             }
             // 기다리는 사이 폴더나 검색어가 바뀌었으면 버린다.
             guard folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) else { return }
-            // 깃발 표시·모든 폴더 검색은 서버 필터를 쓰지 않으므로 앱이 다 건다.
-            let serverFiltered = page.serverFiltered && folderID != FolderOrder.flaggedID && search.isEmpty
+            // 서버 폴더가 아닌 상자·모든 폴더 검색은 서버 필터를 쓰지 않으므로 앱이 다 건다.
+            let serverFiltered = page.serverFiltered && !VirtualMailbox.isVirtual(folderID) && search.isEmpty
             messages = arrange(page.messages, serverFiltered: serverFiltered)
             addressBook.noteSeen(page.messages, me: auth.email)
             nextLink = page.nextLink
@@ -519,6 +525,7 @@ final class AppModel {
             sortDescending: listSort.descending,
             filterActive: listFilter.isActive,
             isDraft: isDraftSelected,
-            hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed))
+            hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed,
+            senderIsVIP: detail.flatMap { mailboxes.vip(for: $0) } != nil))
     }
 }

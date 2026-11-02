@@ -336,6 +336,26 @@ final class DemoMailService: MailService {
                            nextLink: nil)
     }
 
+    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
+        try checkOnline()
+        // 데모는 서버 필터를 흉내 내지 않는다. 스마트 메일상자의 판정은 앱이 다시 건다.
+        let all = store.flatMap { folder, list in
+            (folderID == nil || folderID == folder ? list : []).map { m -> MailMessage in
+                var copy = m
+                copy.parentFolderId = folder
+                return copy
+            }
+        }
+        return MessagePage(messages: all.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) },
+                           nextLink: nil, serverFiltered: false)
+    }
+
+    func messages(fromSender address: String) async throws -> MessagePage {
+        let all = try await collectMessages(folderID: nil, filter: nil).messages
+        return MessagePage(messages: all.filter { $0.from?.emailAddress.address?.lowercased() == address.lowercased() },
+                           nextLink: nil, serverFiltered: false)
+    }
+
     func flaggedMessages() async throws -> MessagePage {
         try checkOnline()
         let all = store.flatMap { folder, list in

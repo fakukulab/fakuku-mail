@@ -5,7 +5,7 @@ Everything else keeps the code name `ExchangeMail`. Keep the bundle id: the Azur
 
 A native macOS mail client in SwiftUI for Microsoft Exchange Online.
 Mail stays on the server (Microsoft Graph). Local data: signatures in
-`~/Library/Application Support/ExchangeMail/signatures.json`, an offline cache of recent mail in
+`~/Library/Application Support/ExchangeMail/signatures.json`, VIPs and smart mailboxes in `.../ExchangeMail/mailboxes.json`, an offline cache of recent mail in
 `.../ExchangeMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean (`docs/GLOSSARY.md` for words).
 
 ## Layout
@@ -30,7 +30,7 @@ Mail stays on the server (Microsoft Graph). Local data: signatures in
 - Self-test (the app's real functions on the demo mailbox and a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic in `SelfTest.swift`.
 - After every UI change, take snapshots with sample data and look at them: `tools/snap.sh`.
   It writes `/tmp/ExchangeMail-shots/<page>-light.png` and `-dark.png` for inbox, sentitems, drafts, archive,
-  deleteditems, signin, compose, message, and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits.
+  deleteditems, signin, compose, message, `vip-editor` and `smart-editor` (page `mailboxes`), and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits.
   `APP_SNAPSHOT_PAGES=inbox,compose,settings tools/snap.sh` limits the pages.
   For a panel, sheet, or popover, add a capture to `Snapshot.swift` like the Settings loop.
 - Snapshots, demo mode, and the self-test refuse to run without `APP_STORE` in /tmp.

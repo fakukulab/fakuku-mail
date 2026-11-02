@@ -72,6 +72,13 @@ struct MailSplitView: View {
         .onSubmit(of: .search) { Task { await model.loadMessages() } }
         // 메시지 > 이동… (S-028)
         .sheet(isPresented: $model.showMovePicker) { MovePicker() }
+        // VIP 지정·변경 (S-045), 스마트 메일상자 (S-046)
+        .sheet(item: $model.editingVIP) { vip in
+            VIPEditor(vip: vip, isNew: model.mailboxes.vip(address: vip.address) == nil)
+        }
+        .sheet(item: $model.editingSmart) { box in
+            SmartMailboxEditor(box: box, isNew: !model.mailboxes.smart.contains { $0.id == box.id })
+        }
         .onChange(of: model.searchText) { old, new in
             // 검색어를 지우면 원래 목록으로 돌아간다 (S-014).
             if new.isEmpty && !old.isEmpty { Task { await model.loadMessages() } }
@@ -86,9 +93,40 @@ struct FolderSidebar: View {
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedFolderID) {
-            Section("스마트 폴더") {
+            Section("스마트 메일상자") {
                 Label("깃발 표시", systemImage: "flag")
                     .tag(FolderOrder.flaggedID)
+                // 사람이 만든 상자 (S-046)
+                ForEach(model.mailboxes.smart) { box in
+                    Label(box.name, systemImage: box.symbol)
+                        .tag(box.id)
+                        .help(box.summary { id in model.folders.first { $0.id == id }?.displayName })
+                        .contextMenu {
+                            Button("스마트 메일상자 변경…") { model.editingSmart = box }
+                            Button("스마트 메일상자 지우기…", role: .destructive) {
+                                if TextPrompt.confirm("\"\(box.name)\" 스마트 메일상자를 지울까요?",
+                                                      message: "메일은 지워지지 않고 원래 폴더에 남습니다.", action: "지우기") {
+                                    model.removeSmart(id: box.id)
+                                }
+                            }
+                        }
+                }
+            }
+            // VIP (S-045): 사람마다 이름과 아이콘
+            if !model.mailboxes.vips.isEmpty {
+                Section("VIP") {
+                    Label("모든 VIP", systemImage: "star")
+                        .tag(VirtualMailbox.allVIPsID)
+                    ForEach(model.mailboxes.vips) { vip in
+                        Label(vip.title, systemImage: vip.symbol)
+                            .tag(VirtualMailbox.id(forVIP: vip.address))
+                            .help(vip.address)
+                            .contextMenu {
+                                Button("이름·아이콘 변경…") { model.editingVIP = vip }
+                                Button("VIP에서 빼기") { model.removeVIP(address: vip.address) }
+                            }
+                    }
+                }
             }
             Section(model.auth.email ?? "사서함") {
                 ForEach(model.folders) { folder in
@@ -105,6 +143,7 @@ struct FolderSidebar: View {
         }
         .contextMenu {
             Button("새 폴더…") { newFolder(parent: nil) }
+            Button("새 스마트 메일상자…") { model.newSmartMailbox() }
         }
         .overlay {
             if model.folders.isEmpty && model.isLoading {

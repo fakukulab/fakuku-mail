@@ -59,6 +59,11 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
 - Toolbar (S-044): the list and detail columns each attach `.toolbar(id: "mail")` (`Views/MailToolbar.swift`) with
   only `ToolbarItem(id:)` items, so items sit over their own column and the window has one customizable toolbar.
   Search lives in the sidebar: a toolbar search field crashes the customization sheet on macOS 27.
+- VIP and smart mailboxes (S-045, S-046): rules in Kit `Mailboxes.swift` (`VIP`, `SmartMailbox` with conditions,
+  `VirtualMailbox` for sidebar ids `__flagged`, `__vip`, `vip:<address>`, `smart:<uuid>`). `MailboxStore` keeps them in
+  `mailboxes.json`. `AppModel+Mailboxes.loadVirtual` fills the list: VIP mail by KQL `from:` search
+  (`MailService.messages(fromSender:)`), smart mailboxes by `collectMessages` (recent 100, server `$filter` for the
+  "all" parts) and then `SmartMailbox.matches` in the app.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 

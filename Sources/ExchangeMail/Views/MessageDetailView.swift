@@ -102,14 +102,35 @@ struct MessageHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             HStack(alignment: .firstTextBaseline) {
+                if let vip = model.mailboxes.vip(for: message) {
+                    VIPBadge(vip: vip)
+                }
                 Text(message.from?.emailAddress.display ?? "(보낸 사람 없음)")
                     .font(.headline)
                     .textSelection(.enabled)
+                    // 보낸 사람을 VIP로 (S-045)
+                    .contextMenu {
+                        if model.mailboxes.vip(for: message) == nil {
+                            Button("VIP로 지정…") { model.editVIP(for: message) }
+                        } else {
+                            Button("VIP 이름·아이콘 변경…") { model.editVIP(for: message) }
+                            Button("VIP에서 빼기") {
+                                if let address = message.from?.emailAddress.address { model.removeVIP(address: address) }
+                            }
+                        }
+                    }
                 if let address = message.from?.emailAddress.address, message.from?.emailAddress.name?.isEmpty == false {
                     Text("<\(address)>")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
+                let isVIP = model.mailboxes.vip(for: message) != nil
+                Button(isVIP ? "VIP 변경" : "VIP로 지정", systemImage: isVIP ? "star.fill" : "star") {
+                    model.editVIP(for: message)
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help(isVIP ? "VIP 이름·아이콘 변경 (오른쪽 클릭으로 VIP에서 빼기)" : "보낸 사람을 VIP로 지정 (⌃⌘V)")
                 Spacer()
                 Text(message.receivedDateTime.map { MailDate.long($0) } ?? "")
                     .font(.callout)
