@@ -55,3 +55,10 @@ so a 2xx does not prove the calendar changed, and the label hid the real server 
 Fix: after responding, the app reads the event back (1, 2, 3 s) and shows the server's responseStatus; if it does not
 match, or the event cannot be found, it says so with the server state. Root cause on the server side still open.
 Rule: Never show a server-side state the app only assumed; read it back and show what the server says.
+
+## 2026-11-02 Build failed: main actor-isolated conformance of 'Category' to 'Decodable'
+
+Symptom: "main actor-isolated conformance of 'Category' to 'Decodable' cannot satisfy conformance requirement for a 'Sendable' type parameter 'T'" in MailService.swift, plus a key path error after it.
+Cause: the app target's default isolation is the main actor, so a struct declared there (even inside a function) has a main-actor Decodable conformance; `GraphList<T: Decodable & Sendable>` needs a nonisolated one.
+Fix: `OutlookCategory` lives in ExchangeMailKit (no default isolation).
+Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, not in the app target.

@@ -98,6 +98,12 @@ public struct MailFilter: Equatable, Codable, Sendable {
     }
 }
 
+/// Outlook 범주 (`/me/outlook/masterCategories`). GraphList에 넣으려면 Sendable이어야 해서 Kit에 둔다:
+/// 앱 타깃에서 만든 타입은 메인 액터에 묶인다.
+public struct OutlookCategory: Decodable, Sendable {
+    public let displayName: String
+}
+
 // MARK: 정렬 (S-042)
 
 public struct MailSort: Equatable, Codable, Sendable {

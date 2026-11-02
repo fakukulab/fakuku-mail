@@ -193,9 +193,8 @@ final class GraphMailService: MailService {
     }
 
     func categories() async throws -> [String] {
-        struct Category: Decodable { let displayName: String }
         let data = try await request("GET", "/me/outlook/masterCategories")
-        return try decoder.decode(GraphList<Category>.self, from: data).value.map(\.displayName)
+        return try decoder.decode(GraphList<OutlookCategory>.self, from: data).value.map { $0.displayName }
     }
 
     func nextPage(_ link: String) async throws -> MessagePage {
