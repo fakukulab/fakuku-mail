@@ -2,7 +2,7 @@ import AppKit
 import ExchangeMailKit
 import SwiftUI
 
-/// 파일 > 메일 파일 열기… (S-053): 내 Mac에 보관한 .mbox·.eml을 읽기 전용으로 본다.
+/// 파일 > 메일상자 가져오기… (S-053): 내 Mac에 보관한 .mbox·.eml을 읽기 전용으로 본다.
 /// 서버에 닿지 않는다: 로그인 없이, 오프라인에서도 열린다. 본문은 받은 메일과 같은 안전 규칙(스크립트 끔, 원격 그림 막음).
 struct ArchiveWindow: View {
     let url: URL?

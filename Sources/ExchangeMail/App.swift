@@ -169,11 +169,15 @@ struct MailCommands: Commands {
             Button("새로운 메시지") { openWindow(id: "compose", value: ComposeDraft()) }
                 .keyboardShortcut("n")
                 .disabled(!menu.signedIn)
-            // S-053: 내 Mac에 보관한 메일(.mbox, .eml)을 연다. 로그인하지 않아도 된다.
-            Button("메일 파일 열기…") {
+        }
+        // S-053: 내 Mac에 보관한 메일(.mbox, .eml)을 연다. 맥 Mail처럼 파일 메뉴에 따로 둔다. 로그인하지 않아도 된다.
+        CommandGroup(after: .newItem) {
+            Divider()
+            Button("메일상자 가져오기…") {
                 if let url = AppModel.chooseArchive() { openWindow(id: "archive", value: url) }
             }
             .keyboardShortcut("o", modifiers: [.command, .option])
+            Divider()
         }
         CommandGroup(after: .sidebar) { viewMenu }
         CommandGroup(replacing: .printItem) {
@@ -315,7 +319,7 @@ struct MailCommands: Commands {
                 .keyboardShortcut("e", modifiers: [.command, .option])
                 .disabled(!menu.inServerFolder)
         }
-        Button("메일 파일 열기…") {
+        Button("메일상자 가져오기…") {
             if let url = AppModel.chooseArchive() { openWindow(id: "archive", value: url) }
         }
         Divider()

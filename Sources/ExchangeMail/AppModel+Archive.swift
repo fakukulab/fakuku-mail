@@ -4,7 +4,7 @@ import Foundation
 import UniformTypeIdentifiers
 
 // S-053 메일상자 내보내기: 서버 폴더의 메일 원본을 내 Mac의 .mbox 파일 하나로 보관한다.
-// 맥 Mail(파일 > 메일상자 가져오기), Thunderbird가 읽고, FAKUKU Mail의 "메일 파일 열기…"로도 본다.
+// 맥 Mail(파일 > 메일상자 가져오기), Thunderbird가 읽고, FAKUKU Mail의 "메일상자 가져오기…"로도 본다.
 
 extension AppModel {
     /// 사서함 > 메일상자 내보내기… : 고른 폴더를 저장할 곳을 묻고 내보내기 시작
@@ -107,12 +107,12 @@ extension AppModel {
 
     // MARK: 메일 파일 열기
 
-    /// 파일 > 메일 파일 열기… : .mbox, .eml (맥 Mail이 내보낸 .mbox 폴더도)
+    /// 파일 > 메일상자 가져오기… : .mbox, .eml (맥 Mail이 내보낸 .mbox 폴더도)
     static func chooseArchive() -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "메일 파일 열기"
+        panel.title = "메일상자 가져오기"
         panel.message = "mbox 파일, 맥 Mail이 내보낸 .mbox 폴더, eml 파일을 고르세요."
-        panel.prompt = "열기"
+        panel.prompt = "가져오기"
         panel.allowedContentTypes = [mboxType, emlType, .emailMessage]
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
