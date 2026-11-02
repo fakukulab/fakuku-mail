@@ -187,7 +187,7 @@ struct MailCommands: Commands {
             .keyboardShortcut("p")
             .disabled(reader == nil && !menu.canPrint)
         }
-        CommandMenu(L("사서함")) { mailboxMenu }
+        CommandMenu(L("메일상자")) { mailboxMenu }
         CommandMenu(L("메시지")) { messageMenu }
         CommandMenu(L("포맷")) { formatMenu }
         CommandGroup(before: .windowList) {
@@ -257,7 +257,7 @@ struct MailCommands: Commands {
             .disabled(!menu.signedIn)
     }
 
-    // MARK: 사서함
+    // MARK: 메일상자
 
     @ViewBuilder
     private var mailboxMenu: some View {

@@ -150,7 +150,7 @@ struct FolderSidebar: View {
                     }
                 }
             }
-            Section(model.auth.email ?? L("사서함")) {
+            Section(model.auth.email ?? L("메일상자")) {
                 ForEach(model.folders) { folder in
                     FolderRow(folder: folder)
                         .tag(folder.id)

@@ -54,7 +54,7 @@ final class AppModel {
     }
     /// 메시지 > 이동… 시트 (S-028)
     var showMovePicker = false
-    /// 사서함 > 메일 검색(⌥⌘F)을 누를 때마다 늘어난다. 검색 칸이 보고 초점을 받는다.
+    /// 메일상자 > 메일 검색(⌥⌘F)을 누를 때마다 늘어난다. 검색 칸이 보고 초점을 받는다.
     var searchFocusRequest = 0
     /// 마지막으로 옮긴 폴더 (메시지 > 'X'(으)로 다시 이동, ⌃⌘M). 보관·지우기·정크는 넣지 않는다.
     var lastMoveTarget: MoveTarget? {

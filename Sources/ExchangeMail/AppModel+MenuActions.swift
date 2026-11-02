@@ -83,7 +83,7 @@ extension AppModel {
         }
     }
 
-    // MARK: 사서함
+    // MARK: 메일상자
 
     /// 모든 메시지를 읽음으로 표시: 지금 폴더의 읽지 않은 메일 (서버 폴더만)
     func markAllReadInFolder() async {

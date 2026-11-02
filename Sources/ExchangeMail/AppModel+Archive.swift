@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 // 맥 Mail(파일 > 메일상자 가져오기), Thunderbird가 읽고, FAKUKU Mail의 "메일상자 가져오기…"로도 본다.
 
 extension AppModel {
-    /// 사서함 > 메일상자 내보내기… : 고른 폴더를 저장할 곳을 묻고 내보내기 시작
+    /// 메일상자 > 메일상자 내보내기… : 고른 폴더를 저장할 곳을 묻고 내보내기 시작
     func exportSelectedMailbox() {
         guard !archiveExporting, let folder = selectedFolder else { return }
         let panel = NSSavePanel()

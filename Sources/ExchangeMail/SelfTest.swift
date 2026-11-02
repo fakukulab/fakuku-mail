@@ -896,10 +896,10 @@ enum SelfTest {
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
 
             // S-054: 시스템 언어에 따라 한국어·영어 (셀프 테스트는 한국어로 돈다)
-            check("S-054 한국어 시스템에서는 화면 글자가 한국어", AppLanguage.isKorean && L("사서함") == "사서함")
+            check("S-054 한국어 시스템에서는 화면 글자가 한국어", AppLanguage.isKorean && L("메일상자") == "메일상자")
             let english = Bundle.main.path(forResource: "Localizable", ofType: "strings", inDirectory: nil, forLocalization: "en")
                 .flatMap { NSDictionary(contentsOfFile: $0) as? [String: String] } ?? [:]
-            check("S-054 영어 표가 앱에 들어 있다", english["사서함"] == "Mailbox" && english["@language"] == "en",
+            check("S-054 영어 표가 앱에 들어 있다", english["메일상자"] == "Mailbox" && english["@language"] == "en",
                   "\(english.count)개")
             check("S-054 끼워 넣는 값의 키 규칙 (%@)",
                   english["메시지 %@개, 읽지 않음 %@개"] == "%@ messages, %@ unread"

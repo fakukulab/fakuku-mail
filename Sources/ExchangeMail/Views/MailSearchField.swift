@@ -46,7 +46,7 @@ struct MailSearchField: View {
     }
 }
 
-/// 사서함 > 메일 검색(⌥⌘F): 메인 창 도구 막대의 검색 칸에 초점을 준다.
+/// 메일상자 > 메일 검색(⌥⌘F): 메인 창 도구 막대의 검색 칸에 초점을 준다.
 /// 도구 막대 항목은 창 본문과 다른 곳에 그려져 SwiftUI `@FocusState`가 닿지 않을 때가 있어, AppKit에서 칸을 찾아 직접 준다.
 enum SearchFieldFocus {
     static let placeholder = L("검색")
