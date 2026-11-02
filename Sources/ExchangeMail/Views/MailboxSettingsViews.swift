@@ -20,10 +20,10 @@ struct RulesSettings: View {
             ForEach(rules) { rule in
                 HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
                     Toggle(isOn: Binding(get: { rule.isEnabled ?? true }, set: { on in toggle(rule, on) })) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Space.xs) {
                             Text(rule.displayName)
                             Text(rule.summary { id in model.folders.first { $0.id == id }?.displayName })
-                                .font(.caption)
+                                .font(.callout)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -32,6 +32,7 @@ struct RulesSettings: View {
                         .buttonStyle(.borderless)
                         .help("이 규칙 지우기")
                 }
+                .padding(.vertical, Space.xs)
             }
             Button("규칙 추가…") { adding = true }
             if let problem {

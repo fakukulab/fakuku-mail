@@ -21,19 +21,27 @@ struct SettingsView: View {
     }
 
     /// 모든 탭이 같은 크기: 탭을 바꿔도 창이 줄거나 늘지 않는다. 넘치면 탭 안에서 스크롤한다.
-    static let size = CGSize(width: 760, height: 560)
+    static let size = CGSize(width: 880, height: 600)
+    /// 탭 안쪽 여백: 좌우, 위아래
+    static let marginX = Space.section
+    static let marginY = Space.xxl
 
     @ViewBuilder
     private func page(_ tab: SettingsTab) -> some View {
         switch tab {
         case .signatures:
             SignatureSettings()
+                .padding(.horizontal, Self.marginX)
+                .padding(.vertical, Self.marginY)
                 .frame(width: Self.size.width, height: Self.size.height)
         case .rules, .autoReply:
             Form {
                 if tab == .rules { RulesSettings() } else { AutoReplySettings() }
             }
             .formStyle(.grouped)
+            // 목록 위아래에도 여백을 두어 첫 줄과 마지막 단추가 가장자리에 붙지 않게 한다.
+            .contentMargins(.horizontal, Self.marginX - Space.xl, for: .scrollContent)
+            .contentMargins(.vertical, Self.marginY - Space.sm, for: .scrollContent)
             .frame(width: Self.size.width, height: Self.size.height)
         default:
             ScrollView {
@@ -49,8 +57,8 @@ struct SettingsView: View {
                     }
                 }
                 .formStyle(.columns)
-                .padding(.horizontal, Space.section)
-                .padding(.vertical, Space.xl)
+                .padding(.horizontal, Self.marginX)
+                .padding(.vertical, Self.marginY)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
             .frame(width: Self.size.width, height: Self.size.height)
@@ -142,7 +150,7 @@ struct OfflineSettings: View {
     var body: some View {
         Section {
             LabeledContent("오프라인:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Toggle("최근 메일을 이 Mac에 저장", isOn: $enabled)
                         .onChange(of: enabled) { _, on in
                             if !on { clear() }
@@ -178,7 +186,7 @@ struct AccountSettings: View {
     var body: some View {
         Section {
             LabeledContent("Microsoft Exchange:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     if model.isDemo {
                         Text(model.auth.email ?? "")
                         SettingsNote("데모 모드: 예시 메일로 돌며 서버에 연결하지 않습니다.")
@@ -223,7 +231,7 @@ struct JunkSettings: View {
         @Bindable var model = model
         Section {
             LabeledContent("걸러내기:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Text("Exchange Online이 서버에서 정크 메일을 걸러 정크 메일 폴더로 옮깁니다.")
                     SettingsNote("차단한 보낸 사람과 안전한 보낸 사람 목록은 Outlook 웹에서 관리합니다. 이 Mac과 다른 기기에 모두 적용됩니다.")
                     Button("Outlook 웹 정크 메일 설정 열기…") {
@@ -240,7 +248,7 @@ struct JunkSettings: View {
         }
         Section {
             LabeledContent("정크 메일 폴더:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Toggle("원격 그림을 항상 막기", isOn: $model.junkBlocksRemote)
                     SettingsNote("메일 활동 보호를 켜 두어도 정크 메일의 원격 그림은 받지 않습니다.")
                 }
@@ -273,7 +281,7 @@ struct ViewingSettings: View {
         }
         Section {
             LabeledContent("개인정보 보호:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Toggle("메일 활동 보호", isOn: $model.protectMailActivity)
                     SettingsNote("추적 픽셀과 알려진 추적 서비스를 막고, 나머지 원격 그림은 앱이 쿠키·리퍼러 없이 대신 받아 "
                                  + "보여 줍니다. 보낸 사람은 메일을 언제 열었는지 알 수 없습니다. "
@@ -312,7 +320,7 @@ struct ComposingSettings: View {
         }
         Section {
             LabeledContent("첨부 보정:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Toggle("새 메일에 첨부 보정 켜기", isOn: $fixEnabled)
                     Toggle("본문 그림을 일반 첨부파일로 보내기", isOn: $images)
                     Stepper(value: $minKB, in: 0...2048, step: 10) {
@@ -324,7 +332,7 @@ struct ComposingSettings: View {
                 }
             }
             LabeledContent("항상 적용:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Label("한글 파일명을 완성형(NFC)으로 바꿉니다.", systemImage: "textformat")
                     Label("파일명을 RFC 2047과 RFC 2231로 함께 기록해 Windows·Outlook에서도 한글로 보입니다.", systemImage: "doc.text")
                     Label("서명과 인용문 안의 그림은 본문에 그대로 둡니다.", systemImage: "signature")
@@ -346,7 +354,7 @@ struct NotificationSettings: View {
     var body: some View {
         Section {
             LabeledContent("새 메일:") {
-                VStack(alignment: .leading, spacing: Space.xs) {
+                VStack(alignment: .leading, spacing: Space.sm) {
                     Toggle("받은 편지함에 새 메일이 오면 알리기", isOn: $newMail)
                         .onChange(of: newMail) { _, on in
                             if on { Task { await model.prepareNotifications() } }

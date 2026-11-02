@@ -14,12 +14,14 @@ struct SignatureSettings: View {
     private var store: SignatureStore { model.signatures }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .top, spacing: Space.xl) {
             sidebar
                 .frame(width: 220)
-            Divider()
+                .background(.background)
+                .clipShape(RoundedRectangle(cornerRadius: Space.sm, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Space.sm, style: .continuous).strokeBorder(.separator))
             editorPane
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onAppear {
             if selection == nil { selection = store.signatures.first?.id }
@@ -54,10 +56,11 @@ struct SignatureSettings: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, Space.xs)
                     .tag(s.id)
                 }
             }
+            .listStyle(.inset)
             .overlay {
                 if store.signatures.isEmpty {
                     ContentUnavailableView("서명 없음", systemImage: "signature",
@@ -83,7 +86,7 @@ struct SignatureSettings: View {
     @ViewBuilder
     private var editorPane: some View {
         if let id = selection, let signature = store.signature(id: id) {
-            VStack(alignment: .leading, spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.lg) {
                 HStack(spacing: Space.sm) {
                     TextField("서명 이름", text: Binding(
                         get: { signature.name },
@@ -100,7 +103,11 @@ struct SignatureSettings: View {
                             .font(.system(.body, design: .monospaced))
                             .onChange(of: source) { _, text in store.update(id: id, html: text) }
                     } else {
-                        FormatToolbar(controller: editor)
+                        // 창이 좁아도 서식 막대가 편집기 밖으로 넘치지 않게 가로로 스크롤한다.
+                        ScrollView(.horizontal) {
+                            FormatToolbar(controller: editor)
+                        }
+                        .scrollIndicators(.never)
                         Divider()
                         RichTextEditor(controller: editor)
                             // 서명에 그림 파일을 끌어다 놓으면 본문에 넣는다.
@@ -117,7 +124,6 @@ struct SignatureSettings: View {
                 Divider()
                 rules
             }
-            .padding(Space.lg)
         } else {
             ContentUnavailableView("서명을 고르세요", systemImage: "signature",
                                    description: Text("왼쪽에서 서명을 고르거나 +를 눌러 만드세요."))
@@ -126,7 +132,7 @@ struct SignatureSettings: View {
 
     /// 기본 서명 (S-010): 새 메일, 답장, 전달마다 하나. 작성 창에서 언제든 바꿀 수 있다.
     private var rules: some View {
-        Grid(alignment: .leading, horizontalSpacing: Space.sm, verticalSpacing: Space.sm) {
+        Grid(alignment: .leading, horizontalSpacing: Space.sm, verticalSpacing: Space.md) {
             GridRow {
                 Text("기본 서명")
                     .font(.headline)
