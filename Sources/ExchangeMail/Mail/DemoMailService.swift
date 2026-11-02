@@ -101,6 +101,10 @@ final class DemoMailService: MailService {
                                  end: GraphDateTime(dateTime: utcText(27), timeZone: "UTC"),
                                  location: "3층 회의실")
         store["inbox"]?.append(invite)
+        if let i = store["inbox"]?.firstIndex(where: { $0.id == "m2" }) {
+            store["inbox"]?[i].importance = "high"
+            store["inbox"]?[i].categories = ["빨강 범주"]
+        }
         store["sentitems"] = [
             MailMessage(id: "s2", internetMessageId: "<s2@contoso.co.kr>", conversationId: "conv-quote",
                         subject: "[견적] 3분기 장비 견적 요청", from: me, toRecipients: [who("김민지", "minji.kim@fabrikam.com")],
@@ -184,16 +188,25 @@ final class DemoMailService: MailService {
         return folderList
     }
 
-    func messages(folderID: String, search: String?) async throws -> MessagePage {
+    func categories() async throws -> [String] {
         try checkOnline()
-        var list = (store[folderID] ?? []).sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+        return ["빨강 범주", "파랑 범주"]
+    }
+
+    /// 데모는 필터를 서버처럼 걸지 않는다: 앱이 MailFilter.matches로 다 건다 (serverFiltered: false).
+    func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage {
+        try checkOnline()
+        var list = (store[folderID] ?? []).sorted {
+            let a = $0.receivedDateTime ?? .distantPast, b = $1.receivedDateTime ?? .distantPast
+            return oldestFirst ? a < b : a > b
+        }
         if let s = search?.lowercased(), !s.isEmpty {
             list = list.filter { m in
                 [m.subject, m.bodyPreview, m.from?.emailAddress.display, m.from?.emailAddress.address]
                     .compactMap { $0?.lowercased() }.contains { $0.contains(s) }
             }
         }
-        return MessagePage(messages: list, nextLink: nil)
+        return MessagePage(messages: list, nextLink: nil, serverFiltered: false)
     }
 
     func nextPage(_ link: String) async throws -> MessagePage {
@@ -232,6 +245,10 @@ final class DemoMailService: MailService {
                                 hasAttachments: m.hasAttachments, body: m.body)
         moved.conversationId = m.conversationId
         moved.flag = m.flag
+        moved.importance = m.importance
+        moved.categories = m.categories
+        moved.odataType = m.odataType
+        moved.event = m.event
         store[target, default: []].append(moved)
         files[moved.id] = files[m.id]
         recount()

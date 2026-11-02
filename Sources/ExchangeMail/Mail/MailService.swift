@@ -12,12 +12,24 @@ struct DraftPreview {
 struct MessagePage {
     var messages: [MailMessage]
     var nextLink: String?
+    /// 필터를 서버가 걸었는지 (아니면 앱이 다 건다: 검색 중, 오프라인 캐시, 데모)
+    var serverFiltered = true
+}
+
+extension MailService {
+    /// 필터 없이 최근 순 (예전 호출과 셀프 테스트)
+    func messages(folderID: String, search: String?) async throws -> MessagePage {
+        try await messages(folderID: folderID, search: search, filter: nil, oldestFirst: false)
+    }
 }
 
 /// 메일 서버와의 대화. 실제 계정은 GraphMailService, 데모·테스트는 DemoMailService.
 protocol MailService: AnyObject {
     func folders() async throws -> [MailFolder]
-    func messages(folderID: String, search: String?) async throws -> MessagePage
+    /// 폴더 목록. `filter`는 서버에서 걸 수 있는 부분만 서버가 건다 (S-041), `oldestFirst`는 날짜 오름차순 (S-042).
+    func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage
+    /// Outlook 범주 이름 (S-041)
+    func categories() async throws -> [String]
     func nextPage(_ link: String) async throws -> MessagePage
     func message(id: String) async throws -> MailMessage
     func attachments(messageID: String) async throws -> [FileAttachment]
@@ -172,11 +184,18 @@ final class GraphMailService: MailService {
         return map
     }
 
-    func messages(folderID: String, search: String?) async throws -> MessagePage {
-        let r = GraphQuery.messageList(search: search)
+    func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage {
+        let searching = !(search ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+        let r = GraphQuery.messageList(search: search, filter: filter?.graphFilter(), oldestFirst: oldestFirst)
         let data = try await request("GET", "/me/mailFolders/\(folderID)/messages", query: r.query, headers: r.headers)
         let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
-        return MessagePage(messages: list.value, nextLink: list.nextLink)
+        return MessagePage(messages: list.value, nextLink: list.nextLink, serverFiltered: !searching)
+    }
+
+    func categories() async throws -> [String] {
+        struct Category: Decodable { let displayName: String }
+        let data = try await request("GET", "/me/outlook/masterCategories")
+        return try decoder.decode(GraphList<Category>.self, from: data).value.map(\.displayName)
     }
 
     func nextPage(_ link: String) async throws -> MessagePage {

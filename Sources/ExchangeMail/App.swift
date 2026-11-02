@@ -68,6 +68,9 @@ struct MenuSnapshot: Equatable {
     var hasAttachments = false
     /// 본문이 보이면 인쇄할 수 있다 (대화 안의 다른 메일을 펼쳤을 때도)
     var canPrint = false
+    var sortKey = MailSort.Key.date
+    var sortDescending = true
+    var filterActive = false
     var isDraft = false
     var hasRemoteContent = false
 }
@@ -97,6 +100,24 @@ struct MailCommands: Commands {
             // ⌥⌘T는 macOS의 "도구 막대 가리기"라 쓰지 않는다.
             Toggle("대화별로 정리", isOn: $threaded)
                 .keyboardShortcut("t", modifiers: [.command, .control])
+            // 정렬 기준 (S-042)
+            Menu("정렬 기준") {
+                ForEach(MailSort.Key.allCases, id: \.self) { key in
+                    Button {
+                        model.listSort.key = key
+                    } label: {
+                        if menu.sortKey == key { Label(key.label, systemImage: "checkmark") } else { Text(key.label) }
+                    }
+                }
+                Divider()
+                Button(menu.sortKey == .date ? "새로운 항목 우선" : "내림차순") { model.listSort.descending = true }
+                    .disabled(menu.sortDescending)
+                Button(menu.sortKey == .date ? "오래된 항목 우선" : "오름차순") { model.listSort.descending = false }
+                    .disabled(!menu.sortDescending)
+            }
+            Button("모든 필터 해제") { model.listFilter = MailFilter() }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+                .disabled(!menu.filterActive)
         }
         CommandGroup(replacing: .printItem) {
             Button("인쇄…") { model.printDisplayed() }

@@ -190,6 +190,10 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var odataType: String?
     /// 회의 초대 메일의 일정 (`$expand=microsoft.graph.eventMessage/event`로 받는다)
     public var event: MailEvent?
+    /// low, normal, high (S-041, S-042)
+    public var importance: String?
+    /// Outlook 범주 이름 (S-041)
+    public var categories: [String]?
 
     public init(id: String, internetMessageId: String? = nil, conversationId: String? = nil, subject: String?,
                 from: Recipient?, toRecipients: [Recipient]? = nil, ccRecipients: [Recipient]? = nil,
@@ -213,11 +217,14 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
         self.flag = nil
         self.odataType = nil
         self.event = nil
+        self.importance = nil
+        self.categories = nil
     }
 
     enum CodingKeys: String, CodingKey {
         case id, internetMessageId, conversationId, subject, from, toRecipients, ccRecipients, bccRecipients
         case parentFolderId, receivedDateTime, bodyPreview, isRead, hasAttachments, body, internetMessageHeaders, flag, event
+        case importance, categories
         case odataType = "@odata.type"
     }
 

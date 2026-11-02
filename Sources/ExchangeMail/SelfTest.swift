@@ -68,6 +68,39 @@ enum SelfTest {
             check("S-013 다시 바꾸면 읽음", model.selectedMessage?.isRead == true
                   && (model.selectedFolder?.unreadItemCount ?? 0) == unreadOpen)
 
+            // S-041 필터, S-042 정렬 (받은 편지함이 처음 상태일 때)
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.4))
+            let unfilteredCount = model.messages.count
+            await model.setRead(id: "m2", false)   // 앞 테스트가 모두 읽음으로 바꿨다
+            model.listFilter.unread = true
+            await model.loadMessages(keepSelection: true)
+            check("S-041 읽지 않음 필터는 안 읽은 메일만",
+                  model.messages.map(\.id).contains("m2") && model.messages.allSatisfy(\.isUnread))
+            await model.setRead(id: "m2", true)
+            model.listFilter = MailFilter()
+            model.listFilter.highImportance = true
+            await model.loadMessages(keepSelection: true)
+            check("S-041 높은 우선순위 필터", model.messages.map(\.id) == ["m2"])
+            model.listFilter = MailFilter()
+            model.listFilter.category = "빨강 범주"
+            await model.loadMessages(keepSelection: true)
+            check("S-041 범주 필터", model.messages.map(\.id) == ["m2"] && model.categories.contains("빨강 범주"))
+            model.listFilter = MailFilter()
+            await model.loadMessages(keepSelection: true)
+            check("S-041 모든 필터 해제하면 원래 목록", model.messages.count == unfilteredCount)
+
+            model.listSort = MailSort(key: .sender, descending: false)
+            let senders = model.messages.map { $0.from?.emailAddress.display ?? "" }
+            check("S-042 보낸 사람 오름차순",
+                  zip(senders, senders.dropFirst()).allSatisfy { $0.localizedStandardCompare($1) != .orderedDescending })
+            model.listSort = MailSort(key: .date, descending: false)
+            await model.loadMessages(keepSelection: true)
+            let dates = model.messages.compactMap(\.receivedDateTime)
+            check("S-042 오래된 항목 우선", dates == dates.sorted())
+            model.listSort = MailSort()
+            await model.loadMessages(keepSelection: true)
+
             // S-032: 첨부 미리보기 파일
             await open("m1")
             if let pdf = model.listedAttachments.first {

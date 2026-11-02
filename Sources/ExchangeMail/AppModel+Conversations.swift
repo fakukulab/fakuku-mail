@@ -9,7 +9,14 @@ extension AppModel {
     }
 
     /// 지금 폴더 목록을 대화로 묶은 것
-    var conversations: [Conversation] { Conversations.group(messages) }
+    var conversations: [Conversation] {
+        let groups = Conversations.group(messages)
+        // 정렬 기준이 날짜 내림차순이 아니면 대화의 최근 메일로 정렬한다 (S-042).
+        guard listSort != MailSort() else { return groups }
+        let order = listSort.apply(groups.map(\.latest)).map(\.id)
+        let index = Dictionary(uniqueKeysWithValues: groups.map { ($0.latest.id, $0) })
+        return order.compactMap { index[$0] }
+    }
 
     /// 목록에서 위아래로 옮길 때의 순서: 대화별이면 대화의 최근 메일, 아니면 메일 하나하나.
     var navigationOrder: [String] {

@@ -418,6 +418,56 @@ Acceptance:
 - [manual] 켠 뒤 다른 계정에서 메일을 보내면 자동 응답이 온다. Outlook 웹의 자동 회신 설정에도 같은 값이 보인다.
 Status: done (맥에서 빌드·swift test·selftest 통과, 실제 계정 확인 2026-11-02)
 
+## M13 List view
+
+### S-041 목록 필터
+As the user, 목록 위 깔때기 메뉴에서 읽지 않음, 깃발, 첨부 있음, 멘션(@), 높은 우선순위, 받는 사람·참조에 내가 있음, 범주, 받은 날짜(오늘·이번 주·이번 달)로 거르고, "모든 필터 해제"로 되돌린다.
+Acceptance:
+- [unit] 서버 필터는 `isRead eq false`, `flag/flagStatus eq 'flagged'`, `hasAttachments eq true`, `importance eq 'high'`, `categories/any(c:c eq '...')`, `receivedDateTime ge ...`를 and로 잇는다. 날짜 정렬과 함께 쓸 때는 `receivedDateTime`가 맨 앞이다.
+- [unit] 멘션과 "받는 사람·참조에 내가 있음"은 불러온 메일 안에서 거른다.
+- [self] 필터를 켜면 맞는 메일만, 해제하면 원래 목록이다. 켜진 필터는 목록 위에 보인다.
+Note: Outlook의 "지연(나중에 보기)"은 Graph에 API가 없어 뺐다.
+Status: doing (코드 완료, 맥 빌드·실제 계정 확인 대기)
+
+### S-042 정렬 기준
+As the user, 보기 > 정렬 기준(목록 위 메뉴에도)에서 받은 날짜, 보낸 사람, 제목, 첨부, 깃발, 중요도와 새로운/오래된 항목 우선을 고른다.
+Acceptance:
+- [unit] 날짜는 서버 순서, 나머지는 불러온 메일 안에서 정렬한다. 대화별이면 대화의 최근 메일로 정렬한다.
+- [self] 보낸 사람 오름차순이면 이름순, 오래된 항목 우선이면 날짜 오름차순이다. 앱을 다시 열어도 남는다.
+Note: "크기"는 Graph v1.0 메시지 속성에 없어 뺐다.
+Status: doing (코드 완료, 맥 빌드·실제 계정 확인 대기)
+
+## M14 Windows and toolbar
+
+### S-043 메일을 별도 창으로 열기
+As the user, 목록에서 메일을 두 번 클릭하거나 ⌘O로 독립 창에서 읽고, 그 창에서도 답장·전달·보관·지우기·인쇄를 한다.
+Status: todo
+
+### S-044 도구 막대 사용자화
+As the user, 보기 > 도구 막대 사용자화…에서 보관, 지우기, 정크, 답장, 전체 답장, 전달, 깃발, 이동, 인쇄, 읽음, 새로운 메시지, 받은 메일 가져오기를 끌어 넣고 뺀다.
+Status: todo
+
+## M15 VIP and smart mailboxes
+
+### S-045 VIP
+As the user, 보낸 사람을 VIP로 지정하고(오른쪽 클릭, 머리글), 사람마다 표시 이름과 아이콘을 정한다. 사이드바 VIP 아래 사람별 메일상자가 생기고, 목록에 그 아이콘이 보인다.
+Status: todo
+
+### S-046 스마트 메일상자
+As the user, 이름·아이콘·조건(보낸 사람, 제목, 읽지 않음, 깃발, 첨부, 기간, 폴더; 모두/하나라도)을 정한 스마트 메일상자를 만들어 사이드바에 두고, 고치고 지운다.
+Status: todo
+
+## M16 Privacy and settings
+
+### S-047 메일 활동 보호
+As the user, 설정에서 "메일 활동 보호"를 켜면 추적 픽셀과 알려진 추적 도메인이 막히고, 나머지 원격 그림은 쿠키·리퍼러 없이 앱이 대신 받아 보여 준다.
+Note: 맥 Mail처럼 IP 주소를 숨기려면 중계 서버가 필요해 하지 않는다.
+Status: todo
+
+### S-048 맥 Mail 같은 설정
+As the user, 설정이 일반, 계정, 정크 메일, 보기, 작성, 서명, 규칙, 자동 응답, 알림 탭으로 나뉘고, 레이블이 오른쪽 정렬된 맥 설정 배치로 보인다.
+Status: todo
+
 ## Later
 - Sparkle 업데이트와 공증 배포 (기획안 7장)
 

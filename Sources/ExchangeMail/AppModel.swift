@@ -60,6 +60,38 @@ final class AppModel {
             Task { await loadMessages() }
         }
     }
+    /// 목록 필터 (S-041). 바꾸면 다시 불러온다. 폴더를 옮겨도 해제할 때까지 남는다.
+    var listFilter = MailFilter() {
+        didSet {
+            guard listFilter != oldValue else { return }
+            updateMenu()
+            Task { await loadMessages(keepSelection: true) }
+        }
+    }
+    /// 정렬 기준 (S-042). 앱을 다시 열어도 남는다. 날짜 방향이 바뀔 때만 서버에서 다시 받는다.
+    var listSort = AppModel.savedSort() {
+        didSet {
+            guard listSort != oldValue else { return }
+            if let data = try? JSONEncoder().encode(listSort), !Store.isOverridden {
+                UserDefaults.standard.set(data, forKey: "list.sort")
+            }
+            if listSort.serverOldestFirst != oldValue.serverOldestFirst {
+                Task { await loadMessages(keepSelection: true) }
+            } else {
+                messages = listSort.apply(messages)
+            }
+            updateMenu()
+        }
+    }
+    /// Outlook 범주 이름 (필터 메뉴)
+    var categories: [String] = []
+
+    static func savedSort() -> MailSort {
+        guard !Store.isOverridden, let data = UserDefaults.standard.data(forKey: "list.sort"),
+              let sort = try? JSONDecoder().decode(MailSort.self, from: data) else { return MailSort() }
+        return sort
+    }
+
     /// Quick Look으로 보는 첨부 파일 (S-032)
     var previewURL: URL?
     /// 인쇄가 끝날 때까지 잡아 둔다 (S-034)
@@ -182,6 +214,7 @@ final class AppModel {
             return
         }
         await loadFolders()
+        categories = (try? await service.categories()) ?? []
         if selectedFolderID == nil || !folders.contains(where: { $0.id == selectedFolderID }) {
             // didSet이 목록을 불러온다.
             selectedFolderID = folders.first { $0.kind == "inbox" }?.id ?? folders.first?.id
@@ -226,11 +259,15 @@ final class AppModel {
             } else if folderID == FolderOrder.flaggedID {
                 page = try await service.flaggedMessages()
             } else {
-                page = try await service.messages(folderID: folderID, search: search.isEmpty ? nil : search)
+                page = try await service.messages(folderID: folderID, search: search.isEmpty ? nil : search,
+                                                  filter: listFilter.isActive ? listFilter : nil,
+                                                  oldestFirst: listSort.serverOldestFirst)
             }
             // 기다리는 사이 폴더나 검색어가 바뀌었으면 버린다.
             guard folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) else { return }
-            messages = page.messages
+            // 깃발 표시·모든 폴더 검색은 서버 필터를 쓰지 않으므로 앱이 다 건다.
+            let serverFiltered = page.serverFiltered && folderID != FolderOrder.flaggedID && search.isEmpty
+            messages = arrange(page.messages, serverFiltered: serverFiltered)
             addressBook.noteSeen(page.messages, me: auth.email)
             nextLink = page.nextLink
             if let pending = pendingOpenID, messages.contains(where: { $0.id == pending }) {
@@ -253,7 +290,8 @@ final class AppModel {
             let page = try await service.nextPage(link)
             guard link == nextLink else { return }
             let known = Set(messages.map(\.id))
-            messages += page.messages.filter { !known.contains($0.id) }
+            let more = arrange(page.messages, serverFiltered: page.serverFiltered).filter { !known.contains($0.id) }
+            messages = listSort.apply(messages + more)
             nextLink = page.nextLink
         } catch {
             report(error)
@@ -288,6 +326,13 @@ final class AppModel {
         } catch {
             report(error)
         }
+    }
+
+    /// 필터의 앱 쪽 부분을 걸고 정렬한다 (S-041, S-042).
+    func arrange(_ list: [MailMessage], serverFiltered: Bool) -> [MailMessage] {
+        let me = auth.email.map { MailAddress(name: auth.displayName, address: $0) }
+        let kept = listFilter.isActive ? list.filter { listFilter.matches($0, me: me, serverFiltered: serverFiltered) } : list
+        return listSort.apply(kept)
     }
 
     // MARK: 바꾸기
@@ -469,6 +514,9 @@ final class AppModel {
             inJunk: selectedFolder?.kind == "junkemail",
             hasAttachments: !listedAttachments.isEmpty,
             canPrint: detail != nil && multipleSelectionCount == 0,
+            sortKey: listSort.key,
+            sortDescending: listSort.descending,
+            filterActive: listFilter.isActive,
             isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && !remoteContentAllowed))
     }

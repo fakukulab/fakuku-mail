@@ -659,3 +659,59 @@ func automaticReplies() throws {
     let back = try JSONDecoder().decode(AutomaticReplies.self, from: encoded)
     #expect(back == a)
 }
+
+// S-041 필터, S-042 정렬
+
+@Test("서버 필터는 and로 잇고, 날짜 정렬과 함께면 날짜 조건이 맨 앞")
+func graphFilterString() throws {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = try #require(TimeZone(identifier: "Asia/Seoul"))
+    var f = MailFilter()
+    #expect(f.graphFilter() == nil && !f.isActive)
+    f.unread = true
+    f.flagged = true
+    f.category = "Kim's"
+    #expect(f.graphFilter() == "isRead eq false and flag/flagStatus eq 'flagged' and categories/any(c:c eq 'Kim''s')")
+    let r = GraphQuery.messageList(search: nil, filter: f.graphFilter(), oldestFirst: false)
+    #expect(r.query["$filter"]?.hasPrefix("receivedDateTime ge 1900-01-01T00:00:00Z and isRead eq false") == true)
+    #expect(r.query["$orderby"] == "receivedDateTime desc")
+    f.received = .today
+    let now = Date(timeIntervalSince1970: 1_714_557_600) // 2024-05-01 19:00 KST
+    #expect(f.graphFilter(now: now, calendar: cal)?.hasPrefix("receivedDateTime ge 2024-04-30T15:00:00Z and ") == true)
+    let searching = GraphQuery.messageList(search: "견적", filter: f.graphFilter(), oldestFirst: false)
+    #expect(searching.query["$filter"] == nil)
+    #expect(f.labels.contains("받은 날짜: 오늘"))
+}
+
+@Test("멘션과 받는 사람·참조에 나는 앱에서 거른다")
+func clientSideFilter() {
+    let me = MailAddress(name: "김준", address: "jyun@corp.com")
+    var mention = MailMessage(id: "a", subject: "s", from: nil, toRecipients: [Recipient(name: nil, address: "x@corp.com")],
+                              ccRecipients: [Recipient(name: nil, address: "JYUN@corp.com")], receivedDateTime: Date(),
+                              bodyPreview: "@김준 확인 부탁드립니다")
+    var f = MailFilter()
+    f.mentionsMe = true
+    #expect(f.matches(mention, me: me, serverFiltered: true))
+    mention.bodyPreview = "확인 부탁드립니다"
+    #expect(!f.matches(mention, me: me, serverFiltered: true))
+    f = MailFilter()
+    f.toOrCcMe = true
+    #expect(f.matches(mention, me: me, serverFiltered: true))
+    f.unread = true
+    #expect(f.matches(mention, me: me, serverFiltered: true))       // 서버가 이미 걸렀다
+    #expect(!f.matches(mention, me: me, serverFiltered: false))     // isRead 기본값 true
+}
+
+@Test("정렬: 날짜, 보낸 사람, 첨부")
+func sorting() {
+    func m(_ id: String, _ from: String, _ hours: Double, attach: Bool = false) -> MailMessage {
+        MailMessage(id: id, subject: id, from: Recipient(name: from, address: "\(id)@x.com"),
+                    receivedDateTime: Date(timeIntervalSince1970: 1_714_557_600 - hours * 3_600), hasAttachments: attach)
+    }
+    let list = [m("1", "박", 3), m("2", "김", 1, attach: true), m("3", "이", 2)]
+    #expect(MailSort().apply(list).map(\.id) == ["2", "3", "1"])
+    #expect(MailSort(key: .date, descending: false).apply(list).map(\.id) == ["1", "3", "2"])
+    #expect(MailSort(key: .date, descending: false).serverOldestFirst)
+    #expect(MailSort(key: .sender, descending: false).apply(list).map(\.id) == ["2", "1", "3"])
+    #expect(MailSort(key: .attachments, descending: true).apply(list).map(\.id) == ["2", "3", "1"])
+}

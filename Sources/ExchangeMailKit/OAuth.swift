@@ -118,7 +118,7 @@ extension Data {
 
 /// Graph 메일 요청에 쓰는 쿼리.
 public enum GraphQuery {
-    public static let listSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,flag"
+    public static let listSelect = "id,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,flag,importance,categories"
     public static let detailSelect = "id,internetMessageId,conversationId,parentFolderId,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,isRead,hasAttachments,internetMessageHeaders,flag"
     public static let pageSize = 50
     public static let folderSelect = "id,displayName,unreadItemCount,totalItemCount,parentFolderId,childFolderCount"
@@ -150,13 +150,22 @@ public enum GraphQuery {
 
     /// 목록 요청. 검색할 때는 `$orderby`를 함께 쓸 수 없다 (Graph 제한).
     public static func messageList(search: String?, top: Int = pageSize) -> Request {
+        messageList(search: search, filter: nil, oldestFirst: false, top: top)
+    }
+
+    /// 목록 요청 (S-041, S-042). 검색은 `$filter`·`$orderby`와 함께 쓸 수 없어 검색이 있으면 필터는 앱에서 건다.
+    /// `$filter`와 `$orderby`를 함께 쓰면 정렬 속성이 필터 맨 앞에 있어야 하므로 날짜 조건을 앞에 둔다.
+    public static func messageList(search: String?, filter: String?, oldestFirst: Bool, top: Int = pageSize) -> Request {
         var q = ["$top": "\(top)", "$select": listSelect]
         var h: [String: String] = [:]
         if let s = search?.trimmingCharacters(in: .whitespaces), !s.isEmpty {
             q["$search"] = "\"\(s.replacingOccurrences(of: "\"", with: ""))\""
             h["ConsistencyLevel"] = "eventual"
         } else {
-            q["$orderby"] = "receivedDateTime desc"
+            q["$orderby"] = oldestFirst ? "receivedDateTime asc" : "receivedDateTime desc"
+            if let filter, !filter.isEmpty {
+                q["$filter"] = filter.hasPrefix("receivedDateTime") ? filter : "receivedDateTime ge 1900-01-01T00:00:00Z and \(filter)"
+            }
         }
         return Request(query: q, headers: h)
     }

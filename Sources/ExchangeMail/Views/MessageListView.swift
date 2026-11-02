@@ -62,12 +62,17 @@ struct MessageListView: View {
         .overlay { emptyState }
         // 오프라인이면 목록 위에 안내 막대 (S-026)
         .safeAreaInset(edge: .top, spacing: 0) {
-            if model.isOffline { OfflineBar() }
+            VStack(spacing: 0) {
+                if model.isOffline { OfflineBar() }
+                if model.listFilter.isActive { FilterBar() }
+            }
         }
         .navigationTitle(model.selectedFolderID == FolderOrder.flaggedID ? "깃발 표시" : (model.selectedFolder?.displayName ?? "메일"))
         .navigationSubtitle(subtitle)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                FilterMenu()
+                SortMenu()
                 Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
                     .help("받은 메일 가져오기 (⇧⌘N)")
                 Button("새로운 메시지", systemImage: "square.and.pencil") {
@@ -290,5 +295,90 @@ struct OfflineBar: View {
         .padding(.vertical, Space.sm)
         .background(.bar)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// 목록 필터 메뉴 (S-041). 켜져 있으면 깔때기가 채워진다.
+struct FilterMenu: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        Menu {
+            Toggle("읽지 않음", isOn: $model.listFilter.unread)
+            Toggle("깃발", isOn: $model.listFilter.flagged)
+            Toggle("첨부 파일 있음", isOn: $model.listFilter.hasAttachments)
+            Toggle("멘션(@)", isOn: $model.listFilter.mentionsMe)
+            Toggle("높은 우선순위", isOn: $model.listFilter.highImportance)
+            Toggle("받는 사람 또는 참조에 내가 있는 메일", isOn: $model.listFilter.toOrCcMe)
+            Picker("받은 날짜", selection: $model.listFilter.received) {
+                Text("전체").tag(MailFilter.Period?.none)
+                ForEach(MailFilter.Period.allCases, id: \.self) { p in
+                    Text(p.label).tag(MailFilter.Period?.some(p))
+                }
+            }
+            Picker("범주", selection: $model.listFilter.category) {
+                Text("전체").tag(String?.none)
+                ForEach(model.categories, id: \.self) { c in
+                    Text(c).tag(String?.some(c))
+                }
+            }
+            .disabled(model.categories.isEmpty)
+            Divider()
+            Button("모든 필터 해제") { model.listFilter = MailFilter() }
+                .disabled(!model.listFilter.isActive)
+        } label: {
+            Label("필터", systemImage: model.listFilter.isActive
+                  ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .help(model.listFilter.isActive ? "필터: " + model.listFilter.labels.joined(separator: ", ") : "필터")
+    }
+}
+
+/// 정렬 기준 메뉴 (S-042)
+struct SortMenu: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        Menu {
+            Picker("정렬 기준", selection: $model.listSort.key) {
+                ForEach(MailSort.Key.allCases, id: \.self) { key in
+                    Text(key.label).tag(key)
+                }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Picker("순서", selection: $model.listSort.descending) {
+                Text(model.listSort.key == .date ? "새로운 항목 우선" : "내림차순").tag(true)
+                Text(model.listSort.key == .date ? "오래된 항목 우선" : "오름차순").tag(false)
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("정렬", systemImage: "arrow.up.arrow.down")
+        }
+        .help("정렬 기준: \(model.listSort.key.label)")
+    }
+}
+
+/// 켜진 필터 (S-041): 무엇으로 거르고 있는지와 해제 버튼
+struct FilterBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                .foregroundStyle(.tint)
+            Text(model.listFilter.labels.joined(separator: " · "))
+                .font(.callout)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: Space.xs)
+            Button("해제") { model.listFilter = MailFilter() }
+                .controlSize(.small)
+        }
+        .padding(.horizontal, Space.md)
+        .padding(.vertical, Space.sm)
+        .background(.bar)
     }
 }

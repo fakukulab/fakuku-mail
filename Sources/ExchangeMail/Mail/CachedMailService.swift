@@ -67,14 +67,24 @@ final class CachedMailService: MailService {
         try await read({ try await remote.folders() }, save: { $0.saveFolders($1) }, fallback: { $0.folders() })
     }
 
-    func messages(folderID: String, search: String?) async throws -> MessagePage {
+    func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage {
         // 검색은 서버에서만 된다.
         if let search, !search.isEmpty {
-            return try await write("검색할") { try await remote.messages(folderID: folderID, search: search) }
+            return try await write("검색할") {
+                try await remote.messages(folderID: folderID, search: search, filter: filter, oldestFirst: oldestFirst)
+            }
         }
-        return try await read({ try await remote.messages(folderID: folderID, search: nil) },
-                              save: { $0.saveList(folderID: folderID, messages: $1.messages, nextLink: $1.nextLink) },
-                              fallback: { c in c.list(folderID: folderID).map { MessagePage(messages: $0.messages, nextLink: nil) } })
+        // 거르거나 뒤집은 목록은 폴더 목록으로 저장하지 않는다. 오프라인이면 저장된 목록을 앱이 거른다.
+        let plain = !(filter?.isActive ?? false) && !oldestFirst
+        return try await read({ try await remote.messages(folderID: folderID, search: nil, filter: filter, oldestFirst: oldestFirst) },
+                              save: { if plain { $0.saveList(folderID: folderID, messages: $1.messages, nextLink: $1.nextLink) } },
+                              fallback: { c in
+                                  c.list(folderID: folderID).map { MessagePage(messages: $0.messages, nextLink: nil, serverFiltered: false) }
+                              })
+    }
+
+    func categories() async throws -> [String] {
+        try await write("범주를 불러올") { try await remote.categories() }
     }
 
     func nextPage(_ link: String) async throws -> MessagePage {
