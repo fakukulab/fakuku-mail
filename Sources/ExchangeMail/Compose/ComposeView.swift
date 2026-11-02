@@ -135,14 +135,14 @@ struct ComposeView: View {
         @Bindable var compose = compose
         return VStack(spacing: 0) {
             row("받는 사람:") {
-                TextField("받는 사람", text: $compose.to)
+                TextField("받는 사람", text: $compose.to, prompt: Text(""))
                     .focused($focus, equals: .to)
                     .addressSuggestions(for: compose.to, from: model.addressBook)
             }
             rule
             if fieldCc || !compose.cc.isEmpty {
                 row("참조:") {
-                    TextField("참조", text: $compose.cc)
+                    TextField("참조", text: $compose.cc, prompt: Text(""))
                         .focused($focus, equals: .cc)
                         .addressSuggestions(for: compose.cc, from: model.addressBook)
                 }
@@ -150,7 +150,7 @@ struct ComposeView: View {
             }
             if fieldBcc || !compose.bcc.isEmpty {
                 row("숨은 참조:") {
-                    TextField("숨은 참조", text: $compose.bcc)
+                    TextField("숨은 참조", text: $compose.bcc, prompt: Text(""))
                         .focused($focus, equals: .bcc)
                         .addressSuggestions(for: compose.bcc, from: model.addressBook)
                 }
@@ -158,13 +158,13 @@ struct ComposeView: View {
             }
             if fieldReplyTo || !compose.replyTo.isEmpty {
                 row("답장 받을 사람:") {
-                    TextField("답장 받을 사람", text: $compose.replyTo)
+                    TextField("답장 받을 사람", text: $compose.replyTo, prompt: Text(""))
                         .addressSuggestions(for: compose.replyTo, from: model.addressBook)
                 }
                 rule
             }
             row("제목:") {
-                TextField("제목", text: $compose.subject)
+                TextField("제목", text: $compose.subject, prompt: Text(""))
                     .focused($focus, equals: .subject)
                 if fieldPriority || compose.importance != "normal" {
                     priorityMenu
@@ -200,16 +200,26 @@ struct ComposeView: View {
         return "\(name) – \(email)"
     }
 
-    /// 우선 순위 팝업 (!! 높음, ! 보통, – 낮음). 제목 줄 오른쪽 끝, 맥 Mail과 같은 자리.
+    /// 우선 순위 팝업: 닫혀 있을 때는 기호(!! / ! / –)만, 누르면 "우선 순위 높음" 같은 이름이 보인다.
+    /// 제목 줄 오른쪽 끝, 맥 Mail과 같은 자리.
     private var priorityMenu: some View {
         @Bindable var compose = compose
-        return Picker("우선 순위", selection: $compose.importance) {
-            Text("!!  우선 순위 높음").tag("high")
-            Text("!   우선 순위 보통").tag("normal")
-            Text("–   우선 순위 낮음").tag("low")
+        let mark = compose.importance == "high" ? "!!" : compose.importance == "low" ? "–" : "!"
+        return Menu {
+            Picker("우선 순위", selection: $compose.importance) {
+                Text("!!  우선 순위 높음").tag("high")
+                Text("!   우선 순위 보통").tag("normal")
+                Text("–   우선 순위 낮음").tag("low")
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+        } label: {
+            Text(mark)
+                .fontWeight(.semibold)
+                .foregroundStyle(compose.importance == "normal" ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
         }
-        .labelsHidden()
-        .frame(width: 72)
+        .menuStyle(.button)
+        .fixedSize()
         .help(compose.importance == "high" ? "우선 순위 높음" : compose.importance == "low" ? "우선 순위 낮음" : "우선 순위 보통")
         .accessibilityLabel("우선 순위")
     }
