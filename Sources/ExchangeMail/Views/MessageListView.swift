@@ -67,12 +67,15 @@ struct MessageListView: View {
         }
         .navigationTitle(model.selectedFolderID == FolderOrder.flaggedID ? "깃발 표시" : (model.selectedFolder?.displayName ?? "메일"))
         .navigationSubtitle(subtitle)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                FilterMenu()
-                SortMenu()
+        // 본문 열과 같은 id: 한 창의 도구 막대는 모든 항목이 사용자화 항목이어야 사용자화된다 (S-044).
+        .toolbar(id: "mail") {
+            ToolbarItem(id: "filter", placement: .primaryAction) { FilterMenu() }
+            ToolbarItem(id: "sort", placement: .primaryAction) { SortMenu() }
+            ToolbarItem(id: "listGetMail", placement: .primaryAction) {
                 Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
                     .help("받은 메일 가져오기 (⇧⌘N)")
+            }
+            ToolbarItem(id: "listNewMessage", placement: .primaryAction) {
                 Button("새로운 메시지", systemImage: "square.and.pencil") {
                     openWindow(id: "compose", value: ComposeDraft())
                 }

@@ -98,7 +98,7 @@ struct RemoteContentBar: View {
 }
 
 /// 메인 창 본문 열 위의 도구 막대 (S-044). 보기 > 도구 막대 사용자화…로 넣고 뺀다.
-/// 목록 열의 필터·정렬·새로 고침·새로운 메시지는 그 열에 붙어 있어 사용자화하지 않는다.
+/// 목록 열의 필터·정렬·받은 메일 가져오기·새로운 메시지도 같은 id("mail")라 함께 사용자화된다.
 extension MessageDetailView {
     @ToolbarContentBuilder
     var mailToolbar: some CustomizableToolbarContent {
@@ -180,16 +180,6 @@ extension MessageDetailView {
             Button("새 창에서 열기", systemImage: "macwindow.on.rectangle") { openInWindow() }
                 .help("새 창에서 열기 (⌘O)")
                 .disabled(model.detail == nil || model.multipleSelectionCount > 0)
-        }
-        .defaultCustomization(.hidden)
-        ToolbarItem(id: "newMessage") {
-            Button("새로운 메시지", systemImage: "square.and.pencil") { openWindow(id: "compose", value: ComposeDraft()) }
-                .help("새로운 메시지 (⌘N)")
-        }
-        .defaultCustomization(.hidden)
-        ToolbarItem(id: "getMail") {
-            Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
-                .help("받은 메일 가져오기 (⇧⌘N)")
         }
         .defaultCustomization(.hidden)
     }
