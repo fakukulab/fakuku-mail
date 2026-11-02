@@ -81,6 +81,16 @@ struct ExchangeMailApp: App {
         }
         .defaultSize(width: 760, height: 640)
 
+        // 메일 파일 (S-053): 내 Mac의 .mbox·.eml 파일을 읽기 전용으로 본다.
+        WindowGroup("메일 파일", id: "archive", for: URL.self) { $url in
+            ArchiveWindow(url: url)
+                .environment(model)
+                .themed()
+                .frame(minWidth: 760, minHeight: 480)
+        }
+        .defaultSize(width: 1100, height: 720)
+        .windowToolbarStyle(.unified)
+
         Settings {
             SettingsView()
                 .environment(model)
@@ -124,6 +134,8 @@ struct MenuSnapshot: Equatable {
     var smartSelected = false
     /// 다음으로 이동·복사 하위 메뉴
     var moveTargets: [MoveTarget] = []
+    /// 메일상자 내보내기 중 (S-053)
+    var exporting = false
 
     var filterActive: Bool { filter.isActive }
 }
@@ -157,6 +169,11 @@ struct MailCommands: Commands {
             Button("새로운 메시지") { openWindow(id: "compose", value: ComposeDraft()) }
                 .keyboardShortcut("n")
                 .disabled(!menu.signedIn)
+            // S-053: 내 Mac에 보관한 메일(.mbox, .eml)을 연다. 로그인하지 않아도 된다.
+            Button("메일 파일 열기…") {
+                if let url = AppModel.chooseArchive() { openWindow(id: "archive", value: url) }
+            }
+            .keyboardShortcut("o", modifiers: [.command, .option])
         }
         CommandGroup(after: .sidebar) { viewMenu }
         CommandGroup(replacing: .printItem) {
@@ -288,6 +305,19 @@ struct MailCommands: Commands {
             }
         }
         .disabled(!menu.folderEditable)
+        Divider()
+        // S-053: 고른 폴더를 내 Mac의 .mbox 파일로
+        if menu.exporting {
+            Button("내보내기 중단") { model.cancelExport() }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+        } else {
+            Button("메일상자 내보내기…") { model.exportSelectedMailbox() }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+                .disabled(!menu.inServerFolder)
+        }
+        Button("메일 파일 열기…") {
+            if let url = AppModel.chooseArchive() { openWindow(id: "archive", value: url) }
+        }
         Divider()
         Button("새 스마트 메일상자…") { model.newSmartMailbox() }
             .keyboardShortcut("n", modifiers: [.command, .option])

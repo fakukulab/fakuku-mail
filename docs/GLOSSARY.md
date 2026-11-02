@@ -36,4 +36,6 @@
 | 나중에 보내기 | `ScheduledSend`, `ComposeModel.schedule` | Exchange 지연 발송 |
 | 회의 초대 | `MailEvent`, `MeetingBar` | 수락·미정·거절 (S-038 보류) |
 
+| 메일상자 내보내기 | Export Mailbox (.mbox). 맥 Mail과 같은 말. |
+| 메일 파일 | 내 Mac에 있는 .mbox·.eml 파일. "보관"은 보관 폴더(Archive)에만 쓴다. |
 | 구독 취소 | Unsubscribe (List-Unsubscribe). "수신 거부"라고 쓰지 않는다. |

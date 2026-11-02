@@ -83,6 +83,9 @@ final class AppModel {
 
     /// 지운 편지함 비우기 같은 오래 걸리는 일의 진행 글 (목록 위 막대)
     var progressText: String?
+    /// 메일상자 내보내기 중 (S-053)
+    var archiveExporting = false { didSet { updateMenu() } }
+    @ObservationIgnored var exportTask: Task<Void, Never>?
     /// 차단된 보낸 사람 서버 규칙 (설정 > 정크 메일). 아직 읽지 않았으면 nil.
     var blockedRule: MessageRule?
     var blockedLoaded = false
@@ -691,6 +694,7 @@ final class AppModel {
             inServerFolder: isSignedIn && selectedFolderID != nil && !VirtualMailbox.isVirtual(selectedFolderID),
             folderEditable: selectedEditableFolder != nil,
             smartSelected: { if case .smart = selectedVirtual { return true } else { return false } }(),
-            moveTargets: moveTargets))
+            moveTargets: moveTargets,
+            exporting: archiveExporting))
     }
 }

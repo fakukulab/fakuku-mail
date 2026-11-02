@@ -895,6 +895,31 @@ enum SelfTest {
             check("M17 스마트 메일상자 복제", model.mailboxes.smart.contains { $0.name == "복제 시험 사본" && $0.id != base.id })
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
 
+            // S-053: 메일상자 내보내기 → 메일 파일 열기
+            if let inbox = model.folders.first(where: { $0.kind == "inbox" }) {
+                let file = Store.directory.appending(path: "selftest-export.mbox")
+                var expected: [String] = []
+                if var page = try? await model.service.messages(folderID: inbox.id, search: nil) {
+                    expected += page.messages.map { $0.subject ?? "" }
+                    while let next = page.nextLink, let more = try? await model.service.nextPage(next) {
+                        page = more
+                        expected += page.messages.map { $0.subject ?? "" }
+                    }
+                }
+                let exported = await model.exportMailbox(inbox, to: file)
+                let archived = (try? ArchiveFile.load(file)) ?? []
+                check("S-053 받은 편지함의 모든 메일을 mbox로 내보낸다",
+                      exported?.saved == expected.count && exported?.failed == 0 && archived.count == expected.count,
+                      "내보냄 \(exported?.saved ?? -1), 읽음 \(archived.count), 폴더 \(expected.count)")
+                check("S-053 메일 파일의 제목이 서버와 같다 (한글 포함)",
+                      Set(archived.map(\.subject)) == Set(expected))
+                check("S-053 메일 파일의 본문과 날짜를 읽는다",
+                      archived.allSatisfy { $0.html != nil && $0.date != nil })
+                let partial = Store.directory.appending(path: ".selftest-export.mbox.part")
+                check("S-053 작업용 반쪽 파일이 남지 않는다", !FileManager.default.fileExists(atPath: partial.path))
+                check("S-053 내보내기가 끝나면 메뉴가 다시 내보내기로", !model.archiveExporting && !MenuState.shared.snapshot.exporting)
+            }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

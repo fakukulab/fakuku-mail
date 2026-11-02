@@ -351,8 +351,12 @@ final class DemoMailService: MailService {
         try checkOnline()
         guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
         let from = m.from?.emailAddress.address ?? "unknown@example.com"
+        let rfc = DateFormatter()
+        rfc.locale = Locale(identifier: "en_US_POSIX")
+        rfc.dateFormat = "EEE, d MMM yyyy HH:mm:ss Z"
         let text = """
         Message-ID: \(m.internetMessageId ?? "<\(m.id)@demo>")\r
+        Date: \(rfc.string(from: m.receivedDateTime ?? Date()))\r
         From: \(from)\r
         To: \(Self.myAddress)\r
         Subject: \(m.subject ?? "")\r
