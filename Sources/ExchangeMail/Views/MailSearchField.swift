@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 본문 열 도구 막대 오른쪽의 검색 칸 (S-014, S-033).
@@ -41,5 +42,38 @@ struct MailSearchField: View {
         .frame(width: 280)
         .help("메일 검색 (⌥⌘F). Return으로 찾고 Esc로 지웁니다.")
         .onChange(of: model.searchFocusRequest) { _, _ in focused = true }
+    }
+}
+
+/// 사서함 > 메일 검색(⌥⌘F): 메인 창 도구 막대의 검색 칸에 초점을 준다.
+/// 도구 막대 항목은 창 본문과 다른 곳에 그려져 SwiftUI `@FocusState`가 닿지 않을 때가 있어, AppKit에서 칸을 찾아 직접 준다.
+enum SearchFieldFocus {
+    static let placeholder = "검색"
+
+    @discardableResult
+    static func focus() -> Bool {
+        guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true })
+                ?? NSApp.mainWindow else { return false }
+        window.makeKeyAndOrderFront(nil)
+        // 도구 막대 항목의 보기, 그다음 창 테두리 전체(도구 막대가 그려지는 곳)를 뒤진다.
+        let roots = (window.toolbar?.items.compactMap(\.view) ?? []) + [window.contentView?.superview].compactMap { $0 }
+        for root in roots {
+            if let field = find(in: root) {
+                window.makeFirstResponder(field)
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func find(in view: NSView) -> NSTextField? {
+        if let field = view as? NSTextField, field.isEditable,
+           field.placeholderString == placeholder || field.placeholderAttributedString?.string == placeholder {
+            return field
+        }
+        for sub in view.subviews {
+            if let field = find(in: sub) { return field }
+        }
+        return nil
     }
 }

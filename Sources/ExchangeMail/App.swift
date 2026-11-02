@@ -148,7 +148,10 @@ struct MailCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .control])
             .disabled(!menu.signedIn)
-            Button("메일 검색") { model.searchFocusRequest += 1 }
+            Button("메일 검색") {
+                // AppKit으로 칸을 찾아 초점을 주고, 못 찾으면 SwiftUI 쪽 요청으로 한 번 더.
+                if !SearchFieldFocus.focus() { model.searchFocusRequest += 1 }
+            }
                 .keyboardShortcut("f", modifiers: [.command, .option])
                 .disabled(!menu.signedIn)
             Button("새 스마트 메일상자…") { model.newSmartMailbox() }
