@@ -28,6 +28,12 @@ struct ContentView: View {
             NotificationRouter.shared.open = { id in Task { await model.openFromNotification(id) } }
             await model.prepareNotifications()
         }
+        .alert("알림", isPresented: Binding(get: { model.noticeMessage != nil },
+                                          set: { if !$0 { model.noticeMessage = nil } })) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(model.noticeMessage ?? "")
+        }
         .alert("오류", isPresented: Binding(get: { model.errorMessage != nil },
                                           set: { if !$0 { model.errorMessage = nil } })) {
             Button("확인", role: .cancel) {}

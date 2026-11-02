@@ -38,6 +38,7 @@ struct MessageDetailView: View {
                     if model.isDraftSelected {
                         draftBar
                     }
+                    UnsubscribeBar(message: m)
                     if m.isMeetingRequest, let event = m.event {
                         MeetingBar(event: event)
                     }

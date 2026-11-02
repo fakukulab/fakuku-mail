@@ -50,28 +50,35 @@ final class MergeSender {
     var remainingCount: Int { entries.filter { $0.state == .pending || $0.state == .sending }.count }
     var isActive: Bool { status == .running || status == .paused }
 
-    static let footerHTML = """
-    <div style="margin-top:24px;font-size:12px;color:#888888">이 메일을 더 받고 싶지 않으시면 회신으로 알려 주세요. \
-    If you no longer wish to receive these emails, please reply to let us know.</div>
-    """
+    /// 본문 끝의 수신 거부 줄 (눈에 보이는 링크). 누르면 보낸 사람에게 "수신 거부" 메일이 열린다.
+    static func footerHTML(me: String) -> String {
+        let subject = "수신 거부 Unsubscribe".addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe"
+        let link = "mailto:\(me)?subject=\(subject)"
+        return """
+        <div style="margin-top:24px;font-size:12px;color:#888888">이 메일을 더 받고 싶지 않으시면 \
+        <a href="\(link)">수신 거부</a>를 눌러 주세요. \
+        If you no longer wish to receive these emails, <a href="\(link)">unsubscribe</a>.</div>
+        """
+    }
 
     // MARK: 메일 만들기
 
     /// 한 사람에게 보낼 제목과 본문
     static func render(_ template: MergeTemplate, for member: MergeMember, signature: Signature?,
-                       footer: Bool) -> (subject: String, html: String) {
+                       footer: Bool, me: String = "") -> (subject: String, html: String) {
         let subject = MailMerge.render(template.subject, for: member, html: false)
         var html = MailMerge.render(template.html, for: member, html: true)
         if signature != nil { html += SignatureComposer.block(for: signature) }
-        if footer { html += footerHTML }
+        if footer && !me.isEmpty { html += footerHTML(me: me) }
         return (subject, html)
     }
 
     /// 한 사람에게 보낼 MIME
     static func mime(_ template: MergeTemplate, for member: MergeMember, options: Options, app: AppModel) throws -> Data {
         let me = app.auth.email ?? ""
+        // 수신 거부 체크 하나가 헤더(List-Unsubscribe)와 본문 끝의 수신 거부 링크를 함께 넣는다.
         let rendered = render(template, for: member, signature: app.signatures.signature(id: options.signatureID),
-                              footer: options.unsubscribeFooter)
+                              footer: options.unsubscribeHeader, me: me)
         let to = AddressParser.format([MailAddress(name: member.name.isEmpty ? nil : member.name, address: member.email)])
         let input = ComposeSender.Input(
             from: MailAddress(name: app.auth.displayName, address: me),

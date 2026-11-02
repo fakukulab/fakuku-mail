@@ -31,6 +31,7 @@ struct MessageWindow: View {
             if let m = reader.message {
                 VStack(alignment: .leading, spacing: 0) {
                     MessageHeader(message: m, attachments: reader.listedAttachments) { reader.preview($0, model: model) }
+                    UnsubscribeBar(message: m)
                     let remote = model.remoteMode(for: m, allowed: reader.allowRemote)
                     let page = model.protectedPage(id: m.id, body: reader.body, remote: remote)
                     if reader.hasRemoteContent {

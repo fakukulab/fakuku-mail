@@ -889,3 +889,17 @@ func flagColors() {
     m.internetMessageId = "<abc@x>"
     #expect(FlagColor.key(for: m) == "<abc@x>")
 }
+
+@Test("수신 거부 헤더 읽기")
+func unsubscribeHeader() {
+    let both = Unsubscribe.from(headers: [
+        InternetHeader(name: "List-Unsubscribe", value: "<mailto:off@news.com?subject=%EC%88%98%EC%8B%A0%20%EA%B1%B0%EB%B6%80>, <https://news.com/u?id=1>"),
+        InternetHeader(name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click"),
+    ])
+    #expect(both?.web?.absoluteString == "https://news.com/u?id=1")
+    #expect(both?.oneClick == true)
+    #expect(both?.mailtoParts?.to == "off@news.com")
+    #expect(both?.mailtoParts?.subject == "수신 거부")
+    #expect(Unsubscribe.from(headers: [InternetHeader(name: "Subject", value: "x")]) == nil)
+    #expect(Unsubscribe.from(headers: [InternetHeader(name: "list-unsubscribe", value: "<mailto:a@b.com>")])?.oneClick == false)
+}

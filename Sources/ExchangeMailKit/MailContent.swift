@@ -152,3 +152,48 @@ public enum MailDate {
                                                calendar: cal, timeZone: timeZone))
     }
 }
+
+// MARK: 수신 거부 (List-Unsubscribe, RFC 2369 / RFC 8058)
+
+/// 받은 메일의 수신 거부 방법. 메일링 리스트·뉴스레터·개별 발송 메일에 붙는다.
+public struct Unsubscribe: Equatable, Sendable {
+    public var mailto: URL?
+    public var web: URL?
+    /// List-Unsubscribe-Post: List-Unsubscribe=One-Click (웹 주소에 POST 한 번이면 끝)
+    public var oneClick: Bool
+
+    /// 헤더에서 읽는다. 없으면 nil.
+    public static func from(headers: [InternetHeader]?) -> Unsubscribe? {
+        guard let headers else { return nil }
+        func value(_ name: String) -> String? { headers.first { $0.name.lowercased() == name }?.value }
+        guard let raw = value("list-unsubscribe") else { return nil }
+        var result = Unsubscribe(mailto: nil, web: nil, oneClick: false)
+        // <mailto:a@b?subject=x>, <https://...> 를 꺾쇠 단위로 나눈다.
+        let parts = raw.components(separatedBy: ",").map {
+            $0.trimmingCharacters(in: CharacterSet(charactersIn: " <>\r\n\t"))
+        }
+        for p in parts {
+            guard let url = URL(string: p), let scheme = url.scheme?.lowercased() else { continue }
+            if scheme == "mailto", result.mailto == nil { result.mailto = url }
+            if scheme == "https", result.web == nil { result.web = url }
+        }
+        result.oneClick = result.web != nil && (value("list-unsubscribe-post")?.lowercased().contains("one-click") ?? false)
+        return result.mailto == nil && result.web == nil ? nil : result
+    }
+
+    /// mailto: 주소의 받는 사람과 제목
+    public var mailtoParts: (to: String, subject: String)? {
+        guard let mailto else { return nil }
+        let raw = mailto.absoluteString.replacingOccurrences(of: "mailto:", with: "", options: [.anchored, .caseInsensitive])
+        let pieces = raw.split(separator: "?", maxSplits: 1).map(String.init)
+        let to = pieces.first?.removingPercentEncoding ?? ""
+        var subject = "unsubscribe"
+        if pieces.count > 1 {
+            for pair in pieces[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1).map(String.init)
+                if kv.count == 2, kv[0].lowercased() == "subject" { subject = kv[1].removingPercentEncoding ?? kv[1] }
+            }
+        }
+        return to.isEmpty ? nil : (to, subject)
+    }
+}

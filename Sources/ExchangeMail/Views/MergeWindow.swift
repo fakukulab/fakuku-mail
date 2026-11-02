@@ -421,9 +421,10 @@ private struct MergeSendPane: View {
                     row("수신 거부") {
                         HStack(spacing: Space.xs) {
                             Toggle("수신 거부 단추 넣기", isOn: $options.unsubscribeHeader)
-                            Text("받는 쪽 메일 앱에 구독 취소 단추 넣기")
+                            Text("본문 끝에 수신 거부 링크와 수신 거부 헤더 넣기")
                         }
-                        .help("List-Unsubscribe 헤더를 넣습니다. Gmail·Outlook이 스팸으로 덜 분류합니다.")
+                        .help("본문 맨 끝에 '수신 거부' 링크를 붙이고, List-Unsubscribe 헤더도 넣습니다. "
+                              + "Gmail·Outlook이 헤더를 보고 '구독 취소' 단추를 보일지는 그 메일 앱이 정합니다.")
                     }
                 }
                 DisclosureGroup("스팸으로 보이지 않게 이렇게 보냅니다") {
@@ -524,7 +525,7 @@ private struct MergeSendPane: View {
             let member = group.sendable.first { $0.id == previewMember } ?? group.sendable[0]
             let rendered = MergeSender.render(template, for: member,
                                               signature: model.signatures.signature(id: options.signatureID),
-                                              footer: options.unsubscribeFooter)
+                                              footer: options.unsubscribeHeader, me: model.auth.email ?? "")
             let missing = MailMerge.placeholders(in: template.subject + template.html)
                 .filter { key in group.sendable.contains { MailMerge.render("{{\(key)}}", for: $0, html: false).isEmpty } }
             VStack(alignment: .leading, spacing: Space.sm) {
