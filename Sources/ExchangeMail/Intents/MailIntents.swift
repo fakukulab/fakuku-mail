@@ -93,10 +93,12 @@ nonisolated struct ShowUnreadMailIntent: AppIntent {
 }
 
 /// 새 메일 쓰기 (받는 사람·제목은 선택)
-nonisolated struct ComposeMailIntent: AppIntent {
-    static let title: LocalizedStringResource = "새 메일 쓰기"
-    static let description = IntentDescription("FAKUKU Mail에서 새 메일 작성 창을 엽니다.")
-    static let openAppWhenRun = true
+/// 매개변수(@Parameter)가 있는 인텐트는 nonisolated struct로 둘 수 없다 (바뀌는 저장 속성).
+/// 그래서 메인 액터 타입으로 두고 @preconcurrency로 프레임워크 프로토콜에 맞춘다. 정적 값은 nonisolated.
+struct ComposeMailIntent: @preconcurrency AppIntent {
+    nonisolated static let title: LocalizedStringResource = "새 메일 쓰기"
+    nonisolated static let description = IntentDescription("FAKUKU Mail에서 새 메일 작성 창을 엽니다.")
+    nonisolated static let openAppWhenRun = true
 
     @Parameter(title: "받는 사람", description: "이름이나 이메일 주소")
     var recipient: String?
@@ -118,10 +120,10 @@ nonisolated struct ComposeMailIntent: AppIntent {
 }
 
 /// 메일 검색 (모든 폴더)
-nonisolated struct SearchMailIntent: AppIntent {
-    static let title: LocalizedStringResource = "메일 검색"
-    static let description = IntentDescription("FAKUKU Mail에서 모든 폴더를 검색합니다.")
-    static let openAppWhenRun = true
+struct SearchMailIntent: @preconcurrency AppIntent {
+    nonisolated static let title: LocalizedStringResource = "메일 검색"
+    nonisolated static let description = IntentDescription("FAKUKU Mail에서 모든 폴더를 검색합니다.")
+    nonisolated static let openAppWhenRun = true
 
     @Parameter(title: "찾을 말")
     var text: String
