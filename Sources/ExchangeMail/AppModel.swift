@@ -207,6 +207,8 @@ final class AppModel {
     var noticeMessage: String?
     /// 마지막 회의 응답 뒤 일정 확인 결과 (회의 막대의 '일정에서 보기')
     var meetingCheck: MeetingCheck?
+    /// Siri·단축어가 연 새 메일 (ContentView가 작성 창을 연다)
+    var pendingCompose: ComposeDraft?
     /// 대화별로 정리할 때 함께 세는 다른 폴더의 메일 (받은 편지함이면 보낸 편지함, 보낸 편지함이면 받은 편지함)
     var relatedMessages: [MailMessage] = []
     /// 스냅숏에서 로그인 화면을 찍을 때만 켠다.

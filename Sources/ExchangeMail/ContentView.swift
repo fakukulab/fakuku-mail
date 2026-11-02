@@ -18,6 +18,14 @@ struct ContentView: View {
                 SignInView()
             }
         }
+        // Siri·단축어 (Intents/MailIntents.swift)
+        .onAppear { IntentModel.current = model }
+        .onChange(of: model.pendingCompose) { _, draft in
+            if let draft {
+                openWindow(id: "compose", value: draft)
+                model.pendingCompose = nil
+            }
+        }
         .task {
             SelfTest.runIfRequested(model: model)
             Snapshot.runIfRequested(model: model, openSettings: openSettings, openWindow: openWindow)
