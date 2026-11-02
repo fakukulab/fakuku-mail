@@ -60,7 +60,7 @@ tools/demo.sh        # 로그인 없이 예시 메일로 앱 둘러보기
 2. 지원 계정 유형: 조직 디렉터리(+개인 계정 필요 시 포함)
 3. 플랫폼 추가 → **모바일 및 데스크톱 애플리케이션** → 사용자 지정 리디렉션 URI: `msauth.<번들ID>://auth`
    (기본값이면 `msauth.com.fakukulab.fakukumail://auth`. 앱의 로그인 화면과 설정 > 계정에도 표시됩니다)
-4. API 사용 권한(위임): `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `offline_access` (조직 정책에 따라 관리자 동의 필요)
+4. API 사용 권한(위임): `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `offline_access`, `Calendars.ReadWrite`(회의 초대 답하기), `MailboxSettings.ReadWrite`(규칙, 자동 응답) (조직 정책에 따라 관리자 동의 필요)
 5. 앱 실행 → 로그인 화면에 **애플리케이션(클라이언트) ID** 입력 → "Microsoft로 로그인"
 
 ## 구조

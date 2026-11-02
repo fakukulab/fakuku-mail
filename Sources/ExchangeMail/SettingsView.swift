@@ -31,6 +31,7 @@ struct SettingsView: View {
                 case .account: AccountSettings()
                 case .attachments: AttachFixSettings()
                 case .notifications: NotificationSettings()
+                case .sending: SendingSettings()
                 case .appearance: AppearanceSettings()
                 case .signatures: EmptyView()
                 }
@@ -44,7 +45,7 @@ struct SettingsView: View {
 
 /// The Settings tabs. Snapshot mode walks through every case.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case account, signatures, attachments, notifications, appearance
+    case account, signatures, attachments, sending, notifications, appearance
 
     var id: String { rawValue }
 
@@ -53,6 +54,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .account: "계정"
         case .signatures: "서명"
         case .attachments: "첨부 보정"
+        case .sending: "보내기"
         case .notifications: "알림"
         case .appearance: "모양"
         }
@@ -63,6 +65,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .account: "person.crop.circle"
         case .signatures: "signature"
         case .attachments: "paperclip"
+        case .sending: "paperplane"
         case .notifications: "bell.badge"
         case .appearance: "paintpalette"
         }
@@ -109,7 +112,7 @@ struct AccountSettings: View {
         } header: {
             Text("Azure 앱 등록")
         } footer: {
-            Text("API 권한(위임): User.Read, Mail.ReadWrite, Mail.Send, offline_access. 바꾼 값은 다음 로그인부터 쓰입니다.")
+            Text("API 권한(위임): User.Read, Mail.ReadWrite, Mail.Send, offline_access, Calendars.ReadWrite, MailboxSettings.ReadWrite. 바꾼 값은 다음 로그인부터 쓰입니다.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -220,5 +223,26 @@ struct OfflineSettings: View {
     private func clear() {
         model.cachedService?.clearCache()
         size = 0
+    }
+}
+
+/// 설정 > 보내기 (S-036)
+struct SendingSettings: View {
+    @AppStorage("send.undoDelay") private var undoDelay = 10
+
+    var body: some View {
+        Section {
+            Picker("보내기 취소", selection: $undoDelay) {
+                Text("끔").tag(0)
+                Text("5초").tag(5)
+                Text("10초").tag(10)
+                Text("20초").tag(20)
+            }
+        } header: {
+            Text("보내기")
+        } footer: {
+            Text("보내기를 누른 뒤 이 시간 동안 작성 창에서 \"보내기 취소\"를 누를 수 있습니다. 예약한 메일은 보낼 편지함에서 지울 수 있습니다.")
+                .foregroundStyle(.secondary)
+        }
     }
 }

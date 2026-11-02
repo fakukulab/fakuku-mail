@@ -556,3 +556,54 @@ func printPageInsideBody() throws {
     #expect(plain.contains("print-head\"><h1>제목</h1>"))
     #expect(plain.contains("&lt;b&gt;평문&lt;/b&gt;"))
 }
+
+// S-037 예약 보내기, S-038 회의 초대
+
+@Test("Graph 일정 시각은 UTC 또는 IANA 시간대로 읽는다")
+func graphDateTime() {
+    #expect(GraphDateTime(dateTime: "2024-05-01T10:00:00.0000000", timeZone: "UTC").date == Date(timeIntervalSince1970: 1_714_557_600))
+    #expect(GraphDateTime(dateTime: "2024-05-01T19:00:00", timeZone: "Asia/Seoul").date == Date(timeIntervalSince1970: 1_714_557_600))
+}
+
+@Test("회의 초대 메일과 일정을 읽는다")
+func meetingDecode() throws {
+    let json = """
+    {"@odata.type":"#microsoft.graph.eventMessageRequest","id":"m","subject":"회의",
+     "event":{"id":"e1","subject":"주간 회의","isAllDay":false,
+       "start":{"dateTime":"2024-05-01T01:00:00.0000000","timeZone":"UTC"},
+       "end":{"dateTime":"2024-05-01T02:00:00.0000000","timeZone":"UTC"},
+       "location":{"displayName":"3층 회의실"},"responseStatus":{"response":"notResponded"}}}
+    """
+    let m = try GraphJSON.decoder().decode(MailMessage.self, from: Data(json.utf8))
+    #expect(m.isMeetingRequest)
+    let e = try #require(m.event)
+    #expect(e.location?.displayName == "3층 회의실")
+    #expect(e.response == nil)
+    let tz = try #require(TimeZone(identifier: "Asia/Seoul"))
+    let when = e.whenText(timeZone: tz)
+    #expect(when.contains("10:00") && when.contains("11:00"))
+    // 보통 메일은 회의 초대가 아니다
+    let plain = try GraphJSON.decoder().decode(MailMessage.self, from: Data(##"{"@odata.type":"#microsoft.graph.message","id":"x"}"##.utf8))
+    #expect(!plain.isMeetingRequest)
+    #expect(MeetingResponse.tentativelyAccept.path == "tentativelyAccept")
+}
+
+@Test("예약 보내기 속성과 프리셋")
+func scheduledSend() throws {
+    let at = Date(timeIntervalSince1970: 1_714_557_600)
+    let body = ScheduledSend.patchBody(sendAt: at)
+    let props = try #require(body["singleValueExtendedProperties"] as? [[String: String]])
+    #expect(props == [["id": "SystemTime 0x3FEF", "value": "2024-05-01T10:00:00Z"]])
+
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = try #require(TimeZone(identifier: "Asia/Seoul"))
+    // 2024-05-01(수) 19:00 KST: 오늘 오후 6시는 지났다
+    let presets = ScheduledSend.presets(now: at, calendar: cal)
+    #expect(presets.map(\.title) == ["내일 오전 9:00", "월요일 오전 9:00"])
+    #expect(cal.component(.weekday, from: presets[1].date) == 2)
+    // 오전 10시면 오늘 오후 6시가 있다
+    let morning = at.addingTimeInterval(-9 * 3_600)
+    #expect(ScheduledSend.presets(now: morning, calendar: cal).first?.title == "오늘 오후 6:00")
+    #expect(!ScheduledSend.isValid(at.addingTimeInterval(30), now: at))
+    #expect(ScheduledSend.isValid(at.addingTimeInterval(120), now: at))
+}

@@ -412,6 +412,22 @@ final class AppModel {
         Task { await loadDetail() }
     }
 
+    /// 회의 초대에 답한다 (S-038). 답한 상태를 본문 막대에 바로 보인다.
+    func respondToMeeting(_ response: MeetingResponse) async {
+        guard let eventID = detail?.event?.id else { return }
+        do {
+            try await service.respond(toEvent: eventID, with: response)
+            let value = switch response {
+            case .accept: "accepted"
+            case .tentativelyAccept: "tentativelyAccepted"
+            case .decline: "declined"
+            }
+            detail?.event?.responseStatus = .init(response: value)
+        } catch {
+            report(error, quietIfOffline: false)
+        }
+    }
+
     func allowRemoteContentForSelection() {
         allowRemoteFor = detail?.id
         updateMenu()

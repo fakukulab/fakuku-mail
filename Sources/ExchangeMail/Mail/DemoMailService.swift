@@ -85,6 +85,22 @@ final class DemoMailService: MailService {
                         toRecipients: [me], receivedDateTime: ago(26),
                         bodyPreview: "요청 잘 받았습니다. 내일 중으로 견적서를 보내 드리겠습니다.", isRead: true, hasAttachments: false,
                         body: .init(contentType: "html", content: "<p>요청 잘 받았습니다. 내일 중으로 견적서를 보내 드리겠습니다.</p><p>김민지 드림</p>")))
+        // 회의 초대 (S-038)
+        var invite = MailMessage(id: "m8", internetMessageId: "<m8@contoso.co.kr>", subject: "주간 제품 회의",
+                                 from: who("이도윤", "doyoon.lee@contoso.co.kr"), toRecipients: [me], receivedDateTime: ago(4),
+                                 bodyPreview: "이번 주 제품 회의에 초대합니다.", isRead: true, hasAttachments: false,
+                                 body: .init(contentType: "html", content: "<p>이번 주 제품 회의에 초대합니다. 안건은 회의록을 참고해 주세요.</p>"))
+        invite.odataType = "#microsoft.graph.eventMessageRequest"
+        let utc = ISO8601DateFormatter()
+        utc.formatOptions = [.withInternetDateTime]
+        func utcText(_ hours: Double) -> String {
+            String(utc.string(from: now.addingTimeInterval(hours * 3_600)).dropLast())
+        }
+        invite.event = MailEvent(id: "event-1", subject: "주간 제품 회의",
+                                 start: GraphDateTime(dateTime: utcText(26), timeZone: "UTC"),
+                                 end: GraphDateTime(dateTime: utcText(27), timeZone: "UTC"),
+                                 location: "3층 회의실")
+        store["inbox"]?.append(invite)
         store["sentitems"] = [
             MailMessage(id: "s2", internetMessageId: "<s2@contoso.co.kr>", conversationId: "conv-quote",
                         subject: "[견적] 3분기 장비 견적 요청", from: me, toRecipients: [who("김민지", "minji.kim@fabrikam.com")],
@@ -314,6 +330,29 @@ final class DemoMailService: MailService {
         }
         return MessagePage(messages: all.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) },
                            nextLink: nil)
+    }
+
+    /// 예약된 메일 (초안 id, 시각). 셀프 테스트가 읽는다 (S-037).
+    private(set) var scheduled: [(id: String, at: Date)] = []
+
+    func scheduleDraft(id: String, at date: Date) async throws {
+        try checkOnline()
+        guard find(id) != nil else { throw URLError(.fileDoesNotExist) }
+        scheduled.append((id, date))
+    }
+
+    func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
+        try checkOnline()
+        for (folder, list) in store {
+            for (i, m) in list.enumerated() where m.event?.id == eventID {
+                let value = switch response {
+                case .accept: "accepted"
+                case .tentativelyAccept: "tentativelyAccepted"
+                case .decline: "declined"
+                }
+                store[folder]?[i].event?.responseStatus = .init(response: value)
+            }
+        }
     }
 
     private var folderCounter = 0

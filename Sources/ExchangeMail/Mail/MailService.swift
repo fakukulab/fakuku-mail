@@ -47,6 +47,10 @@ protocol MailService: AnyObject {
     func createFolder(name: String, parentID: String?) async throws -> MailFolder
     func renameFolder(id: String, name: String) async throws
     func deleteFolder(id: String) async throws
+    /// 초안에 지연 발송 시각을 붙인다 (S-037). 그 뒤 sendDraft로 보내면 Exchange가 그 시각에 보낸다.
+    func scheduleDraft(id: String, at date: Date) async throws
+    /// 회의 초대에 답한다 (S-038, Calendars.ReadWrite)
+    func respond(toEvent eventID: String, with response: MeetingResponse) async throws
 }
 
 struct GraphError: LocalizedError {
@@ -175,7 +179,16 @@ final class GraphMailService: MailService {
     func message(id: String) async throws -> MailMessage {
         let data = try await request("GET", "/me/messages/\(id)", query: ["$select": GraphQuery.detailSelect],
                                      headers: ["Prefer": "outlook.body-content-type=\"html\""])
-        return try decoder.decode(MailMessage.self, from: data)
+        var m = try decoder.decode(MailMessage.self, from: data)
+        // 회의 초대면 일정도 가져온다 (S-038). 보통 메일에는 이 확장을 쓰지 않는다.
+        if m.isMeetingRequest {
+            let eventData = try? await request("GET", "/me/messages/\(id)", query: [
+                "$select": "id",
+                "$expand": "microsoft.graph.eventMessage/event($select=id,subject,start,end,location,isAllDay,responseStatus)",
+            ])
+            m.event = eventData.flatMap { try? decoder.decode(MailMessage.self, from: $0) }?.event
+        }
+        return m
     }
 
     func attachments(messageID: String) async throws -> [FileAttachment] {
@@ -286,6 +299,15 @@ final class GraphMailService: MailService {
         let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
         let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
         return MessagePage(messages: sorted, nextLink: nil)
+    }
+
+    func scheduleDraft(id: String, at date: Date) async throws {
+        _ = try await request("PATCH", "/me/messages/\(id)", body: try json(ScheduledSend.patchBody(sendAt: date)))
+    }
+
+    func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
+        _ = try await request("POST", "/me/events/\(eventID)/\(response.path)",
+                              body: try json(["comment": "", "sendResponse": true]))
     }
 
     func createFolder(name: String, parentID: String?) async throws -> MailFolder {

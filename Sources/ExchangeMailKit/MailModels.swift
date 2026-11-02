@@ -186,6 +186,10 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var internetMessageHeaders: [InternetHeader]?
     /// 깃발 (S-029)
     public var flag: FollowupFlag?
+    /// `#microsoft.graph.eventMessageRequest`면 회의 초대 (S-038)
+    public var odataType: String?
+    /// 회의 초대 메일의 일정 (`$expand=microsoft.graph.eventMessage/event`로 받는다)
+    public var event: MailEvent?
 
     public init(id: String, internetMessageId: String? = nil, conversationId: String? = nil, subject: String?,
                 from: Recipient?, toRecipients: [Recipient]? = nil, ccRecipients: [Recipient]? = nil,
@@ -207,7 +211,18 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
         self.body = body
         self.internetMessageHeaders = internetMessageHeaders
         self.flag = nil
+        self.odataType = nil
+        self.event = nil
     }
+
+    enum CodingKeys: String, CodingKey {
+        case id, internetMessageId, conversationId, subject, from, toRecipients, ccRecipients, bccRecipients
+        case parentFolderId, receivedDateTime, bodyPreview, isRead, hasAttachments, body, internetMessageHeaders, flag, event
+        case odataType = "@odata.type"
+    }
+
+    /// 회의 초대(수락·거절할 수 있는 것)
+    public var isMeetingRequest: Bool { odataType?.hasSuffix("eventMessageRequest") ?? false }
 
     public var isFlagged: Bool { flag?.flagStatus == "flagged" }
 

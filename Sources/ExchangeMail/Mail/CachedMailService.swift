@@ -112,6 +112,14 @@ final class CachedMailService: MailService {
         try await write("깃발을 바꿀") { try await remote.setFlag(id: id, flagged: flagged) }
     }
 
+    func scheduleDraft(id: String, at date: Date) async throws {
+        try await write("예약할") { try await remote.scheduleDraft(id: id, at: date) }
+    }
+
+    func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
+        try await write("회의 초대에 답할") { try await remote.respond(toEvent: eventID, with: response) }
+    }
+
     func createFolder(name: String, parentID: String?) async throws -> MailFolder {
         try await write("폴더를 만들") { try await remote.createFolder(name: name, parentID: parentID) }
     }

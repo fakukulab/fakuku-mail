@@ -36,6 +36,15 @@ extension AppModel {
         previewURL = url
     }
 
+    /// 첨부 칩을 Finder로 끌 때 (S-035): NFC 이름의 파일을 넘긴다.
+    func dragProvider(for attachment: FileAttachment) -> NSItemProvider {
+        guard let url = previewFile(for: attachment), let provider = NSItemProvider(contentsOf: url) else {
+            return NSItemProvider()
+        }
+        provider.suggestedName = FilenameEncoder.normalize(attachment.name)
+        return provider
+    }
+
     /// 메시지 > 첨부 훑어보기 (⌘Y): 첫 첨부
     func previewFirstAttachment() {
         if let first = listedAttachments.first { preview(first) }

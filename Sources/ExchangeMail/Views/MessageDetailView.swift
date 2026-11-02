@@ -24,6 +24,9 @@ struct MessageDetailView: View {
                     if model.isDraftSelected {
                         draftBar
                     }
+                    if m.isMeetingRequest, let event = m.event {
+                        MeetingBar(event: event)
+                    }
                     if model.detailHasRemoteContent && !model.remoteContentAllowed {
                         remoteBar
                     }
@@ -161,6 +164,8 @@ struct MessageHeader: View {
                                 Button("훑어보기") { model.preview(a) }
                                 Button("저장…") { model.save(attachment: a) }
                             }
+                            // Finder나 데스크톱으로 끌어 저장 (S-035)
+                            .onDrag { model.dragProvider(for: a) }
                         }
                     }
                 }
@@ -261,5 +266,51 @@ struct ThreadRow: View {
         .buttonStyle(.plain)
         .help(isShown ? "지금 보고 있는 메일" : "이 메일 펼치기")
         .accessibilityAddTraits(isShown ? .isSelected : [])
+    }
+}
+
+/// 회의 초대 (S-038): 일시·장소와 수락 / 미정 / 거절
+struct MeetingBar: View {
+    let event: MailEvent
+    @Environment(AppModel.self) private var model
+    @State private var busy = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+            Image(systemName: "calendar")
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.whenText())
+                    .font(.callout.weight(.semibold))
+                if let place = event.location?.displayName, !place.isEmpty {
+                    Text(place)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if let done = event.response {
+                Label(done.doneLabel, systemImage: "checkmark.circle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            ControlGroup {
+                ForEach(MeetingResponse.allCases, id: \.self) { r in
+                    Button(r.label) {
+                        Task {
+                            busy = true
+                            await model.respondToMeeting(r)
+                            busy = false
+                        }
+                    }
+                    .disabled(busy || event.response == r)
+                }
+            }
+            .controlSize(.small)
+            .fixedSize()
+        }
+        .padding(.horizontal, Space.margin)
+        .padding(.vertical, Space.sm)
+        .background(.bar)
     }
 }

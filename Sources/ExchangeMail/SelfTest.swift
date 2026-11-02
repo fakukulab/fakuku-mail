@@ -544,6 +544,55 @@ enum SelfTest {
             }
             if let savedThreaded { defaults.set(savedThreaded, forKey: "list.threaded") } else { defaults.removeObject(forKey: "list.threaded") }
 
+            // M11: 첨부 끌어 저장, 보내기 취소, 예약 보내기, 회의 초대
+            let dragged = FileAttachment(id: "drag-1", name: "보고서.pdf".decomposedStringWithCanonicalMapping,
+                                         contentType: "application/pdf", size: 3, isInline: false, contentBytes: "AQID")
+            let provider = model.dragProvider(for: dragged)
+            check("S-035 첨부를 끌면 NFC 이름의 파일을 넘긴다",
+                  provider.suggestedName == "보고서.pdf" && !provider.registeredTypeIdentifiers.isEmpty)
+
+            let undoable = ComposeModel(draft: ComposeDraft())
+            await undoable.setUp(app: model, fixDefault: true)
+            undoable.to = "client@x.com"
+            undoable.subject = "보내기 취소 테스트"
+            let sentBeforeUndo = demo.sent.count
+            let pending = Task { await undoable.send(app: model, undoDelay: 3) }
+            try? await Task.sleep(for: .seconds(1.2))
+            check("S-036 보내기를 누르면 남은 초를 센다", (undoable.sendCountdown ?? 0) > 0)
+            undoable.cancelSend()
+            let undoneResult = await pending.value
+            check("S-036 보내기 취소를 누르면 보내지 않고 창에 남는다",
+                  !undoneResult && demo.sent.count == sentBeforeUndo && undoable.sendCountdown == nil && undoable.error == nil)
+            let sentAfterWait = await undoable.send(app: model, undoDelay: 1)
+            check("S-036 기다린 시간이 지나면 보낸다", sentAfterWait && demo.sent.count == sentBeforeUndo + 1)
+
+            let later = ComposeModel(draft: ComposeDraft())
+            await later.setUp(app: model, fixDefault: true)
+            later.to = "client@x.com"
+            later.subject = "예약 테스트"
+            let tooSoon = await later.schedule(app: model, at: Date().addingTimeInterval(20))
+            check("S-037 1분 안의 시각은 예약하지 않는다", !tooSoon && later.error != nil)
+            later.error = nil
+            let when = Date().addingTimeInterval(3_600)
+            let scheduledBefore = demo.scheduled.count
+            let scheduledOK = await later.schedule(app: model, at: when)
+            check("S-037 예약하면 지연 발송 시각을 붙여 초안으로 보낸다",
+                  scheduledOK && demo.scheduled.count == scheduledBefore + 1 && demo.scheduled.last?.at == when
+                      && demo.sentDrafts.contains(demo.scheduled.last?.id ?? "-"))
+
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            await model.refresh()
+            if let invite = model.messages.first(where: \.isMeetingRequest) {
+                await open(invite.id)
+                check("S-038 회의 초대를 열면 일정이 보인다",
+                      model.detail?.event?.location?.displayName == "3층 회의실" && !(model.detail?.event?.whenText().isEmpty ?? true))
+                await model.respondToMeeting(.accept)
+                check("S-038 수락하면 답한 상태가 보인다", model.detail?.event?.response == .accept)
+            } else {
+                check("S-038 데모 받은 편지함에 회의 초대가 있다", false)
+            }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

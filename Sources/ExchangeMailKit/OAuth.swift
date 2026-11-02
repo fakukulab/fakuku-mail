@@ -4,7 +4,8 @@ import Security
 
 /// Microsoft identity platform OAuth2 Authorization Code + PKCE (RFC 7636). MSAL 없이 직접 구현.
 public enum OAuth {
-    public static let scopes = "offline_access User.Read Mail.ReadWrite Mail.Send"
+    /// Calendars.ReadWrite: 회의 초대 답하기 (S-038). MailboxSettings.ReadWrite: 규칙, 자동 응답 (S-039, S-040).
+    public static let scopes = "offline_access User.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite MailboxSettings.ReadWrite"
 
     /// Azure 앱 등록의 "모바일 및 데스크톱 애플리케이션" 리디렉션 URI 스킴.
     public static func redirectScheme(bundleID: String) -> String { "msauth.\(bundleID)" }

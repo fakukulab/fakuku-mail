@@ -124,27 +124,89 @@ final class ComposeModel {
             draft: draft, fixEnabled: fixEnabled)
     }
 
-    /// 보내고 성공하면 true. 실패하면 `error`에 이유를 둔다.
-    func send(app: AppModel) async -> Bool {
+    /// 보내고 성공하면 true. 실패하거나 보내기를 취소하면 false (실패면 `error`에 이유).
+    /// `undoDelay`초 동안은 "보내기 취소"를 기다린다 (S-036). 주소와 첨부는 기다리기 전에 확인한다.
+    func send(app: AppModel, undoDelay: Int = 0) async -> Bool {
         errorTitle = "보낼 수 없습니다"
         sending = true
         defer { sending = false }
         do {
             let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false)
+            if undoDelay > 0 {
+                let go = await countdown(undoDelay)
+                if !go { return false }
+            }
             if plan.uploads.isEmpty {
                 try await app.service.sendMIME(plan.mime)
             } else {
                 try await sendLarge(plan, app: app)
             }
-            finished = true
-            let sentTo = [to, cc, showBcc ? bcc : ""].flatMap { AddressParser.parse($0).valid }
-            app.addressBook.noteSent(sentTo, me: app.auth.email)
-            // 보냈으니 임시 보관함의 초안은 지운다. 실패해도 보낸 것은 그대로다.
-            if let id = savedDraftID {
+            await afterSending(app: app)
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return false
+        }
+    }
+
+    /// 보낸 뒤: 받는 사람을 주소록에 남기고, 임시 보관함의 초안은 지운다 (실패해도 보낸 것은 그대로다).
+    private func afterSending(app: AppModel) async {
+        finished = true
+        let sentTo = [to, cc, showBcc ? bcc : ""].flatMap { AddressParser.parse($0).valid }
+        app.addressBook.noteSent(sentTo, me: app.auth.email)
+        if let id = savedDraftID {
+            try? await app.service.deleteMessage(id: id)
+            savedDraftID = nil
+            await app.draftsChanged()
+        }
+    }
+
+    // MARK: 보내기 취소 (S-036)
+
+    /// 보내기까지 남은 초. nil이면 기다리는 중이 아니다.
+    private(set) var sendCountdown: Int?
+    @ObservationIgnored private var sendCancelled = false
+
+    /// 남은 시간을 1초씩 줄인다. 다 지나면 true, 그 사이 취소하면 false.
+    private func countdown(_ seconds: Int) async -> Bool {
+        sendCancelled = false
+        sendCountdown = seconds
+        defer { sendCountdown = nil }
+        while let left = sendCountdown, left > 0 {
+            try? await Task.sleep(for: .seconds(1))
+            if sendCancelled { return false }
+            sendCountdown = left - 1
+        }
+        return !sendCancelled
+    }
+
+    func cancelSend() {
+        sendCancelled = true
+    }
+
+    // MARK: 예약 보내기 (S-037)
+
+    /// 초안을 만들고(큰 첨부는 올리고) 지연 발송 시각을 붙여 보낸다. Exchange가 그 시각에 보낸다.
+    func schedule(app: AppModel, at date: Date) async -> Bool {
+        errorTitle = "예약할 수 없습니다"
+        guard ScheduledSend.isValid(date) else {
+            error = "1분 뒤 이후의 시각을 고르세요."
+            return false
+        }
+        sending = true
+        defer { sending = false }
+        do {
+            let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false)
+            let id = try await app.service.saveDraft(plan.mime, preview: preview, replacing: nil)
+            do {
+                if !plan.uploads.isEmpty { try await upload(plan.uploads, to: id, app: app) }
+                try await app.service.scheduleDraft(id: id, at: date)
+                try await app.service.sendDraft(id: id)
+            } catch {
                 try? await app.service.deleteMessage(id: id)
-                savedDraftID = nil
-                await app.draftsChanged()
+                throw error
             }
+            await afterSending(app: app)
             return true
         } catch {
             self.error = error.localizedDescription

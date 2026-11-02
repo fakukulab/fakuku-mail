@@ -12,6 +12,9 @@ struct ComposeView: View {
 
     @State private var compose: ComposeModel
     @State private var dropTargeted = false
+    @State private var showSchedule = false
+    /// 보내기 취소를 기다리는 초 (설정 > 보내기, S-036)
+    @AppStorage("send.undoDelay") private var undoDelay = 10
     @FocusState private var focus: Field?
 
     private enum Field { case to, cc, bcc, subject }
@@ -24,6 +27,10 @@ struct ComposeView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if let left = compose.sendCountdown {
+                UndoSendBar(seconds: left) { compose.cancelSend() }
+                Divider()
+            }
             FormatToolbar(controller: compose.editor)
             Divider()
             RichTextEditor(controller: compose.editor)
@@ -53,6 +60,12 @@ struct ComposeView: View {
                     .padding(Space.xs)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
+            }
+        }
+        .sheet(isPresented: $showSchedule) {
+            ScheduleSheet { date in
+                showSchedule = false
+                Task { if await compose.schedule(app: model, at: date) { dismiss() } }
             }
         }
         .task {
@@ -226,14 +239,18 @@ struct ComposeView: View {
             .disabled(compose.savingDraft)
             .help("임시 보관함에 저장 (⌘S)")
         }
-        ToolbarItem {
+        ToolbarItemGroup {
             Button("파일 첨부", systemImage: "paperclip") { attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .help("파일 첨부 (⇧⌘A)")
+            Button("나중에 보내기…", systemImage: "clock") { showSchedule = true }
+                .keyboardShortcut("d", modifiers: [.command, .shift, .option])
+                .disabled(compose.sending)
+                .help("나중에 보내기 (⌥⇧⌘D)")
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
-                Task { if await compose.send(app: model) { dismiss() } }
+                Task { if await compose.send(app: model, undoDelay: undoDelay) { dismiss() } }
             } label: {
                 if compose.sending {
                     ProgressView().controlSize(.small)
@@ -300,5 +317,63 @@ extension View {
                 .textInputCompletion(AddressBook.complete(text, with: address))
             }
         }
+    }
+}
+
+/// 보내기 취소 막대 (S-036): 남은 초와 취소 버튼. Esc로도 취소한다.
+struct UndoSendBar: View {
+    let seconds: Int
+    let cancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            Image(systemName: "paperplane")
+                .foregroundStyle(.secondary)
+            Text("\(seconds)초 뒤에 보냅니다")
+                .font(.callout)
+                .monospacedDigit()
+            Spacer()
+            Button("보내기 취소", action: cancel)
+                .keyboardShortcut(.cancelAction)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, Space.margin)
+        .padding(.vertical, Space.sm)
+        .background(.bar)
+    }
+}
+
+/// 나중에 보내기 (S-037): 프리셋이나 날짜·시각을 골라 예약한다.
+struct ScheduleSheet: View {
+    let schedule: (Date) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var date = ScheduledSend.presets().first?.date ?? Date().addingTimeInterval(3_600)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            Text("나중에 보내기")
+                .font(.headline)
+            ForEach(ScheduledSend.presets(), id: \.date) { preset in
+                Button(preset.title) { schedule(preset.date) }
+                    .buttonStyle(.link)
+            }
+            Divider()
+            DatePicker("날짜와 시각", selection: $date, in: Date().addingTimeInterval(60)...,
+                       displayedComponents: [.date, .hourAndMinute])
+            Text("Exchange가 이 시각에 보냅니다. 그때 Mac이 꺼져 있어도 됩니다. 보내기 전에는 보낼 편지함에서 볼 수 있습니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("취소", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("예약") { schedule(date) }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!ScheduledSend.isValid(date))
+            }
+        }
+        .padding(Space.margin)
+        .frame(width: 360)
     }
 }
