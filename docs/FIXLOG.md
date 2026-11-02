@@ -78,3 +78,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인: 사이드바 배치의 시스템 검색 칸이 범위를 열마다 그린다. 도구 막대 항목은 창 본문과 다른 곳에 그려져 `@FocusState`가 닿지 않는다.
 - 고침: `MailSearchField`(평범한 TextField + 범위 메뉴)를 본문 도구 막대 오른쪽 끝에 두고, ⌥⌘F는 `SearchFieldFocus`가 AppKit에서 placeholder "검색" 칸을 찾아 첫 응답자로 만든다.
 - 규칙: 도구 막대 안의 컨트롤에 초점을 줄 때는 SwiftUI `@FocusState`에 기대지 않는다.
+
+## 2026-11-02 엑셀에서 저장한 CSV를 가져오지 못함 (S-051)
+- 증상: CADEX 방문객 CSV(UTF-8 BOM, CRLF)를 그룹에 가져오면 아무도 들어오지 않았다.
+- 원인: Swift는 "\r\n"을 글자 하나(grapheme)로 본다. CSV 파서가 "\n"이나 "\r"만 줄바꿈으로 봐서 파일 전체가 한 줄이 되었다.
+- 고침: 파싱 전에 "\r\n"과 "\r"을 "\n"으로 바꾼다. 테스트 `mergeCSVWindowsLineEndings`.
+- 규칙: Swift에서 글자 단위로 줄을 나눌 때는 먼저 줄바꿈을 "\n"으로 맞춘다.

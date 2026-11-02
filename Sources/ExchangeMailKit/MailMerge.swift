@@ -118,7 +118,11 @@ public enum MailMerge {
     /// CSV를 받는 사람 목록으로 읽는다. 첫 줄은 머리글: 이름/name, 이메일/email 열을 찾고 나머지는 `fields`로.
     /// 쉼표·세미콜론·탭 구분, 따옴표 안의 쉼표와 줄바꿈, "" 이스케이프를 지원한다.
     public static func members(fromCSV text: String) -> (members: [MergeMember], skipped: Int) {
-        let rows = csvRows(text.replacingOccurrences(of: "\u{FEFF}", with: ""))
+        // Swift는 "\r\n"을 한 글자로 본다. 엑셀·Windows CSV(CRLF)도 줄이 나뉘게 먼저 "\n"으로 바꾼다.
+        let normalized = text.replacingOccurrences(of: "\u{FEFF}", with: "")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let rows = csvRows(normalized)
         guard let header = rows.first else { return ([], 0) }
         let keys = header.map { $0.trimmingCharacters(in: .whitespaces) }
         let lower = keys.map { $0.lowercased() }

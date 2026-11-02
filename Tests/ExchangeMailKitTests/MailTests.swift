@@ -866,3 +866,15 @@ func mailMerge() {
     #expect(p.hourlyWait(sentAt: thirty, now: now) > 0)
     #expect(p.hourlyWait(sentAt: Array(thirty.prefix(29)), now: now) == 0)
 }
+
+@Test("엑셀 CSV: BOM과 CRLF 줄바꿈, N/A 주소는 건너뛴다")
+func mergeCSVWindowsLineEndings() {
+    let csv = "\u{FEFF}이름,회사,직급,이메일,Mobile\r\nketevani,dental depo,sales,dentaldepoddg@gmail.com,+995\r\n"
+        + "madina,unique dental,dentist,N/A,\r\nShakil Kamal,Gensmile,Oral Surgeon,Shakil817@hotmail.com,0044"
+    let r = MailMerge.members(fromCSV: csv)
+    #expect(r.members.map(\.email) == ["dentaldepoddg@gmail.com", "Shakil817@hotmail.com"])
+    #expect(r.members.first?.name == "ketevani")
+    #expect(r.members.first?.fields["회사"] == "dental depo")
+    #expect(r.members.last?.fields["Mobile"] == "0044")
+    #expect(r.skipped == 1)
+}
