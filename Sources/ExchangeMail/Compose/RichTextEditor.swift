@@ -55,6 +55,14 @@ final class RichTextController: NSObject, WKNavigationDelegate {
         while(n&&n!==ed){if(n.nodeName==='BLOCKQUOTE'){n.setAttribute('type','cite');n.removeAttribute('style');break}n=n.parentNode}}
       post(true)}
     function setSpellcheck(on){ed.spellcheck=on}
+    // 고른 글이 없으면 서명과 인용문을 뺀 본문을 고른다 (Siri로 글쓰기가 다룰 글).
+    function selectForWriting(){
+      const s=window.getSelection();
+      if(s.rangeCount&&!s.isCollapsed&&ed.contains(s.anchorNode)) return;
+      const r=document.createRange();r.selectNodeContents(ed);
+      const stop=ed.querySelector('[data-signature],[data-quote]');
+      if(stop){r.setEndBefore(stop)}
+      s.removeAllRanges();s.addRange(r);ed.focus()}
     function focusStart(){const r=document.createRange();r.setStart(ed,0);r.collapse(true);
       const s=window.getSelection();s.removeAllRanges();s.addRange(r);ed.focus()}
     </script></body></html>
@@ -64,6 +72,8 @@ final class RichTextController: NSObject, WKNavigationDelegate {
         if let webView { return webView }
         let config = WKWebViewConfiguration()
         config.userContentController.add(ScriptProxy(self), name: "change")
+        // Siri로 글쓰기 (Apple Intelligence 글쓰기 도구): 고쳐 쓰기, 교정, 요약, 말투 바꾸기를 편집기 안에서 한다.
+        config.writingToolsBehavior = .complete
         let wv = WKWebView(frame: .zero, configuration: config)
         // 웹 편집기는 끌어다 놓은 파일을 file:// 링크나 그림으로 넣어 버린다. 드래그 등록을 풀어
         // 드롭이 SwiftUI의 .dropDestination으로 가게 하고, 앱이 첨부로 받는다 (S-017).
@@ -129,6 +139,18 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     /// 설정 > 작성 > 맞춤법 검사. 편집기가 아직 안 떴으면 뜰 때 건다.
     @ObservationIgnored var spellcheck = true {
         didSet { if ready { js("setSpellcheck(\(spellcheck))") } }
+    }
+
+    /// Siri로 글쓰기: 고른 글(없으면 서명·인용문 앞까지의 본문)에 macOS 글쓰기 도구를 연다.
+    /// Apple Intelligence가 꺼져 있으면 아무 일도 일어나지 않는다.
+    func showWritingTools() {
+        guard let webView else { return }
+        webView.window?.makeFirstResponder(webView)
+        webView.evaluateJavaScript("selectForWriting()") { _, _ in
+            MainActor.assumeIsolated {
+                NSApp.sendAction(Selector(("showWritingTools:")), to: nil, from: webView)
+            }
+        }
     }
 
     // 포맷 메뉴 (M17)
@@ -269,6 +291,10 @@ struct FormatToolbar: View {
             Button("그림", systemImage: "photo") { pickImage() }
                 .labelStyle(.iconOnly)
                 .help("그림 넣기")
+            Divider().frame(height: Space.lg)
+            Button("Siri로 글쓰기", systemImage: "apple.intelligence") { controller.showWritingTools() }
+                .labelStyle(.titleAndIcon)
+                .help("고쳐 쓰기, 교정, 요약, 말투 바꾸기 (⌃⌘W). 고른 글이 없으면 본문 전체. Apple Intelligence를 켜야 합니다.")
             Spacer(minLength: 0)
         }
         .controlSize(.small)

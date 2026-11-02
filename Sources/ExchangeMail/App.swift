@@ -460,6 +460,10 @@ struct MailCommands: Commands {
 
     @ViewBuilder
     private var formatMenu: some View {
+        Button("Siri로 글쓰기") { editor?.showWritingTools() }
+            .keyboardShortcut("w", modifiers: [.command, .control])
+            .disabled(editor == nil)
+        Divider()
         Menu("스타일") {
             Button("굵게") { editor?.command("bold") }
                 .keyboardShortcut("b")
