@@ -72,3 +72,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 다시 꺼짐 (충돌 보고서): `NSToolbarConfigPanel`이 항목을 스냅숏할 때 `NSSearchToolbarItemView _updateWidthConstraints`가
   제약 예외를 던졌다. 앞의 원인 추정(환경 객체)은 틀렸다. 고침: `.searchable(placement: .sidebar)`로 검색 칸을 도구 막대에서 뺐다.
   규칙: 사용자화 도구 막대가 있는 창에는 `.searchable(placement: .toolbar)`를 쓰지 않는다.
+
+## 2026-11-02 검색 범위가 두 번 보임, ⌥⌘F가 검색 칸에 들어가지 않음
+- 증상: 사이드바의 `.searchable`이 "이 폴더 / 모든 폴더"를 두 번 그리고 구분선이 잘렸다. 직접 만든 도구 막대 검색 칸은 ⌥⌘F로 초점을 받지 못했다.
+- 원인: 사이드바 배치의 시스템 검색 칸이 범위를 열마다 그린다. 도구 막대 항목은 창 본문과 다른 곳에 그려져 `@FocusState`가 닿지 않는다.
+- 고침: `MailSearchField`(평범한 TextField + 범위 메뉴)를 본문 도구 막대 오른쪽 끝에 두고, ⌥⌘F는 `SearchFieldFocus`가 AppKit에서 placeholder "검색" 칸을 찾아 첫 응답자로 만든다.
+- 규칙: 도구 막대 안의 컨트롤에 초점을 줄 때는 SwiftUI `@FocusState`에 기대지 않는다.
