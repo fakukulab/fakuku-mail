@@ -92,3 +92,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: `AppModel.loadedAttachment`가 내용이 없으면 `GET /attachments/{aid}/$value`로 받아 채운다 (첨부된 메일은 .eml).
   미리 보기, 열기, 다운로드, 모두 다운로드, 전달이 모두 이 길을 쓴다. OneDrive 링크 첨부는 Outlook 웹으로 안내한다.
 - 규칙: 첨부 내용은 목록에 있다고 가정하지 않는다.
+
+## 2026-11-02 깃발 색 메뉴가 글자만, 그다음 강조색 한 가지로 보임
+- 증상: 깃발 색 메뉴에 아이콘이 안 보이다가, 보이게 한 뒤에는 일곱 깃발이 모두 강조색이었다.
+- 원인: macOS 메뉴는 Label의 아이콘을 기본으로 숨기고(`.labelStyle(.titleAndIcon)` 필요), SF Symbol 그림은 모양만 써서 강조색으로 덧칠한다.
+- 고침: 색 깃발을 비트맵(NSBitmapImageRep)으로 한 번 그려 `Image(nsImage:)`로 넘긴다 (`FlagColor.flagImage`).
+- 규칙: 메뉴에서 색이 남아야 하는 아이콘은 기호가 아닌 비트맵으로 넘긴다.
