@@ -417,11 +417,13 @@ private struct MergeSendPane: View {
                         }
                         .pickerStyle(.segmented)
                     }
+                    // 줄 레이블을 가리는 row()의 labelsHidden 때문에 체크 옆 글자는 따로 둔다.
                     row("수신 거부") {
-                        VStack(alignment: .leading, spacing: Space.xs) {
-                            Toggle("List-Unsubscribe 헤더", isOn: $options.unsubscribeHeader)
-                            Toggle("본문 끝에 안내 문구", isOn: $options.unsubscribeFooter)
+                        HStack(spacing: Space.xs) {
+                            Toggle("수신 거부 단추 넣기", isOn: $options.unsubscribeHeader)
+                            Text("받는 쪽 메일 앱에 구독 취소 단추 넣기")
                         }
+                        .help("List-Unsubscribe 헤더를 넣습니다. Gmail·Outlook이 스팸으로 덜 분류합니다.")
                     }
                 }
                 DisclosureGroup("스팸으로 보이지 않게 이렇게 보냅니다") {
