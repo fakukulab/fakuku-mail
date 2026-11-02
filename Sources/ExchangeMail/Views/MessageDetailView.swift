@@ -3,8 +3,9 @@ import QuickLook
 import SwiftUI
 
 struct MessageDetailView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
+    @Environment(AppModel.self) var model
+    @Environment(\.openWindow) var openWindow
+    @Environment(\.undoManager) var undoManager
     @AppStorage("list.threaded") private var threaded = true
 
     var body: some View {
@@ -43,6 +44,7 @@ struct MessageDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .toolbar(id: "mail") { mailToolbar }
         // 첨부 미리보기 (S-032)
         .quickLookPreview(Binding(get: { model.previewURL }, set: { model.previewURL = $0 }))
     }

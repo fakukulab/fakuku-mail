@@ -2,12 +2,27 @@ import ExchangeMailKit
 import SwiftUI
 
 /// 메인 창의 도구 막대 (S-044). 보기 > 도구 막대 사용자화…로 넣고 뺀다.
-/// NavigationSplitView 자체에 한 번만 단다: 열마다 따로 달거나 일반 `.toolbar {}` 항목이 섞이면
-/// macOS가 창 전체의 사용자화를 끈다.
-extension MailSplitView {
+/// 목록 열과 본문 열이 같은 id("mail")의 `.toolbar(id:)`를 따로 단다: 항목이 자기 열 위에 놓이고, 창에는 사용자화
+/// 도구 막대 하나가 된다. 일반 `.toolbar {}` 항목이나 도구 막대의 검색 칸이 섞이면 사용자화가 꺼지거나 시트가 멈춘다.
+extension MessageListView {
+    @ToolbarContentBuilder
+    var listToolbar: some CustomizableToolbarContent {
+        ToolbarItem(id: "filter", placement: .primaryAction) { FilterMenu(model: model) }
+        ToolbarItem(id: "sort", placement: .primaryAction) { SortMenu(model: model) }
+        ToolbarItem(id: "listGetMail", placement: .primaryAction) {
+            Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
+                .help("받은 메일 가져오기 (⇧⌘N)")
+        }
+        ToolbarItem(id: "listNewMessage", placement: .primaryAction) {
+            Button("새로운 메시지", systemImage: "square.and.pencil") { openWindow(id: "compose", value: ComposeDraft()) }
+                .help("새로운 메시지 (⌘N)")
+        }
+    }
+}
+
+extension MessageDetailView {
     @ToolbarContentBuilder
     var mailToolbar: some CustomizableToolbarContent {
-        list
         ToolbarSpacer(.flexible)
         organize
         ToolbarSpacer(.fixed)
@@ -15,21 +30,13 @@ extension MailSplitView {
         extras
     }
 
-    @ToolbarContentBuilder
-    private var list: some CustomizableToolbarContent {
-        ToolbarItem(id: "filter") { FilterMenu(model: model) }
-        ToolbarItem(id: "sort") { SortMenu(model: model) }
-        ToolbarItem(id: "listGetMail") {
-            Button("받은 메일 가져오기", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
-                .help("받은 메일 가져오기 (⇧⌘N)")
-        }
-        ToolbarItem(id: "listNewMessage") {
-            Button("새로운 메시지", systemImage: "square.and.pencil") { openWindow(id: "compose", value: ComposeDraft()) }
-                .help("새로운 메시지 (⌘N)")
-        }
-    }
-
     private var noSelection: Bool { model.selectedIDs.isEmpty }
+
+    /// 고른 메일이 모두 깃발이면 채운 깃발
+    private var allFlagged: Bool {
+        let picked = model.messages.filter { model.selectedIDs.contains($0.id) }
+        return !picked.isEmpty && picked.allSatisfy(\.isFlagged)
+    }
 
     @ToolbarContentBuilder
     private var organize: some CustomizableToolbarContent {
@@ -56,7 +63,7 @@ extension MailSplitView {
         }
         .defaultCustomization(.hidden)
         ToolbarItem(id: "flag") {
-            Button("깃발", systemImage: "flag") { Task { await model.toggleFlagSelected() } }
+            Button("깃발", systemImage: allFlagged ? "flag.fill" : "flag") { Task { await model.toggleFlagSelected() } }
                 .help("깃발 달기/떼기 (⇧⌘L)")
                 .disabled(noSelection)
         }

@@ -2,9 +2,9 @@ import ExchangeMailKit
 import SwiftUI
 
 struct MessageListView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.undoManager) private var undoManager
+    @Environment(AppModel.self) var model
+    @Environment(\.openWindow) var openWindow
+    @Environment(\.undoManager) var undoManager
     /// 보기 > 대화별로 정리 (S-025)
     @AppStorage("list.threaded") private var threaded = true
 
@@ -67,6 +67,7 @@ struct MessageListView: View {
         }
         .navigationTitle(model.selectedFolderID == FolderOrder.flaggedID ? "깃발 표시" : (model.selectedFolder?.displayName ?? "메일"))
         .navigationSubtitle(subtitle)
+        .toolbar(id: "mail") { listToolbar }
     }
 
     /// 고른 메일을 새 창에서 연다. 초안은 작성 창에서. 열었으면 true.
