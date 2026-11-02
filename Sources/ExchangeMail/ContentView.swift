@@ -99,7 +99,7 @@ struct FolderSidebar: View {
                     Label {
                         Text(c.label)
                     } icon: {
-                        Image(systemName: "flag.fill").foregroundStyle(c.color)
+                        c.flagImage
                     }
                     .padding(.leading, Space.lg)
                     .tag(VirtualMailbox.id(for: c))

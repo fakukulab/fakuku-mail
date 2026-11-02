@@ -1,3 +1,4 @@
+import AppKit
 import ExchangeMailKit
 import Foundation
 import SwiftUI
@@ -54,6 +55,28 @@ extension FlagColor {
         }
     }
 
+    var nsColor: NSColor {
+        switch self {
+        case .red: .systemRed
+        case .orange: .systemOrange
+        case .yellow: .systemYellow
+        case .green: .systemGreen
+        case .blue: .systemBlue
+        case .purple: .systemPurple
+        case .gray: .systemGray
+        }
+    }
+
+    /// 색을 입힌 깃발 그림. 메뉴는 SF Symbol을 흑백(template)으로 그려 색을 지우므로,
+    /// 색을 구운 non-template 그림을 쓴다 (메뉴, 사이드바).
+    var flagImage: Image {
+        let config = NSImage.SymbolConfiguration(paletteColors: [nsColor])
+        guard let image = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: label)?
+                .withSymbolConfiguration(config) else { return Image(systemName: "flag.fill") }
+        image.isTemplate = false
+        return Image(nsImage: image)
+    }
+
     /// 깃발 색 메뉴의 단축키 ⌥⌘1~7
     var shortcut: KeyEquivalent { KeyEquivalent(Character(String((FlagColor.allCases.firstIndex(of: self) ?? 0) + 1))) }
 }
@@ -70,9 +93,9 @@ struct FlagColorItems: View {
                 choose(c)
             } label: {
                 Label {
-                    Text(current == c ? "✓ \(c.label)" : c.label)
+                    Text(c.label)
                 } icon: {
-                    Image(systemName: "flag.fill").foregroundStyle(c.color)
+                    c.flagImage
                 }
             }
             if shortcuts {
