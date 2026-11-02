@@ -31,7 +31,9 @@ echo '["AppIntent","AppEntity","AppEnum","EntityQuery","AppShortcutsProvider","D
 constvalues="$scratch/intents/ExchangeMail.swiftconstvalues"
 mkdir -p "$scratch/intents"
 rm -f "$constvalues"
-intent_flags=(-Xswiftc -emit-const-values -Xswiftc -emit-const-values-path -Xswiftc "$constvalues"
+# 링커가 남기는 "무엇과 링크했나" 기록: appintentsmetadataprocessor가 AppIntents.framework를 쓰는지 여기서 본다.
+intent_flags=(-Xlinker -dependency_info -Xlinker "$scratch/intents/ExchangeMail_dependency_info.dat"
+              -Xswiftc -emit-const-values -Xswiftc -emit-const-values-path -Xswiftc "$constvalues"
               -Xswiftc -Xfrontend -Xswiftc -const-gather-protocols-file -Xswiftc -Xfrontend -Xswiftc "$intents_protocols")
 log=$(swift build -c $config --package-path "$here" --scratch-path "$scratch" "${intent_flags[@]}" 2>&1 || true)
 if [[ "$log" == *"unknown argument"* || "$log" == *"unsupported option"* ]]; then

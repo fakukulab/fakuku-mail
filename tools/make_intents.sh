@@ -24,6 +24,12 @@ if [[ ! -s "$work/constvalues.txt" ]]; then
 fi
 find "$sources" -name '*.swift' > "$work/sources.txt"
 
+# 링커의 dependency_info (build.sh가 -Xlinker -dependency_info로 남긴다)
+deps="$products/intents/$name"_dependency_info.dat
+if [[ ! -s "$deps" ]]; then
+  echo "make_intents: 링커 기록($deps)이 없습니다. ./build.sh로 다시 빌드해 주세요." >&2
+  exit 1
+fi
 toolchain=$(dirname "$(dirname "$(dirname "$(xcrun --find swift)")")")
 sdk=$(xcrun --sdk macosx --show-sdk-path)
 xcode_version=$(xcodebuild -version 2>/dev/null | awk '/Build version/ {print $3}')
@@ -41,7 +47,7 @@ xcrun appintentsmetadataprocessor \
   --output "$app/Contents/Resources" \
   --target-triple "$arch-apple-macos26.0" \
   --binary-file "$app/Contents/MacOS/$name" \
-  --dependency-file "$work/dependency_info.dat" \
+  --dependency-file "$deps" \
   --stringsdata-file "$work/ExtractedAppShortcutsMetadata.stringsdata" \
   --source-file-list "$work/sources.txt" \
   --swift-const-vals-list "$work/constvalues.txt" \
