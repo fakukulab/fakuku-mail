@@ -544,6 +544,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Started from a terminal, the process is not a foreground app yet.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
+        // 설정 > 일반 > 앱 아이콘 색 (Dock 아이콘)
+        if !Store.isOverridden { AppIconColor.apply() }
         // 알림을 눌러 앱이 켜진 경우도 받도록 시작하자마자 연결한다 (S-024). 테스트 실행은 건드리지 않는다.
         if !Store.isOverridden {
             UNUserNotificationCenter.current().delegate = SystemNotifier.shared

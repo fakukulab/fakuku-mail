@@ -160,6 +160,7 @@ struct GeneralSettings: View {
         }
         OfflineSettings()
         AppearanceSettings()
+        AppIconSettings()
     }
 }
 
