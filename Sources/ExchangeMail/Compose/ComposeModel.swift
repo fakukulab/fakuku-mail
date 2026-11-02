@@ -13,6 +13,8 @@ final class ComposeModel {
     var cc = ""
     var bcc = ""
     var showBcc = false
+    /// 우선 순위: high, normal, low (작성 창 머리글의 ! 메뉴)
+    var importance = "normal"
     var subject = ""
     var files: [URL] = []
     var forwarded: [FileAttachment] = []
@@ -149,7 +151,7 @@ final class ComposeModel {
             extraAttachments: forwarded.compactMap { a in
                 a.data.map { OutgoingAttachment(filename: a.name, mimeType: a.contentType ?? "application/octet-stream", data: $0) }
             },
-            draft: draft, fixEnabled: fixEnabled)
+            draft: draft, fixEnabled: fixEnabled, importance: importance)
     }
 
     /// 보내고 성공하면 true. 실패하거나 보내기를 취소하면 false (실패면 `error`에 이유).
@@ -246,7 +248,7 @@ final class ComposeModel {
 
     /// 내용 요약. 칸, 본문, 첨부가 같으면 같은 값.
     var fingerprint: String {
-        [to, cc, showBcc ? bcc : "", subject, "\(bodyRevision)",
+        [to, cc, showBcc ? bcc : "", subject, importance, "\(bodyRevision)",
          files.map(\.path).joined(separator: "|"), forwarded.map(\.id).joined(separator: "|")]
             .joined(separator: "\u{1F}")
     }

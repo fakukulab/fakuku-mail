@@ -124,6 +124,8 @@ struct ComposeView: View {
 
     // MARK: 머리글
 
+    /// 맥 Mail처럼: 레이블은 왼쪽, 구분선은 양옆 여백 안쪽. 받는 사람 줄 끝에 우선 순위, 참조 줄 끝에 숨은 참조,
+    /// 마지막 줄은 보낸 사람과 서명.
     private var header: some View {
         @Bindable var compose = compose
         return VStack(spacing: 0) {
@@ -131,65 +133,108 @@ struct ComposeView: View {
                 TextField("받는 사람", text: $compose.to, prompt: Text("이름 <주소>, 주소…"))
                     .focused($focus, equals: .to)
                     .addressSuggestions(for: compose.to, from: model.addressBook)
+                priorityMenu
             }
-            Divider()
+            rule
             row("참조:") {
-                HStack(spacing: Space.sm) {
-                    TextField("참조", text: $compose.cc)
-                        .focused($focus, equals: .cc)
-                        .addressSuggestions(for: compose.cc, from: model.addressBook)
-                    if !compose.showBcc {
-                        Button("숨은 참조") {
-                            compose.showBcc = true
-                            focus = .bcc
-                        }
-                        .buttonStyle(.borderless)
-                        .help("숨은 참조 칸 보이기")
+                TextField("참조", text: $compose.cc)
+                    .focused($focus, equals: .cc)
+                    .addressSuggestions(for: compose.cc, from: model.addressBook)
+                if !compose.showBcc {
+                    Button("숨은 참조") {
+                        compose.showBcc = true
+                        focus = .bcc
                     }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("숨은 참조 칸 보이기")
                 }
             }
             if compose.showBcc {
-                Divider()
+                rule
                 row("숨은 참조:") {
                     TextField("숨은 참조", text: $compose.bcc)
                         .focused($focus, equals: .bcc)
                         .addressSuggestions(for: compose.bcc, from: model.addressBook)
                 }
             }
-            Divider()
+            rule
             row("제목:") {
                 TextField("제목", text: $compose.subject)
                     .focused($focus, equals: .subject)
             }
-            Divider()
-            HStack(spacing: Space.lg) {
-                Picker("서명:", selection: $compose.signatureID) {
+            rule
+            row("보낸 사람:") {
+                Text(fromLine)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: Space.lg)
+                Text("서명:")
+                    .foregroundStyle(.secondary)
+                Picker("서명", selection: $compose.signatureID) {
                     Text("없음").tag(UUID?.none)
                     if !model.signatures.signatures.isEmpty { Divider() }
                     ForEach(model.signatures.signatures) { s in
                         Text(s.name).tag(UUID?.some(s.id))
                     }
                 }
+                .labelsHidden()
                 .fixedSize()
                 .onChange(of: compose.signatureID) { _, _ in compose.signatureChanged(app: model) }
-                Spacer()
-                // 첨부 보정은 설정 > 작성에서만 정한다 (메일마다 끄고 켜지 않는다).
             }
-            .padding(.horizontal, Space.margin)
-            .padding(.vertical, Space.sm)
         }
         .textFieldStyle(.plain)
+    }
+
+    /// 보낸 사람: "이름 – 주소"
+    private var fromLine: String {
+        let email = model.auth.email ?? ""
+        guard let name = model.auth.displayName, !name.isEmpty else { return email }
+        return "\(name) – \(email)"
+    }
+
+    /// 우선 순위 (!! 높음, ! 보통, – 낮음). 보통이 아니면 강조색으로 보인다.
+    private var priorityMenu: some View {
+        @Bindable var compose = compose
+        let symbol = switch compose.importance {
+        case "high": "exclamationmark.2"
+        case "low": "arrow.down"
+        default: "exclamationmark"
+        }
+        return Menu {
+            Picker("우선 순위", selection: $compose.importance) {
+                Label("우선 순위 높음", systemImage: "exclamationmark.2").tag("high")
+                Label("우선 순위 보통", systemImage: "exclamationmark").tag("normal")
+                Label("우선 순위 낮음", systemImage: "minus").tag("low")
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+        } label: {
+            Image(systemName: symbol)
+                .foregroundStyle(compose.importance == "normal" ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(.borderless)
+        .fixedSize()
+        .help(compose.importance == "high" ? "우선 순위 높음" : compose.importance == "low" ? "우선 순위 낮음" : "우선 순위 보통")
+        .accessibilityLabel("우선 순위")
+    }
+
+    /// 양옆 여백 안쪽에만 긋는 구분선
+    private var rule: some View {
+        Divider().padding(.horizontal, Space.margin)
     }
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
             Text(label)
                 .foregroundStyle(.secondary)
-                .frame(width: 72, alignment: .trailing)
+                .fixedSize()
             content()
         }
         .padding(.horizontal, Space.margin)
-        .padding(.vertical, Space.sm)
+        .padding(.vertical, Space.md)
     }
 
     // MARK: 첨부 막대

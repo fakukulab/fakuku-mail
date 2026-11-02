@@ -15,6 +15,8 @@ struct ComposeSender {
         var extraAttachments: [OutgoingAttachment]
         var draft: ComposeDraft
         var fixEnabled: Bool
+        /// 우선 순위: high, normal, low
+        var importance = "normal"
     }
 
     enum Problem: LocalizedError, Equatable {
@@ -98,7 +100,8 @@ struct ComposeSender {
         }
         return OutgoingMessage(from: input.from, to: to.valid, cc: cc.valid, bcc: bcc.valid,
                                subject: input.subject, html: wrap(input.bodyHTML), attachments: attachments,
-                               inReplyTo: input.draft.inReplyTo, references: input.draft.references)
+                               inReplyTo: input.draft.inReplyTo, references: input.draft.references,
+                               importance: input.importance == "normal" ? nil : input.importance)
     }
 
     private static func finish(_ message: OutgoingMessage, from: MailAddress, options: FixOptions, date: Date) throws -> Data {

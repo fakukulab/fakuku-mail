@@ -234,3 +234,17 @@ func uploadChunks() {
     #expect(UploadChunks.contentRange(ranges[0], total: total) == "bytes 0-3276799/10000000")
     #expect(UploadChunks.ranges(total: 0).isEmpty)
 }
+
+@Test("우선 순위 높음·낮음은 Importance와 X-Priority 헤더로, 보통은 넣지 않는다")
+func priorityHeaders() {
+    func message(_ importance: String?) -> OutgoingMessage {
+        OutgoingMessage(from: MailAddress(address: "a@b.com"), to: [MailAddress(address: "c@d.com")],
+                        subject: "s", html: "<p>x</p>", importance: importance)
+    }
+    let high = mime(message("high"))
+    #expect(high.contains("Importance: High\r\n") && high.contains("X-Priority: 1"))
+    let low = mime(message("low"))
+    #expect(low.contains("Importance: Low\r\n") && low.contains("X-Priority: 5"))
+    let normal = mime(message(nil))
+    #expect(!normal.contains("Importance:") && !normal.contains("X-Priority:"))
+}

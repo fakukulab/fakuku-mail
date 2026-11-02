@@ -24,10 +24,13 @@ public struct OutgoingMessage: Sendable {
     public var inReplyTo: String?
     /// 대화의 Message-ID 목록. 원본의 References + 원본 Message-ID.
     public var references: [String]
+    /// 우선 순위: "high", "low". nil이나 "normal"이면 헤더를 넣지 않는다.
+    public var importance: String?
 
     public init(from: MailAddress, to: [MailAddress], cc: [MailAddress] = [], bcc: [MailAddress] = [],
                 subject: String, html: String, attachments: [OutgoingAttachment] = [],
-                inReplyTo: String? = nil, references: [String] = []) {
+                inReplyTo: String? = nil, references: [String] = [], importance: String? = nil) {
+        self.importance = importance
         self.from = from
         self.to = to
         self.cc = cc
@@ -184,6 +187,12 @@ public enum MIMEBuilder {
         // Graph는 Bcc 헤더로 숨은 참조를 받고, 받는 사람에게는 이 헤더를 지워서 보낸다.
         if !msg.bcc.isEmpty { h += "Bcc: \(addressList(msg.bcc))\r\n" }
         h += "Subject: \(encodedWords(msg.subject))\r\n"
+        // 우선 순위: Exchange와 Outlook은 Importance를, 다른 메일 앱은 X-Priority를 읽는다.
+        switch msg.importance {
+        case "high": h += "Importance: High\r\nX-Priority: 1 (Highest)\r\n"
+        case "low": h += "Importance: Low\r\nX-Priority: 5 (Lowest)\r\n"
+        default: break
+        }
         if let id = messageID { h += "Message-ID: \(angle(id))\r\n" }
         if let r = msg.inReplyTo, !r.isEmpty { h += "In-Reply-To: \(angle(r))\r\n" }
         if !msg.references.isEmpty { h += "References: \(msg.references.map(angle).joined(separator: "\r\n "))\r\n" }
