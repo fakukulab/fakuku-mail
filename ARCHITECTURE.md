@@ -56,8 +56,8 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   `MessageReader` (@Observable: one message, body, attachments, remote-content choice, Quick Look). Server calls
   and list updates stay in AppModel (`+Windows`: `openTarget`, `setFlag`, `moveOpened`). The window publishes its
   reader with `focusedSceneValue(\.messageReader)`, and `MailCommands` acts on it when that window is in front.
-- Toolbar (S-044): both the list and detail columns use `.toolbar(id: "mail")` with only `ToolbarItem(id:)`
-  items. One plain `.toolbar {}` item anywhere in the window turns customization off for the whole window.
+- Toolbar (S-044): one `.toolbar(id: "mail")` on the NavigationSplitView (`Views/MailToolbar.swift`), with only
+  `ToolbarItem(id:)` items. Toolbars on the columns, or any plain `.toolbar {}` item, turn customization off.
 - Local files in `Store.directory`: `signatures.json`, `recipients.json`. Tokens in the Keychain.
 - Menus read `MenuState` (an ObservableObject mirror), because SwiftUI Commands do not observe @Observable.
 

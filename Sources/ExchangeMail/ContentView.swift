@@ -48,7 +48,9 @@ struct ContentView: View {
 }
 
 struct MailSplitView: View {
-    @Environment(AppModel.self) private var model
+    @Environment(AppModel.self) var model
+    @Environment(\.openWindow) var openWindow
+    @Environment(\.undoManager) var undoManager
 
     var body: some View {
         @Bindable var model = model
@@ -61,6 +63,7 @@ struct MailSplitView: View {
         } detail: {
             MessageDetailView()
         }
+        .toolbar(id: "mail") { mailToolbar }
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "검색")
         // 검색 범위: 이 폴더 / 모든 폴더 (S-033)
         .searchScopes($model.searchScope) {
