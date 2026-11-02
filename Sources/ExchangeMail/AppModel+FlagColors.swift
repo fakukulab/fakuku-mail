@@ -67,14 +67,40 @@ extension FlagColor {
         }
     }
 
-    /// 색을 입힌 깃발 그림. 메뉴는 SF Symbol을 흑백(template)으로 그려 색을 지우므로,
-    /// 색을 구운 non-template 그림을 쓴다 (메뉴, 사이드바).
+    /// 색을 입힌 깃발 그림 (메뉴, 사이드바).
+    /// 메뉴는 SF Symbol 그림을 모양만 쓰고 앱 강조색으로 덧칠한다. 그래서 색 깃발을 보통 그림(비트맵)으로
+    /// 한 번 그려서 넘긴다: 기호 정보가 없는 그림은 덧칠하지 않는다.
     var flagImage: Image {
-        let config = NSImage.SymbolConfiguration(paletteColors: [nsColor])
-        guard let image = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: label)?
-                .withSymbolConfiguration(config) else { return Image(systemName: "flag.fill") }
+        Image(nsImage: Self.cache[self] ?? Self.makeImage(self)).renderingMode(.original)
+    }
+
+    private static var cache: [FlagColor: NSImage] = [:]
+
+    private static func makeImage(_ color: FlagColor) -> NSImage {
+        let size = NSSize(width: 16, height: 16)
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color.nsColor]))
+        let symbol = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: color.label)?
+            .withSymbolConfiguration(config)
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32, bitsPerSample: 8,
+                                   samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+        let image = NSImage(size: size)
+        if let rep, let symbol {
+            rep.size = size
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            let s = symbol.size
+            let scale = min(size.width / s.width, size.height / s.height)
+            let drawn = NSSize(width: s.width * scale, height: s.height * scale)
+            symbol.draw(in: NSRect(x: (size.width - drawn.width) / 2, y: (size.height - drawn.height) / 2,
+                                   width: drawn.width, height: drawn.height))
+            NSGraphicsContext.restoreGraphicsState()
+            image.addRepresentation(rep)
+        }
         image.isTemplate = false
-        return Image(nsImage: image).renderingMode(.original)
+        cache[color] = image
+        return image
     }
 
     /// 깃발 색 메뉴의 단축키 ⌥⌘1~7
