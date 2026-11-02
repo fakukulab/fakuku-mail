@@ -479,6 +479,13 @@ final class AppModel {
             + "지금 서버 상태: \(MeetingResponse.describe(serverValue)). 잠시 뒤 Outlook 일정에서 다시 확인해 주세요."
     }
 
+    /// 본문에 보이는 메일이 `id`이면 고친다 (다른 파일의 확장이 `detail`을 바꿀 때).
+    func patchDetail(_ id: String, _ change: (inout MailMessage) -> Void) {
+        guard var m = detail, m.id == id else { return }
+        change(&m)
+        detail = m
+    }
+
     func allowRemoteContentForSelection() {
         allowRemoteFor = detail?.id
         updateMenu()

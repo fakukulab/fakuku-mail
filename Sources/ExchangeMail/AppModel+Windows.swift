@@ -30,7 +30,7 @@ extension AppModel {
         let state: FollowupFlag = flagged ? .flagged : .notFlagged
         if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].flag = state }
         if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].flag = state }
-        if detail?.id == id { detail?.flag = state }
+        patchDetail(id) { $0.flag = state }
         if selectedFolderID == FolderOrder.flaggedID && !flagged {
             messages.removeAll { $0.id == id }
             selection.remove(id)
