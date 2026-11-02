@@ -398,7 +398,7 @@ Acceptance:
 - [unit] `@odata.type`이 eventMessageRequest면 회의 초대이고, 일정 시각은 UTC·IANA 시간대로 읽는다.
 - [self] 회의 초대를 열면 일시·장소가 보이고, 수락하면 "수락함"이 보인다.
 - [manual] 실제 계정에서 수락하면 Outlook 일정에 들어가고 보낸 사람에게 응답이 간다 (Calendars.ReadWrite 권한).
-Status: todo (보류: 같은 회사 Teams 초대에서 "수락함"은 떴지만 Outlook 일정에 반영되지 않고 미정으로도 바뀌지 않음. 응답 뒤 서버 상태를 다시 읽도록 고친 c73eb3a로 다시 확인해 원인을 좁힐 것. docs/FIXLOG.md 참고)
+Status: done (2026-11-02 맥에서 확인: 수락하면 Outlook 캘린더에 들어간다. 응답 뒤 캘린더 보기를 확인하고 같은 회의의 다른 사본에도 응답한다. 맥 캘린더 앱 표시는 맥의 Exchange 계정 동기화 문제로 앱 밖의 일)
 
 ## M12 Mailbox settings
 
