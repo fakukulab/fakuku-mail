@@ -779,14 +779,16 @@ enum SelfTest {
             // 설정 > 정크 메일 > 차단됨 (서버 규칙)
             await model.loadBlocked()
             await model.block(address: "spam@junk.example")
+            let rulesAfterBlock = (try? await model.service.rules()) ?? []
             check("차단: 보낸 사람을 막으면 서버 규칙이 생긴다",
                   model.blockedAddresses == ["spam@junk.example"] && model.blockMode == .keep
-                      && ((try? await model.service.rules()) ?? []).contains(where: BlockedSenders.isBlockRule))
+                      && rulesAfterBlock.contains(where: BlockedSenders.isBlockRule))
             await model.saveBlocked(addresses: model.blockedAddresses, mode: .trash, enabled: true)
             check("차단: 지운 편지함으로 옮기는 방식", model.blockedRule?.actions?.delete == true)
             await model.unblock(address: "spam@junk.example")
+            let rulesAfterUnblock = (try? await model.service.rules()) ?? []
             check("차단: 모두 풀면 규칙도 지운다",
-                  model.blockedRule == nil && !((try? await model.service.rules()) ?? []).contains(where: BlockedSenders.isBlockRule))
+                  model.blockedRule == nil && !rulesAfterUnblock.contains(where: BlockedSenders.isBlockRule))
 
             // M17: 맥 Mail 메뉴
             model.selectedFolderID = "inbox"
