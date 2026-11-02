@@ -5,6 +5,8 @@ struct MessageListView: View {
     @Environment(AppModel.self) var model
     @Environment(\.openWindow) var openWindow
     @Environment(\.undoManager) var undoManager
+    /// 설정 > 서체 및 색상 > 메시지 목록 글자 크기
+    @AppStorage(Prefs.listFontSize) private var listFontSize = 13
     /// 보기 > 대화별로 정리 (S-025)
     @AppStorage("list.threaded") private var threaded = true
 
@@ -40,6 +42,7 @@ struct MessageListView: View {
                 }
             }
         }
+        .font(.system(size: CGFloat(listFontSize)))
         .onDeleteCommand { Task { await model.deleteSelected(undoManager: undoManager) } }
         // 오른쪽 클릭은 고른 줄 전체에 (S-027). 두 번 클릭은 별도 창으로, 초안이면 이어서 쓰기 (S-043, S-022).
         .contextMenu(forSelectionType: String.self) { rows in
@@ -134,6 +137,9 @@ struct MessageListView: View {
                 }
             }
             .disabled(single == nil)
+            if let m = single {
+                Button("보낸 사람 차단") { Task { await model.blockSender(of: m, undoManager: undoManager) } }
+            }
             // VIP (S-045)
             if let m = single {
                 if model.mailboxes.vip(for: m) == nil {
@@ -195,6 +201,9 @@ struct MessageRow: View {
     var folderTag: String? = nil
     /// 보낸 사람이 VIP면 그 사람의 아이콘을 이름 앞에 (S-045)
     var vip: VIP? = nil
+    /// 설정 > 보기 > 목록 미리보기 줄 수, 볼드체로 읽지 않은 메시지 표시
+    @AppStorage(Prefs.previewLines) private var previewLines = 2
+    @AppStorage(Prefs.boldUnread) private var boldUnread = true
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.sm) {
@@ -209,7 +218,7 @@ struct MessageRow: View {
                         VIPBadge(vip: vip)
                     }
                     Text(message.from?.emailAddress.display ?? "(보낸 사람 없음)")
-                        .fontWeight(message.isUnread ? .semibold : .regular)
+                        .fontWeight(message.isUnread && boldUnread ? .semibold : .regular)
                         .lineLimit(1)
                     Spacer(minLength: Space.xs)
                     if message.isFlagged {
@@ -241,10 +250,12 @@ struct MessageRow: View {
                             .background(.quaternary, in: Capsule())
                     }
                 }
-                Text(message.bodyPreview ?? "")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                if previewLines > 0 {
+                    Text(message.bodyPreview ?? "")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(previewLines)
+                }
             }
         }
         .padding(.vertical, Space.xs)
@@ -257,6 +268,8 @@ struct ConversationRow: View {
     let me: String?
     /// 마지막 메일을 VIP가 보냈으면 (S-045)
     var vip: VIP? = nil
+    @AppStorage(Prefs.previewLines) private var previewLines = 2
+    @AppStorage(Prefs.boldUnread) private var boldUnread = true
 
     var body: some View {
         let latest = conversation.latest
@@ -272,7 +285,7 @@ struct ConversationRow: View {
                         VIPBadge(vip: vip)
                     }
                     Text(conversation.participants(me: me).joined(separator: ", "))
-                        .fontWeight(conversation.isUnread ? .semibold : .regular)
+                        .fontWeight(conversation.isUnread && boldUnread ? .semibold : .regular)
                         .lineLimit(1)
                     if conversation.count > 1 {
                         Text("\(conversation.count)")
@@ -302,10 +315,12 @@ struct ConversationRow: View {
                 }
                 Text(latest.title)
                     .lineLimit(1)
-                Text(latest.bodyPreview ?? "")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                if previewLines > 0 {
+                    Text(latest.bodyPreview ?? "")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(previewLines)
+                }
             }
         }
         .padding(.vertical, Space.xs)

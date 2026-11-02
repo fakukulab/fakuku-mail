@@ -8,6 +8,19 @@ struct MessageDetailView: View {
     @Environment(\.openWindow) var openWindow
     @Environment(\.undoManager) var undoManager
     @AppStorage("list.threaded") private var threaded = true
+    // 설정 > 서체 및 색상
+    @AppStorage(Prefs.bodyFontFamily) private var bodyFamily = ""
+    @AppStorage(Prefs.bodyFontSize) private var bodySize = 14
+    @AppStorage(Prefs.plainMonospace) private var plainMonospace = false
+    @AppStorage(Prefs.quoteColors) private var quoteColors = true
+    @AppStorage(Prefs.quoteColor1) private var quote1 = Prefs.defaultQuoteColors[0]
+    @AppStorage(Prefs.quoteColor2) private var quote2 = Prefs.defaultQuoteColors[1]
+    @AppStorage(Prefs.quoteColor3) private var quote3 = Prefs.defaultQuoteColors[2]
+
+    private var readingStyle: ReadingStyle {
+        ReadingStyle(family: bodyFamily, size: bodySize, plainMonospace: plainMonospace, quoteColors: quoteColors,
+                     quote: [quote1, quote2, quote3])
+    }
 
     var body: some View {
         Group {
@@ -36,7 +49,7 @@ struct MessageDetailView: View {
                         }
                     }
                     Divider()
-                    HTMLView(html: page.html,
+                    HTMLView(html: page.html + readingStyle.css,
                              scroller: model.pageScroller, onPrint: { model.printDisplayed() }) { url in
                         openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }
@@ -208,6 +221,8 @@ struct MessageHeader: View {
 /// 대화 보기 (S-025): 대화의 메일을 오래된 순으로 한 줄씩. 누르면 아래에 그 메일이 펼쳐진다.
 struct ThreadStrip: View {
     @Environment(AppModel.self) private var model
+    /// 설정 > 보기 > "가장 최근 메시지를 맨 위에서 보기"
+    @AppStorage(Prefs.threadNewestFirst) private var newestFirst = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -219,7 +234,7 @@ struct ThreadStrip: View {
                 .padding(.bottom, Space.xs)
             ScrollView {
                 VStack(spacing: 0) {
-                    ForEach(model.thread) { m in
+                    ForEach(newestFirst ? Array(model.thread.reversed()) : model.thread) { m in
                         ThreadRow(message: m, isShown: m.id == model.displayedMessageID,
                                   folderTag: model.folderTag(for: m), me: model.auth.email) {
                             model.showInThread(m.id)

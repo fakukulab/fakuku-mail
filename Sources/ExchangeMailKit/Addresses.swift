@@ -89,3 +89,28 @@ public enum AddressParser {
         addresses.map(\.editable).joined(separator: ", ")
     }
 }
+
+/// 작성 창: 우리 회사 도메인으로 끝나지 않는 주소 (설정 > 작성 > 다음으로 끝나지 않는 주소 표시)
+public enum ExternalAddresses {
+    /// "@corp.com, corp.co.kr" → ["corp.com", "corp.co.kr"]
+    public static func domains(_ text: String) -> [String] {
+        text.split(whereSeparator: { ",; \n".contains($0) })
+            .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "@")).lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    /// 받는 사람·참조·숨은 참조 칸에서 바깥 주소만. 도메인이 없으면 아무것도 표시하지 않는다.
+    public static func find(in fields: [String], internalDomains: String) -> [String] {
+        let inside = domains(internalDomains)
+        guard !inside.isEmpty else { return [] }
+        var out: [String] = []
+        for field in fields {
+            for a in AddressParser.parse(field).valid {
+                let domain = a.address.split(separator: "@").last.map { String($0).lowercased() } ?? ""
+                let ok = inside.contains { domain == $0 || domain.hasSuffix("." + $0) }
+                if !ok && !out.contains(a.address) { out.append(a.address) }
+            }
+        }
+        return out
+    }
+}

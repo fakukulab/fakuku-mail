@@ -50,6 +50,7 @@ struct SettingsView: View {
                     case .general: GeneralSettings()
                     case .account: AccountSettings()
                     case .junk: JunkSettings()
+                    case .fonts: FontSettings()
                     case .viewing: ViewingSettings()
                     case .composing: ComposingSettings()
                     case .notifications: NotificationSettings()
@@ -68,7 +69,7 @@ struct SettingsView: View {
 
 /// The Settings tabs, in Mail's order. Snapshot mode walks through every case.
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, account, junk, viewing, composing, signatures, rules, autoReply, notifications
+    case general, account, junk, fonts, viewing, composing, signatures, rules, autoReply, notifications
 
     var id: String { rawValue }
 
@@ -77,6 +78,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "일반"
         case .account: "계정"
         case .junk: "정크 메일"
+        case .fonts: "서체 및 색상"
         case .viewing: "보기"
         case .composing: "작성"
         case .signatures: "서명"
@@ -91,6 +93,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .account: "at"
         case .junk: "xmark.bin"
+        case .fonts: "textformat.size"
         case .viewing: "eyeglasses"
         case .composing: "square.and.pencil"
         case .signatures: "signature"
@@ -254,6 +257,188 @@ struct JunkSettings: View {
                 }
             }
         }
+        BlockedSettings()
+    }
+}
+
+/// 설정 > 정크 메일 > 차단됨: 받은 편지함 서버 규칙 하나로 관리한다 (앱이 꺼져 있어도 적용).
+struct BlockedSettings: View {
+    @Environment(AppModel.self) private var model
+    @State private var newAddress = ""
+    @State private var busy = false
+
+    var body: some View {
+        Section {
+            LabeledContent("차단된 보낸 사람:") {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle("차단된 메일 필터링 사용", isOn: Binding(
+                        get: { model.blockEnabled },
+                        set: { on in save(model.blockedAddresses, model.blockMode, on) }))
+                        .disabled(busy || model.blockedAddresses.isEmpty)
+                    Picker("차단된 주소에서 메일이 오면", selection: Binding(
+                        get: { model.blockMode },
+                        set: { mode in save(model.blockedAddresses, mode, model.blockEnabled) })) {
+                        Text("차단됨 범주를 붙이고 받은 편지함에 두기").tag(BlockedSenders.Mode.keep)
+                        Text("지운 편지함으로 이동").tag(BlockedSenders.Mode.trash)
+                    }
+                    .pickerStyle(.radioGroup)
+                    .disabled(busy || model.blockedAddresses.isEmpty)
+                    if model.blockedAddresses.isEmpty {
+                        SettingsNote(model.blockedLoaded ? "차단한 보낸 사람이 없습니다. 메일을 오른쪽 클릭해 \"보낸 사람 차단\"을 고르거나 아래에 주소를 넣으세요."
+                                                         : "불러오는 중…")
+                    } else {
+                        ForEach(model.blockedAddresses, id: \.self) { address in
+                            HStack(spacing: Space.sm) {
+                                Text(address)
+                                    .textSelection(.enabled)
+                                Button("차단 해제", systemImage: "minus.circle") {
+                                    busy = true
+                                    Task {
+                                        await model.unblock(address: address)
+                                        busy = false
+                                    }
+                                }
+                                .labelStyle(.iconOnly)
+                                .buttonStyle(.borderless)
+                                .help("\(address) 차단 해제")
+                                .disabled(busy)
+                            }
+                        }
+                    }
+                    HStack(spacing: Space.sm) {
+                        TextField("주소", text: $newAddress, prompt: Text("spam@example.com"))
+                            .frame(maxWidth: 240)
+                            .onSubmit { add() }
+                        Button("차단") { add() }
+                            .disabled(busy || !newAddress.contains("@"))
+                        if busy { ProgressView().controlSize(.small) }
+                    }
+                    SettingsNote("받은 편지함 규칙 \"\(BlockedSenders.ruleName)\"으로 저장됩니다. Outlook 웹과 다른 기기에도 적용됩니다.")
+                }
+            }
+        }
+        .task { await model.loadBlocked() }
+    }
+
+    private func add() {
+        let address = newAddress.trimmingCharacters(in: .whitespaces)
+        guard address.contains("@") else { return }
+        busy = true
+        Task {
+            await model.block(address: address)
+            newAddress = ""
+            busy = false
+        }
+    }
+
+    private func save(_ addresses: [String], _ mode: BlockedSenders.Mode, _ enabled: Bool) {
+        busy = true
+        Task {
+            await model.saveBlocked(addresses: addresses, mode: mode, enabled: enabled)
+            busy = false
+        }
+    }
+}
+
+// MARK: 서체 및 색상
+
+struct FontSettings: View {
+    @AppStorage(Prefs.listFontSize) private var listSize = 13
+    @AppStorage(Prefs.bodyFontFamily) private var family = ""
+    @AppStorage(Prefs.bodyFontSize) private var bodySize = 14
+    @AppStorage(Prefs.plainMonospace) private var plainMonospace = false
+    @AppStorage(Prefs.quoteColors) private var quoteColors = true
+    @AppStorage(Prefs.quoteColor1) private var quote1 = Prefs.defaultQuoteColors[0]
+    @AppStorage(Prefs.quoteColor2) private var quote2 = Prefs.defaultQuoteColors[1]
+    @AppStorage(Prefs.quoteColor3) private var quote3 = Prefs.defaultQuoteColors[2]
+
+    private let families = NSFontManager.shared.availableFontFamilies
+
+    var body: some View {
+        Section {
+            Picker("메시지 목록 글자 크기:", selection: $listSize) {
+                ForEach([11, 12, 13, 14, 15, 16, 18], id: \.self) { Text("\($0)").tag($0) }
+            }
+            .fixedSize()
+            LabeledContent("메시지 서체:") {
+                HStack(spacing: Space.sm) {
+                    Picker("서체", selection: $family) {
+                        Text("시스템 서체").tag("")
+                        Divider()
+                        ForEach(families, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 240)
+                    Picker("크기", selection: $bodySize) {
+                        ForEach([12, 13, 14, 15, 16, 18, 20], id: \.self) { Text("\($0)").tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+            LabeledContent("일반 텍스트:") {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle("일반 텍스트 메시지에 고정폭 서체 사용", isOn: $plainMonospace)
+                    SettingsNote("HTML 메일은 보낸 사람이 정한 서체가 먼저 쓰입니다.")
+                }
+            }
+        }
+        Section {
+            LabeledContent("인용 텍스트:") {
+                VStack(alignment: .leading, spacing: Space.md) {
+                    Toggle("인용 텍스트 색상", isOn: $quoteColors)
+                    HStack(alignment: .top, spacing: Space.xl) {
+                        VStack(alignment: .leading, spacing: Space.sm) {
+                            colorRow("1단계", $quote1)
+                            colorRow("2단계", $quote2)
+                            colorRow("3단계", $quote3)
+                        }
+                        preview
+                    }
+                    .disabled(!quoteColors)
+                    Button("기본 색으로") {
+                        quote1 = Prefs.defaultQuoteColors[0]
+                        quote2 = Prefs.defaultQuoteColors[1]
+                        quote3 = Prefs.defaultQuoteColors[2]
+                    }
+                    .disabled(!quoteColors)
+                }
+            }
+        }
+    }
+
+    private func colorRow(_ title: String, _ hex: Binding<String>) -> some View {
+        ColorPicker(title, selection: Binding(get: { Color(hex: hex.wrappedValue) ?? .secondary },
+                                              set: { hex.wrappedValue = $0.hexString }),
+                    supportsOpacity: false)
+    }
+
+    /// 인용 단계 미리보기: 단계마다 왼쪽 막대와 글자색
+    private var preview: some View {
+        let colors = [quote1, quote2, quote3].map { quoteColors ? (Color(hex: $0) ?? .secondary) : Color.secondary }
+        return HStack(alignment: .top, spacing: Space.sm) {
+            Rectangle().fill(colors[0]).frame(width: 2)
+            VStack(alignment: .leading, spacing: Space.sm) {
+                Text("1단계").foregroundStyle(colors[0])
+                HStack(alignment: .top, spacing: Space.sm) {
+                    Rectangle().fill(colors[1]).frame(width: 2)
+                    VStack(alignment: .leading, spacing: Space.sm) {
+                        Text("2단계").foregroundStyle(colors[1])
+                        HStack(spacing: Space.sm) {
+                            Rectangle().fill(colors[2]).frame(width: 2)
+                            Text("3단계").foregroundStyle(colors[2])
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(Space.md)
+        .frame(width: 200, alignment: .leading)
+        .overlay(RoundedRectangle(cornerRadius: Space.xs).strokeBorder(.separator))
+        .accessibilityLabel("인용 단계 색 미리보기")
     }
 }
 
@@ -262,6 +447,12 @@ struct JunkSettings: View {
 struct ViewingSettings: View {
     @Environment(AppModel.self) private var model
     @AppStorage("list.threaded") private var threaded = true
+    @AppStorage(Prefs.previewLines) private var previewLines = 2
+    @AppStorage(Prefs.boldUnread) private var boldUnread = true
+    @AppStorage(Prefs.selectNextAfterMove) private var selectNext = true
+    @AppStorage(Prefs.markRead) private var markRead = "now"
+    @AppStorage(Prefs.threadAllFolders) private var threadAllFolders = true
+    @AppStorage(Prefs.threadNewestFirst) private var threadNewestFirst = false
 
     var body: some View {
         @Bindable var model = model
@@ -278,6 +469,34 @@ struct ViewingSettings: View {
                 Text(model.listSort.key == .date ? "오래된 항목 우선" : "오름차순").tag(false)
             }
             .fixedSize()
+        }
+        Section {
+            Picker("목록 미리보기:", selection: $previewLines) {
+                Text("없음").tag(0)
+                ForEach(1...5, id: \.self) { Text("\($0)줄").tag($0) }
+            }
+            .fixedSize()
+            LabeledContent("목록:") {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle("볼드체로 읽지 않은 메시지 표시", isOn: $boldUnread)
+                    Toggle("메시지를 지우거나 보관한 후 자동으로 다음 메시지 보기", isOn: $selectNext)
+                }
+            }
+            Picker("'읽음으로 표시' 동작:", selection: $markRead) {
+                Text("메시지를 열면 바로").tag("now")
+                Text("5초 동안 보고 있으면").tag("delay")
+                Text("직접 표시할 때만").tag("never")
+            }
+            .fixedSize()
+        }
+        Section {
+            LabeledContent("대화 보기:") {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle("관련된 메시지 포함", isOn: $threadAllFolders)
+                    SettingsNote("끄면 대화에 지금 폴더의 메일만 보입니다. 켜면 보낸 편지함 같은 다른 폴더의 답장도 함께 보입니다.")
+                    Toggle("가장 최근 메시지를 맨 위에서 보기", isOn: $threadNewestFirst)
+                }
+            }
         }
         Section {
             LabeledContent("개인정보 보호:") {
@@ -299,6 +518,11 @@ struct ViewingSettings: View {
 // MARK: 작성
 
 struct ComposingSettings: View {
+    @AppStorage(Prefs.spellcheck) private var spellcheck = true
+    @AppStorage(Prefs.autoIncludeMe) private var autoIncludeMe = "none"
+    @AppStorage(Prefs.highlightExternal) private var highlightExternal = false
+    @AppStorage(Prefs.internalDomains) private var internalDomains = ""
+    @AppStorage(Prefs.quoteOriginal) private var quoteOriginal = true
     @AppStorage("send.undoDelay") private var undoDelay = 10
     @AppStorage("fixEnabled") private var fixEnabled = true
     @AppStorage("fixImagesAsAttachments") private var images = true
@@ -306,6 +530,33 @@ struct ComposingSettings: View {
     @AppStorage("fixMinKB") private var minKB = 0
 
     var body: some View {
+        Section {
+            Picker("맞춤법 검사:", selection: $spellcheck) {
+                Text("입력할 때").tag(true)
+                Text("안 함").tag(false)
+            }
+            .fixedSize()
+            Picker("자동으로 나를 포함:", selection: $autoIncludeMe) {
+                Text("안 함").tag("none")
+                Text("참조에").tag("cc")
+                Text("숨은 참조에").tag("bcc")
+            }
+            .fixedSize()
+        }
+        Section {
+            LabeledContent("주소:") {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle("다음으로 끝나지 않는 주소 표시", isOn: $highlightExternal)
+                    TextField("도메인", text: $internalDomains, prompt: Text("@example.com, @example.co.kr"))
+                        .frame(maxWidth: 320)
+                        .disabled(!highlightExternal)
+                    SettingsNote("작성 창에서 이 도메인 밖의 받는 사람을 주황색으로 알려 줍니다. 회사 밖으로 잘못 보내는 일을 막습니다.")
+                }
+            }
+            LabeledContent("답장:") {
+                Toggle("원본 메시지의 텍스트를 인용", isOn: $quoteOriginal)
+            }
+        }
         Section {
             Picker("보내기 취소:", selection: $undoDelay) {
                 Text("끔").tag(0)
@@ -328,7 +579,7 @@ struct ComposingSettings: View {
                     }
                     .disabled(!images)
                     Toggle("EUC-KR 파일명 (구형 국내 시스템용)", isOn: $eucKR)
-                    SettingsNote("작성 창의 \"첨부 보정\" 체크로 메일마다 끄고 켤 수 있습니다. EUC-KR로 쓸 수 없는 글자가 있으면 UTF-8로 보냅니다.")
+                    SettingsNote("모든 새 메일에 적용됩니다. EUC-KR로 쓸 수 없는 글자가 있으면 UTF-8로 보냅니다.")
                 }
             }
             LabeledContent("항상 적용:") {

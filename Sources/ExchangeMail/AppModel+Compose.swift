@@ -19,7 +19,10 @@ extension AppModel {
         let html = body?.isHTML == true
             ? body?.content ?? ""
             : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
-        return ReplyBuilder.draft(kind: kind, message: m, bodyHTML: html, myAddress: auth.email)
+        var d = ReplyBuilder.draft(kind: kind, message: m, bodyHTML: html, myAddress: auth.email)
+        // 설정 > 작성 > "원본 메시지의 텍스트를 인용"을 끄면 답장에 원문을 넣지 않는다 (전달은 늘 넣는다).
+        if kind != .forward && !Prefs.bool(Prefs.quoteOriginal, true) { d.quoteHTML = "" }
+        return d
     }
 
     // MARK: 초안 (S-022)

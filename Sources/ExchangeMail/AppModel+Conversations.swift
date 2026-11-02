@@ -39,7 +39,12 @@ extension AppModel {
         do {
             let list = try await service.conversation(id: conv)
             guard id == selectedMessageID else { return }
-            thread = Conversations.chronological(list)
+            var ordered = Conversations.chronological(list)
+            // 설정 > 보기 > "관련된 메시지 포함"을 끄면 이 폴더의 메일만
+            if !Prefs.bool(Prefs.threadAllFolders, true), let folder = selectedFolderID, !VirtualMailbox.isVirtual(folder) {
+                ordered = ordered.filter { $0.parentFolderId == nil || $0.parentFolderId == folder || $0.id == id }
+            }
+            thread = ordered
             if Self.organizeByConversation {
                 for m in messages where m.conversationId == conv && m.isUnread && m.id != id {
                     await setRead(id: m.id, true)

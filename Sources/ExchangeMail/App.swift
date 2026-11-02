@@ -401,6 +401,12 @@ struct MailCommands: Commands {
         .disabled(!hasMessage)
         Button("VIP 이름·아이콘 변경…") { if let m = vipTarget { model.editVIP(for: m) } }
             .disabled(!vipTargetIsVIP)
+        // 설정 > 정크 메일 > 차단됨 (받은 편지함 서버 규칙)
+        Button("보낸 사람 차단") {
+            if let m = vipTarget { Task { await model.blockSender(of: m, undoManager: NSApp.keyWindow?.undoManager) } }
+        }
+        .keyboardShortcut("b", modifiers: [.command, .control])
+        .disabled(!hasMessage)
         Divider()
         Button("원격 이미지 불러오기") {
             if let reader { reader.allowRemoteContent() } else { model.allowRemoteContentForSelection() }

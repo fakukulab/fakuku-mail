@@ -82,7 +82,7 @@ enum SelfTest {
 
             // S-048 맥 Mail 같은 설정 탭
             check("S-048 설정 탭이 맥 Mail 순서로 나뉜다",
-                  SettingsTab.allCases.map(\.title) == ["일반", "계정", "정크 메일", "보기", "작성", "서명", "규칙", "자동 응답", "알림"])
+                  SettingsTab.allCases.map(\.title) == ["일반", "계정", "정크 메일", "서체 및 색상", "보기", "작성", "서명", "규칙", "자동 응답", "알림"])
 
             // S-013
             // 열면 읽음이 되므로, 한 번 바꾸면 읽지 않음, 다시 바꾸면 읽음.
@@ -775,6 +775,18 @@ enum SelfTest {
             model.removeSmart(id: unreadAttach.id)
             check("S-046 지우면 사이드바에서 빠지고 받은 편지함으로 돌아간다",
                   model.mailboxes.smart.isEmpty && model.selectedFolderID == "inbox")
+
+            // 설정 > 정크 메일 > 차단됨 (서버 규칙)
+            await model.loadBlocked()
+            await model.block(address: "spam@junk.example")
+            check("차단: 보낸 사람을 막으면 서버 규칙이 생긴다",
+                  model.blockedAddresses == ["spam@junk.example"] && model.blockMode == .keep
+                      && ((try? await model.service.rules()) ?? []).contains(where: BlockedSenders.isBlockRule))
+            await model.saveBlocked(addresses: model.blockedAddresses, mode: .trash, enabled: true)
+            check("차단: 지운 편지함으로 옮기는 방식", model.blockedRule?.actions?.delete == true)
+            await model.unblock(address: "spam@junk.example")
+            check("차단: 모두 풀면 규칙도 지운다",
+                  model.blockedRule == nil && !((try? await model.service.rules()) ?? []).contains(where: BlockedSenders.isBlockRule))
 
             // M17: 맥 Mail 메뉴
             model.selectedFolderID = "inbox"

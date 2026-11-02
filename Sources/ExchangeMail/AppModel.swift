@@ -69,6 +69,9 @@ final class AppModel {
     }
     /// 지운 편지함 비우기 같은 오래 걸리는 일의 진행 글 (목록 위 막대)
     var progressText: String?
+    /// 차단된 보낸 사람 서버 규칙 (설정 > 정크 메일). 아직 읽지 않았으면 nil.
+    var blockedRule: MessageRule?
+    var blockedLoaded = false
 
     static func savedMuted() -> Set<String> {
         guard !Store.isOverridden else { return [] }
@@ -369,7 +372,7 @@ final class AppModel {
             detailAttachments = attachments
             detailBody = MailContent.displayBody(m.body, attachments: attachments)
             updateMenu()
-            if m.isUnread { await setRead(id: id, true) }
+            if m.isUnread { await markReadAfterOpening(id) }
         } catch {
             report(error)
         }
@@ -470,7 +473,9 @@ final class AppModel {
         messages.removeAll { movedOld.contains($0.id) }
         selection = []
         let remaining = navigationOrder
-        selectedMessageID = remaining.isEmpty ? nil : remaining[min(position, remaining.count - 1)]
+        // 설정 > 보기 > "메시지를 폐기하거나 아카이브한 후 자동으로 다음 메시지를 봅니다"
+        let selectNext = Prefs.bool(Prefs.selectNextAfterMove, true)
+        selectedMessageID = remaining.isEmpty || !selectNext ? nil : remaining[min(position, remaining.count - 1)]
         let undoMoves = moves
         undoManager?.registerUndo(withTarget: self) { target in
             // 되돌리기는 메인 스레드에서 불린다.
@@ -534,6 +539,23 @@ final class AppModel {
         }
         errorMessage = "회의 응답(\(response.label))을 보냈지만 Exchange 일정에 아직 반영되지 않았습니다. "
             + "지금 서버 상태: \(MeetingResponse.describe(serverValue)). 잠시 뒤 Outlook 일정에서 다시 확인해 주세요."
+    }
+
+    /// 설정 > 보기 > '읽음으로 표시' 동작: 바로(기본), 5초 뒤(그때도 보고 있으면), 하지 않음
+    func markReadAfterOpening(_ id: String) async {
+        switch Prefs.string(Prefs.markRead, "now") {
+        case "never":
+            return
+        case "delay":
+            // 기다리는 동안 본문 불러오기(대화 등)를 막지 않게 따로 돈다.
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                guard displayedMessageID == id else { return }
+                await setRead(id: id, true)
+            }
+        default:
+            await setRead(id: id, true)
+        }
     }
 
     /// 본문에 보이는 메일이 `id`이면 고친다 (다른 파일의 확장이 `detail`을 바꿀 때).

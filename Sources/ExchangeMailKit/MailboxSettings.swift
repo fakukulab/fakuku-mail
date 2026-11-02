@@ -19,13 +19,15 @@ public struct MessageRule: Codable, Identifiable, Hashable, Sendable {
         /// low, normal, high
         public var markImportance: String?
         public var delete: Bool?
+        public var assignCategories: [String]?
         public var stopProcessingRules: Bool?
         public init(moveToFolder: String? = nil, markAsRead: Bool? = nil, markImportance: String? = nil,
-                    delete: Bool? = nil, stopProcessingRules: Bool? = nil) {
+                    delete: Bool? = nil, assignCategories: [String]? = nil, stopProcessingRules: Bool? = nil) {
             self.moveToFolder = moveToFolder
             self.markAsRead = markAsRead
             self.markImportance = markImportance
             self.delete = delete
+            self.assignCategories = assignCategories
             self.stopProcessingRules = stopProcessingRules
         }
     }
@@ -59,6 +61,7 @@ public struct MessageRule: Codable, Identifiable, Hashable, Sendable {
         if actions?.markAsRead == true { a["markAsRead"] = true }
         if let i = actions?.markImportance { a["markImportance"] = i }
         if actions?.delete == true { a["delete"] = true }
+        if let c = actions?.assignCategories, !c.isEmpty { a["assignCategories"] = c }
         body["actions"] = a
         return body
     }
@@ -74,6 +77,7 @@ public struct MessageRule: Codable, Identifiable, Hashable, Sendable {
         if actions?.markAsRead == true { does.append("읽음으로 표시") }
         if actions?.markImportance == "high" { does.append("중요도 높음") }
         if actions?.delete == true { does.append("지우기") }
+        if let c = actions?.assignCategories, !c.isEmpty { does.append("범주 '\(c.joined(separator: "', '"))'") }
         return "\(when) → \(does.isEmpty ? "(Outlook에서 만든 동작)" : does.joined(separator: ", "))"
     }
 }
@@ -175,5 +179,38 @@ public struct AutomaticReplies: Codable, Equatable, Sendable {
     public static func plain(_ html: String?) -> String {
         guard let html, !html.isEmpty else { return "" }
         return HTMLProcessor.plainText(from: html)
+    }
+}
+
+// MARK: 차단된 보낸 사람 (설정 > 정크 메일)
+
+/// Graph v1.0에는 차단 목록 API가 없어 받은 편지함 서버 규칙 하나로 둔다. 앱이 꺼져 있어도 Exchange가 적용한다.
+public enum BlockedSenders {
+    public static let ruleName = "FAKUKU 차단된 보낸 사람"
+    public static let category = "차단됨"
+
+    public enum Mode: String, CaseIterable, Sendable {
+        /// 지운 편지함으로 이동
+        case trash
+        /// 받은 편지함에 두고 "차단됨" 범주를 붙인다
+        case keep
+    }
+
+    public static func isBlockRule(_ rule: MessageRule) -> Bool { rule.displayName == ruleName }
+
+    public static func addresses(in rule: MessageRule?) -> [String] { rule?.conditions?.senderContains ?? [] }
+
+    public static func mode(of rule: MessageRule?) -> Mode { rule?.actions?.delete == true ? .trash : .keep }
+
+    /// 주소 목록으로 규칙을 만든다. 같은 주소(대소문자 무시)는 한 번만.
+    public static func rule(addresses: [String], mode: Mode, enabled: Bool) -> MessageRule {
+        var seen = Set<String>()
+        let list = addresses.map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+        let actions: MessageRule.Actions = mode == .trash
+            ? .init(delete: true, stopProcessingRules: true)
+            : .init(assignCategories: [category], stopProcessingRules: false)
+        return MessageRule(displayName: ruleName, sequence: 1, isEnabled: enabled,
+                           conditions: .init(senderContains: list), actions: actions)
     }
 }

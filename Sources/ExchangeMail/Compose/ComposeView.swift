@@ -16,6 +16,14 @@ struct ComposeView: View {
     @State private var showSchedule = false
     /// 첨부 카드의 미리 보기 (Quick Look)
     @State private var previewURL: URL?
+    /// 설정 > 작성 > 다음으로 끝나지 않는 주소 표시
+    @AppStorage(Prefs.highlightExternal) private var highlightExternal = false
+    @AppStorage(Prefs.internalDomains) private var internalDomains = ""
+
+    private var externalAddresses: [String] {
+        guard highlightExternal else { return [] }
+        return ExternalAddresses.find(in: [compose.to, compose.cc, compose.bcc], internalDomains: internalDomains)
+    }
     /// 보내기 취소를 기다리는 초 (설정 > 보내기, S-036)
     @AppStorage("send.undoDelay") private var undoDelay = 10
     @FocusState private var focus: Field?
@@ -29,6 +37,18 @@ struct ComposeView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            let outside = externalAddresses
+            if !outside.isEmpty {
+                Divider()
+                Label("바깥 주소: \(outside.joined(separator: ", "))", systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Space.margin)
+                    .padding(.vertical, Space.sm)
+                    .help("설정 > 작성에 적은 도메인으로 끝나지 않는 주소입니다. 받는 사람을 다시 확인하세요.")
+            }
             Divider()
             // 첨부는 Outlook처럼 제목 아래, 본문 위에 카드로 (M17)
             if !compose.files.isEmpty || !compose.forwarded.isEmpty {
@@ -153,9 +173,7 @@ struct ComposeView: View {
                 .fixedSize()
                 .onChange(of: compose.signatureID) { _, _ in compose.signatureChanged(app: model) }
                 Spacer()
-                Toggle("첨부 보정", isOn: $compose.fixEnabled)
-                    .toggleStyle(.checkbox)
-                    .help("본문 그림을 일반 첨부로 보내고, 한글 파일명을 Windows·Outlook에서 읽히게 기록합니다. 이 메일에만 적용됩니다.")
+                // 첨부 보정은 설정 > 작성에서만 정한다 (메일마다 끄고 켜지 않는다).
             }
             .padding(.horizontal, Space.margin)
             .padding(.vertical, Space.sm)

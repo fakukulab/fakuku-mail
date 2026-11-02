@@ -820,3 +820,23 @@ func trackingProtection() {
     #expect(!page.contains("list-manage"))
     #expect(MailContent.page(body: .init(contentType: "html", content: html), remote: .blocked).contains("list-manage"))
 }
+
+@Test("작성: 회사 도메인 밖의 주소만 알린다")
+func externalAddresses() {
+    let fields = ["김 <kim@corp.com>, lee@partner.co.kr", "park@SUB.corp.com", "choi@corp.co.kr"]
+    #expect(ExternalAddresses.find(in: fields, internalDomains: "@corp.com, @corp.co.kr") == ["lee@partner.co.kr"])
+    #expect(ExternalAddresses.find(in: fields, internalDomains: "") == [])
+    #expect(ExternalAddresses.domains(" @a.com; b.com ") == ["a.com", "b.com"])
+}
+
+@Test("차단된 보낸 사람 규칙")
+func blockedSenders() {
+    let keep = BlockedSenders.rule(addresses: ["a@x.com", "A@X.com", " b@y.com "], mode: .keep, enabled: true)
+    #expect(BlockedSenders.addresses(in: keep) == ["a@x.com", "b@y.com"])
+    #expect(BlockedSenders.mode(of: keep) == .keep)
+    #expect(keep.actions?.assignCategories == ["차단됨"])
+    #expect((keep.createBody["actions"] as? [String: Any])?["assignCategories"] as? [String] == ["차단됨"])
+    let trash = BlockedSenders.rule(addresses: ["a@x.com"], mode: .trash, enabled: true)
+    #expect(BlockedSenders.mode(of: trash) == .trash)
+    #expect(BlockedSenders.isBlockRule(trash))
+}

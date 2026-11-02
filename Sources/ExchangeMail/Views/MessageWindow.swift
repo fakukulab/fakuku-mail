@@ -8,6 +8,19 @@ struct MessageWindow: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @State private var reader: MessageReader
+    // 설정 > 서체 및 색상
+    @AppStorage(Prefs.bodyFontFamily) private var bodyFamily = ""
+    @AppStorage(Prefs.bodyFontSize) private var bodySize = 14
+    @AppStorage(Prefs.plainMonospace) private var plainMonospace = false
+    @AppStorage(Prefs.quoteColors) private var quoteColors = true
+    @AppStorage(Prefs.quoteColor1) private var quote1 = Prefs.defaultQuoteColors[0]
+    @AppStorage(Prefs.quoteColor2) private var quote2 = Prefs.defaultQuoteColors[1]
+    @AppStorage(Prefs.quoteColor3) private var quote3 = Prefs.defaultQuoteColors[2]
+
+    private var readingStyle: ReadingStyle {
+        ReadingStyle(family: bodyFamily, size: bodySize, plainMonospace: plainMonospace, quoteColors: quoteColors,
+                     quote: [quote1, quote2, quote3])
+    }
 
     init(messageID: String) {
         _reader = State(initialValue: MessageReader(messageID: messageID))
@@ -24,7 +37,7 @@ struct MessageWindow: View {
                         RemoteContentBar(remote: remote, blockedTrackers: page.blockedTrackers) { reader.allowRemoteContent() }
                     }
                     Divider()
-                    HTMLView(html: page.html,
+                    HTMLView(html: page.html + readingStyle.css,
                              scroller: reader.pageScroller, onPrint: { reader.print(model: model) }) { url in
                         openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }

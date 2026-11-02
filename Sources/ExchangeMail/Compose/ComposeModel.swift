@@ -54,7 +54,16 @@ final class ComposeModel {
         to = draft.to
         cc = draft.cc
         bcc = draft.bcc
-        showBcc = !draft.bcc.isEmpty
+        // 설정 > 작성 > 자동으로 나를 참조·숨은 참조에 포함 (다시 연 초안은 그대로)
+        if draft.draftMessageID == nil, let me = app.auth.email, !me.isEmpty {
+            let mode = Prefs.string(Prefs.autoIncludeMe, "none")
+            func adding(_ field: String) -> String {
+                field.lowercased().contains(me.lowercased()) ? field : (field.isEmpty ? me : field + ", " + me)
+            }
+            if mode == "cc" { cc = adding(cc) }
+            if mode == "bcc" { bcc = adding(bcc) }
+        }
+        showBcc = !bcc.isEmpty
         subject = draft.subject
         fixEnabled = fixDefault
         if let body = draft.bodyHTML {
@@ -67,6 +76,7 @@ final class ComposeModel {
             editor.setHTML("<div><br></div>" + SignatureComposer.block(for: sig) + draft.quoteHTML)
         }
         editor.onFileDrop = { [weak self] urls in self?.addFiles(urls) }
+        editor.spellcheck = Prefs.bool(Prefs.spellcheck, true)
         editor.onUserEdit = { [weak self] _ in self?.bodyRevision += 1 }
         appliedSignatureID = signatureID
         didSetUp = true

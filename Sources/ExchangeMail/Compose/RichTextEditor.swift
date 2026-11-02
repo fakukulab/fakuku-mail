@@ -54,6 +54,7 @@ final class RichTextController: NSObject, WKNavigationDelegate {
       const s=window.getSelection();if(s.rangeCount){let n=s.getRangeAt(0).startContainer;
         while(n&&n!==ed){if(n.nodeName==='BLOCKQUOTE'){n.setAttribute('type','cite');n.removeAttribute('style');break}n=n.parentNode}}
       post(true)}
+    function setSpellcheck(on){ed.spellcheck=on}
     function focusStart(){const r=document.createRange();r.setStart(ed,0);r.collapse(true);
       const s=window.getSelection();s.removeAllRanges();s.addRange(r);ed.focus()}
     </script></body></html>
@@ -91,6 +92,7 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
         webView.unregisterDraggedTypes()
+        js("setSpellcheck(\(spellcheck))")
         if let p = pendingHTML {
             pendingHTML = nil
             setHTML(p)
@@ -123,6 +125,11 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     }
 
     func setFontFamily(_ family: String) { command("fontName", family) }
+
+    /// 설정 > 작성 > 맞춤법 검사. 편집기가 아직 안 떴으면 뜰 때 건다.
+    @ObservationIgnored var spellcheck = true {
+        didSet { if ready { js("setSpellcheck(\(spellcheck))") } }
+    }
 
     // 포맷 메뉴 (M17)
     func indent() { command("indent") }

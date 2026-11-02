@@ -50,7 +50,8 @@ Mail stays on the server (Microsoft Graph). Local data: signatures in
 - Compare accents: add `APP_ACCENT=<id>` to the snapshot command.
 - Spacing comes from `Space` in `UI/Grid.swift`, on a 4 pt grid. Mark custom pages and cards with `.gridArea` and `.gridProbe`.
 - Windows open calm: `.noInitialFocus()` on every window and sheet (no focus ring or selected text on open), `.fitsContent()` on sheets (no scroll bar with nothing to scroll); every Settings tab has the same fixed size (`SettingsView.size`) so the window does not jump between tabs. System scroll bars. Both in `UI/WindowBehavior.swift`.
-- Settings: Mail's tabs in `SettingsView.swift` (일반, 계정, 정크 메일, 보기, 작성, 서명, 규칙, 자동 응답, 알림).
+- Settings: Mail's tabs in `SettingsView.swift` (일반, 계정, 정크 메일, 서체 및 색상, 보기, 작성, 서명, 규칙, 자동 응답, 알림).
+  Setting keys and defaults live in `UI/Prefs.swift`; models read them with `Prefs.bool`/`Prefs.string`.
   Each is one `.formStyle(.columns)` Form: right-aligned labels ending in a colon, controls in the right column,
   notes as `SettingsNote`. Signatures, rules, and auto reply edit lists and keep their own layouts. Add a case to `SettingsTab` for a new tab.
 - Window chrome (title bar, toolbar, sidebar, menus, sheets) stays system. Buttons use system styles, like `.borderedProminent`.
