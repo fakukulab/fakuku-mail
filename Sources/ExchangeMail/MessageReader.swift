@@ -62,11 +62,11 @@ final class MessageReader {
     }
 
     func preview(_ attachment: FileAttachment, model: AppModel) {
-        guard let url = model.previewFile(for: attachment) else {
-            model.errorMessage = "이 첨부는 내용이 없어 미리 볼 수 없습니다."
-            return
+        Task {
+            guard let full = await model.loadedAttachment(attachment, messageID: messageID) else { return }
+            if let i = attachments.firstIndex(where: { $0.id == full.id }) { attachments[i] = full }
+            previewURL = model.previewFile(for: full)
         }
-        previewURL = url
     }
 
     func previewFirstAttachment(model: AppModel) {

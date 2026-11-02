@@ -102,6 +102,10 @@ final class CachedMailService: MailService {
                        fallback: { $0.message(id: messageID)?.attachments })
     }
 
+    func attachmentContent(messageID: String, attachmentID: String) async throws -> Data {
+        try await write("첨부를 받을") { try await remote.attachmentContent(messageID: messageID, attachmentID: attachmentID) }
+    }
+
     func conversation(id: String) async throws -> [MailMessage] {
         try await write("대화를 불러올") { try await remote.conversation(id: id) }
     }

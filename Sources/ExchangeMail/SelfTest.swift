@@ -134,10 +134,15 @@ enum SelfTest {
                 let written = url.flatMap { try? Data(contentsOf: $0) }
                 check("S-032 첨부를 NFC 이름의 임시 파일로 써서 훑어본다",
                       url?.lastPathComponent == "2024년 3분기 장비 견적서.pdf" && written == pdf.data)
-                model.preview(pdf)
+                await model.preview(pdf)
                 check("S-032 훑어보기를 누르면 Quick Look 주소가 정해진다", model.previewURL == url)
                 model.previewURL = nil
-                model.preview(FileAttachment(id: "x", name: "없음.pdf", contentType: nil, size: 10, isInline: false, contentBytes: nil))
+                // 내용이 빠진 첨부는 서버에서 받아 온다 (큰 파일, 첨부된 메일)
+                var stripped = pdf
+                stripped.contentBytes = nil
+                let fetched = await model.loadedAttachment(stripped, messageID: "m1")
+                check("첨부 내용이 빠져 있으면 서버에서 받아 저장·열기를 할 수 있다", fetched?.data == pdf.data)
+                await model.preview(FileAttachment(id: "x", name: "없음.pdf", contentType: nil, size: 10, isInline: false, contentBytes: nil))
                 check("S-032 내용이 없는 첨부는 열지 않고 이유를 알린다", model.previewURL == nil && model.errorMessage != nil)
                 model.errorMessage = nil
             }

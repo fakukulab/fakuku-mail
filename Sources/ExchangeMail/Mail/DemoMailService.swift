@@ -226,6 +226,12 @@ final class DemoMailService: MailService {
         return files[messageID] ?? []
     }
 
+    func attachmentContent(messageID: String, attachmentID: String) async throws -> Data {
+        try checkOnline()
+        guard let data = files[messageID]?.first(where: { $0.id == attachmentID })?.data else { throw URLError(.fileDoesNotExist) }
+        return data
+    }
+
     func setRead(id: String, read: Bool) async throws {
         try checkOnline()
         guard let (folder, index) = find(id) else { return }

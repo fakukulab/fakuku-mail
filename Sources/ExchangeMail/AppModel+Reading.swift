@@ -25,19 +25,30 @@ extension AppModel {
         }
     }
 
-    /// Quick Look으로 연다.
-    func preview(_ attachment: FileAttachment) {
-        guard let url = previewFile(for: attachment) else {
-            errorMessage = isOffline
-                ? "오프라인이라 이 첨부를 열 수 없습니다. 연결되면 다시 해 주세요."
-                : "이 첨부는 파일이 아니라서 미리 볼 수 없습니다."
+    /// Quick Look으로 연다. 내용이 빠진 첨부는 서버에서 받아 온다.
+    func preview(_ attachment: FileAttachment, messageID: String? = nil) async {
+        guard let full = await loadedAttachment(attachment, messageID: messageID),
+              let url = previewFile(for: full) else {
+            if errorMessage == nil {
+                errorMessage = isOffline ? "오프라인이라 이 첨부를 열 수 없습니다. 연결되면 다시 해 주세요."
+                                         : "이 첨부를 열 수 없습니다."
+            }
             return
         }
         previewURL = url
     }
 
+    /// 기본 앱으로 연다 (첨부 카드 > 열기).
+    func openAttachment(_ attachment: FileAttachment, messageID: String? = nil) async {
+        guard let full = await loadedAttachment(attachment, messageID: messageID),
+              let url = previewFile(for: full) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     /// 첨부 칩을 Finder로 끌 때 (S-035): NFC 이름의 파일을 넘긴다.
     func dragProvider(for attachment: FileAttachment) -> NSItemProvider {
+        // 내용이 아직 없으면 받아 두기 시작한다 (다음 끌기부터 파일이 나간다).
+        if attachment.data == nil { Task { _ = await loadedAttachment(attachment) } }
         guard let url = previewFile(for: attachment), let provider = NSItemProvider(contentsOf: url) else {
             return NSItemProvider()
         }
@@ -47,7 +58,7 @@ extension AppModel {
 
     /// 메시지 > 첨부 훑어보기 (⌘Y): 첫 첨부
     func previewFirstAttachment() {
-        if let first = listedAttachments.first { preview(first) }
+        if let first = listedAttachments.first { Task { await preview(first) } }
     }
 
     // MARK: 인쇄 (S-034)

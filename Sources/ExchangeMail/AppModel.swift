@@ -561,6 +561,32 @@ final class AppModel {
         }
     }
 
+    /// 내용이 있는 첨부. Graph 첨부 목록은 큰 파일과 첨부된 메일(itemAttachment)의 내용을 빼고 주므로,
+    /// 열기·저장·전달할 때 `$value`로 받아 채운다. 받은 내용은 본문 첨부 목록에도 넣어 다시 받지 않는다.
+    func loadedAttachment(_ a: FileAttachment, messageID: String? = nil) async -> FileAttachment? {
+        if a.data != nil { return a }
+        if (a.odataType ?? "").hasSuffix("referenceAttachment") {
+            errorMessage = "\(a.name)은(는) OneDrive·SharePoint 링크로 붙인 파일입니다. Outlook 웹에서 열어 주세요."
+            return nil
+        }
+        guard let mid = messageID ?? detail?.id else { return nil }
+        do {
+            let data = try await service.attachmentContent(messageID: mid, attachmentID: a.id)
+            // 첨부된 메일은 .eml로 저장해야 메일 앱이 연다.
+            let isItem = (a.odataType ?? "").hasSuffix("itemAttachment")
+            let name = isItem && (a.name as NSString).pathExtension.lowercased() != "eml" ? a.name + ".eml" : a.name
+            let full = FileAttachment(id: a.id, name: name, contentType: isItem ? "message/rfc822" : a.contentType,
+                                      size: a.size ?? data.count, isInline: a.isInline, contentId: a.contentId,
+                                      contentBytes: data.base64EncodedString(), odataType: a.odataType)
+            if let i = detailAttachments.firstIndex(where: { $0.id == a.id }) { detailAttachments[i] = full }
+            return full
+        } catch {
+            report(error, quietIfOffline: false)
+            if errorMessage == nil { errorMessage = "첨부를 받지 못했습니다: \(error.localizedDescription)" }
+            return nil
+        }
+    }
+
     /// 본문에 보이는 메일이 `id`이면 고친다 (다른 파일의 확장이 `detail`을 바꿀 때).
     func patchDetail(_ id: String, _ change: (inout MailMessage) -> Void) {
         guard var m = detail, m.id == id else { return }

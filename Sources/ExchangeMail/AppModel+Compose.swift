@@ -42,7 +42,7 @@ extension AppModel {
     }
 
     /// 모두 다운로드: 폴더를 고르면 첨부를 모두 NFC 이름으로 저장한다. 같은 이름이 있으면 번호를 붙인다.
-    func saveAll(_ attachments: [FileAttachment]) {
+    func saveAll(_ attachments: [FileAttachment], messageID: String? = nil) async {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -50,8 +50,11 @@ extension AppModel {
         panel.prompt = "여기에 저장"
         guard panel.runModal() == .OK, let dir = panel.url else { return }
         var skipped: [String] = []
-        for a in attachments {
-            guard let data = a.data else { skipped.append(a.name); continue }
+        for original in attachments {
+            guard let a = await loadedAttachment(original, messageID: messageID), let data = a.data else {
+                skipped.append(original.name)
+                continue
+            }
             let name = FilenameEncoder.normalize(a.name)
             var url = dir.appending(path: name)
             var n = 2
@@ -67,13 +70,11 @@ extension AppModel {
         }
     }
 
-    func save(attachment: FileAttachment) {
-        guard let data = attachment.data else {
-            errorMessage = "이 첨부는 파일이 아니라서 저장할 수 없습니다. Outlook 웹에서 열어 주세요."
-            return
-        }
+    /// 다운로드…: 내용이 빠진 첨부는 서버에서 받아 저장한다.
+    func save(attachment: FileAttachment, messageID: String? = nil) async {
+        guard let full = await loadedAttachment(attachment, messageID: messageID), let data = full.data else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = FilenameEncoder.normalize(attachment.name)
+        panel.nameFieldStringValue = FilenameEncoder.normalize(full.name)
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try data.write(to: url)

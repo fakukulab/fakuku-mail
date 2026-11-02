@@ -261,8 +261,8 @@ struct ComposeView: View {
             ForEach(compose.forwarded) { a in
                 AttachmentCard(name: FilenameEncoder.normalize(a.name), size: a.size,
                                preview: { previewURL = model.previewFile(for: a) },
-                               open: { if let url = model.previewFile(for: a) { NSWorkspace.shared.open(url) } },
-                               save: { model.save(attachment: a) },
+                               open: { Task { await model.openAttachment(a) } },
+                               save: { Task { await model.save(attachment: a) } },
                                remove: { compose.removeForwarded(a) })
             }
         }

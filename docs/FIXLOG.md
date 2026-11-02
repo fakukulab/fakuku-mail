@@ -84,3 +84,11 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인: Swift는 "\r\n"을 글자 하나(grapheme)로 본다. CSV 파서가 "\n"이나 "\r"만 줄바꿈으로 봐서 파일 전체가 한 줄이 되었다.
 - 고침: 파싱 전에 "\r\n"과 "\r"을 "\n"으로 바꾼다. 테스트 `mergeCSVWindowsLineEndings`.
 - 규칙: Swift에서 글자 단위로 줄을 나눌 때는 먼저 줄바꿈을 "\n"으로 맞춘다.
+
+## 2026-11-02 "이 첨부는 파일이 아니라서 저장할 수 없습니다"
+- 증상: 받은 메일의 첨부를 저장·열기하면 위 오류가 났다.
+- 원인: Graph `GET /messages/{id}/attachments` 목록은 큰 파일과 첨부된 메일(itemAttachment)의 내용(contentBytes)을 빼고 준다.
+  앱은 목록의 내용만 썼다. 같은 이유로 큰 첨부는 전달할 때 말없이 빠졌다.
+- 고침: `AppModel.loadedAttachment`가 내용이 없으면 `GET /attachments/{aid}/$value`로 받아 채운다 (첨부된 메일은 .eml).
+  미리 보기, 열기, 다운로드, 모두 다운로드, 전달이 모두 이 길을 쓴다. OneDrive 링크 첨부는 Outlook 웹으로 안내한다.
+- 규칙: 첨부 내용은 목록에 있다고 가정하지 않는다.

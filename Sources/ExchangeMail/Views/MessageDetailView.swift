@@ -34,7 +34,7 @@ struct MessageDetailView: View {
                         ThreadStrip()
                         Divider()
                     }
-                    MessageHeader(message: m, attachments: model.listedAttachments) { model.preview($0) }
+                    MessageHeader(message: m, attachments: model.listedAttachments) { a in Task { await model.preview(a) } }
                     if model.isDraftSelected {
                         draftBar
                     }
@@ -187,13 +187,13 @@ struct MessageHeader: View {
                     ForEach(attachments) { a in
                         AttachmentCard(name: FilenameEncoder.normalize(a.name), size: a.size,
                                        preview: { preview(a) },
-                                       open: { if let url = model.previewFile(for: a) { NSWorkspace.shared.open(url) } },
-                                       save: { model.save(attachment: a) })
+                                       open: { Task { await model.openAttachment(a, messageID: message.id) } },
+                                       save: { Task { await model.save(attachment: a, messageID: message.id) } })
                             .onDrag { model.dragProvider(for: a) }
                     }
                 }
                 if attachments.count > 1 {
-                    Button("모두 다운로드…") { model.saveAll(attachments) }
+                    Button("모두 다운로드…") { Task { await model.saveAll(attachments, messageID: message.id) } }
                         .buttonStyle(.link)
                         .font(.callout)
                 }

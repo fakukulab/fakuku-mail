@@ -87,7 +87,14 @@ final class ComposeModel {
         savedFingerprint = fingerprint
         if let source = draft.forwardAttachmentsFrom {
             do {
-                forwarded = try await app.service.attachments(messageID: source).filter { $0.isListed && $0.isFile }
+                // 큰 파일은 목록에 내용이 빠져 오므로 하나씩 받아 채운다 (빠뜨리고 전달하지 않게).
+                let listed = try await app.service.attachments(messageID: source)
+                    .filter { $0.isListed && ($0.odataType ?? "").hasSuffix("fileAttachment") }
+                var filled: [FileAttachment] = []
+                for a in listed {
+                    if let full = await app.loadedAttachment(a, messageID: source) { filled.append(full) }
+                }
+                forwarded = filled
                 savedFingerprint = fingerprint
             } catch {
                 errorTitle = "첨부를 가져오지 못했습니다"

@@ -33,6 +33,8 @@ protocol MailService: AnyObject {
     func nextPage(_ link: String) async throws -> MessagePage
     func message(id: String) async throws -> MailMessage
     func attachments(messageID: String) async throws -> [FileAttachment]
+    /// 첨부 하나의 내용 (`$value`). 목록에 내용이 빠진 큰 파일, 첨부된 메일(.eml)에 쓴다.
+    func attachmentContent(messageID: String, attachmentID: String) async throws -> Data
     func setRead(id: String, read: Bool) async throws
     /// 옮긴 뒤의 새 메시지 id를 돌려준다 (Graph는 옮기면 id가 바뀐다).
     func move(id: String, to destination: String) async throws -> String
@@ -227,6 +229,10 @@ final class GraphMailService: MailService {
             m.event = eventData.flatMap { try? decoder.decode(MailMessage.self, from: $0) }?.event
         }
         return m
+    }
+
+    func attachmentContent(messageID: String, attachmentID: String) async throws -> Data {
+        try await request("GET", "/me/messages/\(messageID)/attachments/\(attachmentID)/$value")
     }
 
     func attachments(messageID: String) async throws -> [FileAttachment] {
