@@ -261,6 +261,7 @@ struct AddressToken: View {
             }
             Divider()
             Button("이전 수신자 목록에서 제거") { model.addressBook.remove(address) }
+            Button("연락처 카드 보기") { Task { await ContactCard.show(address: address, name: recipient.emailAddress.name) } }
             Divider()
             Button("'\(name)' 검색") {
                 model.searchScope = .all

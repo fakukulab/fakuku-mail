@@ -14,4 +14,5 @@
 <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
+<key>NSContactsUsageDescription</key><string>메일 머리글의 주소에서 연락처 카드를 보고, 보낸 사람을 연락처에 추가합니다.</string>
 </dict></plist>
