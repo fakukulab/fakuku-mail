@@ -130,6 +130,18 @@ final class CachedMailService: MailService {
         try await write("깃발을 바꿀") { try await remote.setFlag(id: id, flagged: flagged) }
     }
 
+    func copy(id: String, to destination: String) async throws {
+        try await write("복사할") { try await remote.copy(id: id, to: destination) }
+    }
+
+    func setImportance(id: String, importance: String) async throws {
+        try await write("우선 순위를 바꿀") { try await remote.setImportance(id: id, importance: importance) }
+    }
+
+    func mimeContent(id: String) async throws -> Data {
+        try await write("원본을 불러올") { try await remote.mimeContent(id: id) }
+    }
+
     func scheduleDraft(id: String, at date: Date) async throws {
         try await write("예약할") { try await remote.scheduleDraft(id: id, at: date) }
     }

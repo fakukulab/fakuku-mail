@@ -62,6 +62,19 @@ struct MessageListView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
                 if model.isOffline { OfflineBar() }
+                // 지운 편지함 비우기, 모두 읽음 같은 오래 걸리는 일 (M17)
+                if let progress = model.progressText {
+                    HStack(spacing: Space.sm) {
+                        ProgressView().controlSize(.small)
+                        Text(progress)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, Space.margin)
+                    .padding(.vertical, Space.sm)
+                    .background(.bar)
+                }
                 if model.listFilter.isActive { FilterBar() }
             }
         }

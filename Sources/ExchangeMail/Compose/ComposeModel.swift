@@ -80,6 +80,24 @@ final class ComposeModel {
                 self.error = "원본 첨부를 가져오지 못했습니다: \(error.localizedDescription)"
             }
         }
+        // 첨부 파일로 전달 (M17): 원본 MIME을 .eml 파일로 붙인다.
+        if let source = draft.attachMessageFrom {
+            do {
+                let data = try await app.service.mimeContent(id: source)
+                let base = (draft.attachMessageName ?? "메시지").replacingOccurrences(of: "/", with: "-")
+                    .replacingOccurrences(of: ":", with: "-")
+                let dir = FileManager.default.temporaryDirectory
+                    .appending(path: "ExchangeMail-eml-\(UUID().uuidString)", directoryHint: .isDirectory)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let url = dir.appending(path: FilenameEncoder.normalize(String(base.prefix(80))) + ".eml")
+                try data.write(to: url)
+                files.append(url)
+                savedFingerprint = fingerprint
+            } catch {
+                errorTitle = "원본을 붙이지 못했습니다"
+                self.error = "전달할 메일의 원본을 가져오지 못했습니다: \(error.localizedDescription)"
+            }
+        }
     }
 
     // MARK: 첨부와 서명

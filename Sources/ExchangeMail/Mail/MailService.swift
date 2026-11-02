@@ -51,6 +51,12 @@ protocol MailService: AnyObject {
     func conversation(id: String) async throws -> [MailMessage]
     /// 깃발 달기·떼기 (S-029)
     func setFlag(id: String, flagged: Bool) async throws
+    /// 다른 폴더에 복사한다 (M17, 메시지 > 다음으로 복사)
+    func copy(id: String, to destination: String) async throws
+    /// 우선 순위: low, normal, high (M17)
+    func setImportance(id: String, importance: String) async throws
+    /// 원본 MIME (RFC 822). 원본 보기와 첨부 파일로 전달에 쓴다 (M17)
+    func mimeContent(id: String) async throws -> Data
     /// 깃발 단 메일, 모든 폴더, 최근 순 (S-029)
     func flaggedMessages() async throws -> MessagePage
     /// 사서함 전체 검색 (S-033). 결과에는 parentFolderId가 있다.
@@ -316,6 +322,18 @@ final class GraphMailService: MailService {
     func setFlag(id: String, flagged: Bool) async throws {
         let body = try JSONEncoder().encode(["flag": flagged ? FollowupFlag.flagged : FollowupFlag.notFlagged])
         _ = try await request("PATCH", "/me/messages/\(id)", body: body)
+    }
+
+    func copy(id: String, to destination: String) async throws {
+        _ = try await request("POST", "/me/messages/\(id)/copy", body: try json(["destinationId": destination]))
+    }
+
+    func setImportance(id: String, importance: String) async throws {
+        _ = try await request("PATCH", "/me/messages/\(id)", body: try json(["importance": importance]))
+    }
+
+    func mimeContent(id: String) async throws -> Data {
+        try await request("GET", "/me/messages/\(id)/$value")
     }
 
     func searchAll(_ text: String) async throws -> MessagePage {

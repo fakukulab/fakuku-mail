@@ -35,7 +35,9 @@ extension AppModel {
         let fresh = tracker.take(page.messages)
         saveTracker()
         if notifyNewMail && notificationPermission == .allowed {
-            for n in MailNotification.make(for: fresh) { notifier.post(n, sound: notifySound) }
+            // 알림을 끈 대화의 메일은 알리지 않는다 (메시지 > 알림 비활성화).
+            let wanted = fresh.filter { !mutedConversations.contains($0.conversationId ?? "") }
+            for n in MailNotification.make(for: wanted) { notifier.post(n, sound: notifySound) }
         }
         if !fresh.isEmpty {
             await loadFolders()

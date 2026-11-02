@@ -776,6 +776,59 @@ enum SelfTest {
             check("S-046 지우면 사이드바에서 빠지고 받은 편지함으로 돌아간다",
                   model.mailboxes.smart.isEmpty && model.selectedFolderID == "inbox")
 
+            // M17: 맥 Mail 메뉴
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.6))
+            if let m = model.messages.first(where: { !$0.isMeetingRequest }) {
+                await open(m.id)
+                let again = model.sendAgainDraft()
+                check("M17 다시 보내기는 원본을 지우지 않는 새 메일", again != nil && again?.draftMessageID == nil
+                          && again?.subject == (m.subject ?? ""))
+                let asFile = model.forwardAsAttachmentDraft()
+                check("M17 첨부 파일로 전달은 원본을 .eml로 붙인다",
+                      asFile?.attachMessageFrom == m.id && asFile?.subject.hasPrefix("FW:") == true)
+                let raw = (try? await model.service.mimeContent(id: m.id)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+                check("M17 원본 보기는 헤더가 있는 MIME", raw.contains("Subject:") && raw.contains("From:"))
+                await model.setImportanceSelected("high")
+                check("M17 우선 순위를 높음으로", model.messages.first { $0.id == m.id }?.importance == "high")
+                await model.setImportanceSelected("normal")
+                model.toggleMuteSelected()
+                check("M17 알림 비활성화", model.selectionIsMuted)
+                model.toggleMuteSelected()
+                check("M17 알림 활성화", !model.selectionIsMuted)
+                let archiveBefore = (try? await model.service.messages(folderID: "archive", search: nil))?.messages.count ?? 0
+                await model.copySelected(to: "archive")
+                let archiveAfter = (try? await model.service.messages(folderID: "archive", search: nil))?.messages.count ?? 0
+                check("M17 다음으로 복사는 원본을 남기고 복사본을 만든다",
+                      archiveAfter == archiveBefore + 1 && model.messages.contains { $0.id == m.id })
+                await model.moveSelected(to: "projects", undoManager: nil, undoName: "이동")
+                check("M17 옮긴 폴더를 기억한다 (다시 이동)", model.lastMoveTarget?.id == "projects")
+            }
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.6))
+            await model.markAllReadInFolder()
+            check("M17 모든 메시지를 읽음으로 표시", !model.messages.contains(where: \.isUnread))
+            if let m = model.messages.first {
+                await open(m.id)
+                await model.toggleJunkSelected(undoManager: nil)
+            }
+            await model.emptyFolder(kind: "junkemail")
+            let junkLeft = (try? await model.service.messages(folderID: "junkemail", search: nil))?.messages.count ?? -1
+            check("M17 정크 메일 지우기", junkLeft == 0)
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.3))
+            let order = model.sidebarOrder
+            model.selectAdjacentMailbox(1)
+            check("M17 다음 메일상자로 이동",
+                  order.firstIndex(of: model.selectedFolderID ?? "") == (order.firstIndex(of: "inbox") ?? 0) + 1)
+            model.selectAdjacentMailbox(-1)
+            check("M17 이전 메일상자로 이동", model.selectedFolderID == "inbox")
+            let base = SmartMailbox(name: "복제 시험", conditions: [.init(field: .unread)])
+            model.saveSmart(base)
+            model.duplicateSmart(id: base.id)
+            check("M17 스마트 메일상자 복제", model.mailboxes.smart.contains { $0.name == "복제 시험 사본" && $0.id != base.id })
+            for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

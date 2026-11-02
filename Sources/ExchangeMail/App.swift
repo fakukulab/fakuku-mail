@@ -57,6 +57,15 @@ struct ExchangeMailApp: App {
         .defaultSize(width: 820, height: 760)
         .windowToolbarStyle(.unified)
 
+        // 원본 보기 (M17)
+        WindowGroup("원본", id: "source", for: String.self) { $id in
+            SourceWindow(messageID: id ?? "")
+                .environment(model)
+                .themed()
+                .frame(minWidth: 520, minHeight: 360)
+        }
+        .defaultSize(width: 760, height: 640)
+
         Settings {
             SettingsView()
                 .environment(model)
@@ -80,11 +89,28 @@ struct MenuSnapshot: Equatable {
     var canPrint = false
     var sortKey = MailSort.Key.date
     var sortDescending = true
-    var filterActive = false
+    var filter = MailFilter()
     var isDraft = false
     var hasRemoteContent = false
     /// 본문의 보낸 사람이 VIP (S-045)
     var senderIsVIP = false
+    // M17
+    /// 'X'(으)로 다시 이동할 폴더 이름
+    var lastMoveTitle: String?
+    /// 고른 대화의 알림이 꺼져 있다
+    var isMuted = false
+    /// 본문 메일의 우선 순위 (low, normal, high)
+    var importance: String?
+    /// 고른 사이드바 항목이 서버 폴더다 (모두 읽음)
+    var inServerFolder = false
+    /// 고른 사이드바 항목이 이름을 바꾸거나 지울 수 있는 폴더다
+    var folderEditable = false
+    /// 고른 사이드바 항목이 스마트 메일상자다
+    var smartSelected = false
+    /// 다음으로 이동·복사 하위 메뉴
+    var moveTargets: [MoveTarget] = []
+
+    var filterActive: Bool { filter.isActive }
 }
 
 final class MenuState: ObservableObject {
@@ -96,12 +122,15 @@ final class MenuState: ObservableObject {
     }
 }
 
+/// 메뉴 막대 (맥 Mail의 메뉴 구성을 따른다, M17).
 struct MailCommands: Commands {
     let model: AppModel
     let menu: MenuSnapshot
     @Environment(\.openWindow) private var openWindow
     /// 앞에 있는 메시지 창 (S-043). 있으면 메시지 메뉴가 그 창의 메일에 동작한다.
     @FocusedValue(\.messageReader) private var reader
+    /// 앞에 있는 작성 창의 편집기. 포맷 메뉴가 쓴다.
+    @FocusedValue(\.richTextEditor) private var editor
     @Binding var threaded: Bool
 
     var body: some Commands {
@@ -110,29 +139,7 @@ struct MailCommands: Commands {
                 .keyboardShortcut("n")
                 .disabled(!menu.signedIn)
         }
-        CommandGroup(after: .sidebar) {
-            // ⌥⌘T는 macOS의 "도구 막대 가리기"라 쓰지 않는다.
-            Toggle("대화별로 정리", isOn: $threaded)
-                .keyboardShortcut("t", modifiers: [.command, .control])
-            // 정렬 기준 (S-042)
-            Menu("정렬 기준") {
-                ForEach(MailSort.Key.allCases, id: \.self) { key in
-                    Button {
-                        model.listSort.key = key
-                    } label: {
-                        if menu.sortKey == key { Label(key.label, systemImage: "checkmark") } else { Text(key.label) }
-                    }
-                }
-                Divider()
-                Button(menu.sortKey == .date ? "새로운 항목 우선" : "내림차순") { model.listSort.descending = true }
-                    .disabled(menu.sortDescending)
-                Button(menu.sortKey == .date ? "오래된 항목 우선" : "오름차순") { model.listSort.descending = false }
-                    .disabled(!menu.sortDescending)
-            }
-            Button("모든 필터 해제") { model.listFilter = MailFilter() }
-                .keyboardShortcut("l", modifiers: [.command, .option])
-                .disabled(!menu.filterActive)
-        }
+        CommandGroup(after: .sidebar) { viewMenu }
         CommandGroup(replacing: .printItem) {
             Button("인쇄…") {
                 if let reader { reader.print(model: model) } else { model.printDisplayed() }
@@ -140,106 +147,317 @@ struct MailCommands: Commands {
             .keyboardShortcut("p")
             .disabled(reader == nil && !menu.canPrint)
         }
-        CommandMenu("사서함") {
-            Button("새 폴더…") {
-                if let name = TextPrompt.ask("새 폴더", confirm: "만들기") {
-                    Task { await model.createFolder(named: name, parentID: nil) }
-                }
-            }
-            .keyboardShortcut("n", modifiers: [.command, .control])
-            .disabled(!menu.signedIn)
-            Button("메일 검색") {
-                // AppKit으로 칸을 찾아 초점을 주고, 못 찾으면 SwiftUI 쪽 요청으로 한 번 더.
-                if !SearchFieldFocus.focus() { model.searchFocusRequest += 1 }
-            }
-                .keyboardShortcut("f", modifiers: [.command, .option])
-                .disabled(!menu.signedIn)
-            Button("새 스마트 메일상자…") { model.newSmartMailbox() }
-                .keyboardShortcut("n", modifiers: [.command, .option])
-                .disabled(!menu.signedIn)
-        }
-        CommandMenu("메시지") {
-            Button("답장") { compose(.reply) }
-                .keyboardShortcut("r")
-                .disabled(!hasMessage)
-            Button("전체 답장") { compose(.replyAll) }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-                .disabled(!hasMessage)
-            Button("전달") { compose(.forward) }
-                .keyboardShortcut("f", modifiers: [.command, .shift])
-                .disabled(!hasMessage)
-            Button("첨부 훑어보기") {
-                if let reader { reader.previewFirstAttachment(model: model) } else { model.previewFirstAttachment() }
-            }
-            .keyboardShortcut("y")
-            .disabled(reader == nil && !menu.hasAttachments)
-            // 임시 보관함의 초안은 작성 창에서, 그 밖의 메일은 메시지 창에서 연다 (S-022, S-043).
-            Button(menu.isDraft ? "초안 이어서 쓰기" : "새 창에서 열기") { openSelected() }
-                .keyboardShortcut("o")
-                .disabled(reader != nil || !menu.hasMessage)
+        CommandMenu("사서함") { mailboxMenu }
+        CommandMenu("메시지") { messageMenu }
+        CommandMenu("포맷") { formatMenu }
+        CommandGroup(before: .windowList) {
+            Button("메시지 뷰어") { openWindow(id: "main") }
+                .keyboardShortcut("0")
             Divider()
-            Button("보관") {
-                if let reader {
-                    Task { await reader.move(to: "archive", undoName: "보관", model: model) }
-                } else {
-                    Task { await model.archiveSelected(undoManager: NSApp.keyWindow?.undoManager) }
-                }
-            }
-            .keyboardShortcut("a", modifiers: [.command, .control])
-            .disabled(reader == nil && !menu.hasSelection)
-            // 이동, 정크, 읽음은 목록의 선택에 한다. 메시지 창이 앞에 있으면 끈다.
-            Button("이동…") { model.showMovePicker = true }
-                .keyboardShortcut("m", modifiers: [.command, .shift])
-                .disabled(reader != nil || !menu.hasSelection)
-            Button(menu.inJunk ? "정크 아님" : "정크 메일로 표시") {
-                Task { await model.toggleJunkSelected(undoManager: NSApp.keyWindow?.undoManager) }
-            }
-            .keyboardShortcut("j", modifiers: [.command, .shift])
-            .disabled(reader != nil || !menu.hasSelection)
-            // Delete 키는 목록과 메시지 창의 onDeleteCommand가 맡는다 (메뉴 단축키로 쓰면 글자 입력 중에도 지워진다).
-            Button("지우기") {
-                if let reader {
-                    Task { await reader.move(to: "deleteditems", undoName: "지우기", model: model) }
-                } else {
-                    Task { await model.deleteSelected(undoManager: NSApp.keyWindow?.undoManager) }
-                }
-            }
-            .disabled(reader == nil && !menu.hasSelection)
-            Divider()
-            Button(menu.isUnread ? "읽음으로 표시" : "읽지 않음으로 표시") { Task { await model.toggleReadSelected() } }
-                .keyboardShortcut("u", modifiers: [.command, .shift])
-                .disabled(reader != nil || !menu.hasSelection)
-            Button(flagLabel) {
-                if let reader {
-                    Task { await reader.toggleFlag(model: model) }
-                } else {
-                    Task { await model.toggleFlagSelected() }
-                }
-            }
-            .keyboardShortcut("l", modifiers: [.command, .shift])
-            .disabled(reader == nil && !menu.hasSelection)
-            Divider()
-            // VIP (S-045)
-            Button(vipTargetIsVIP ? "VIP에서 빼기" : "보낸 사람을 VIP로 지정…") {
-                guard let m = vipTarget, let address = m.from?.emailAddress.address else { return }
-                if vipTargetIsVIP { model.removeVIP(address: address) } else { model.editVIP(for: m) }
-            }
-            .keyboardShortcut("v", modifiers: [.command, .control])
-            .disabled(!hasMessage)
-            Button("VIP 이름·아이콘 변경…") { if let m = vipTarget { model.editVIP(for: m) } }
-                .disabled(!vipTargetIsVIP)
-            Divider()
-            Button("원격 이미지 불러오기") {
-                if let reader { reader.allowRemoteContent() } else { model.allowRemoteContentForSelection() }
-            }
-            .keyboardShortcut("i", modifiers: [.command, .shift])
-            .disabled(reader == nil && !menu.hasRemoteContent)
-            Divider()
-            Button("받은 메일 가져오기") { Task { await model.refresh() } }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-                .disabled(!menu.signedIn)
         }
     }
+
+    // MARK: 보기
+
+    @ViewBuilder
+    private var viewMenu: some View {
+        // ⌥⌘T는 macOS의 "도구 막대 가리기"라 쓰지 않는다.
+        Toggle("대화별로 정리", isOn: $threaded)
+            .keyboardShortcut("t", modifiers: [.command, .control])
+        // 필터 (S-041)
+        Menu("필터") {
+            filterToggle("읽지 않음", \.unread)
+            filterToggle("깃발 표시됨", \.flagged)
+            filterToggle("첨부 파일 있음", \.hasAttachments)
+            filterToggle("높은 우선순위", \.highImportance)
+            filterToggle("받는 사람·참조에 나", \.toOrCcMe)
+            filterToggle("멘션(@)", \.mentionsMe)
+            Divider()
+            Button("모든 필터 해제") { model.listFilter = MailFilter() }
+                .disabled(!menu.filterActive)
+        }
+        // 정렬 기준 (S-042)
+        Menu("정렬 기준") {
+            ForEach(MailSort.Key.allCases, id: \.self) { key in
+                Button {
+                    model.listSort.key = key
+                } label: {
+                    if menu.sortKey == key { Label(key.label, systemImage: "checkmark") } else { Text(key.label) }
+                }
+            }
+            Divider()
+            Button(menu.sortKey == .date ? "새로운 항목 우선" : "내림차순") { model.listSort.descending = true }
+                .disabled(menu.sortDescending)
+            Button(menu.sortKey == .date ? "오래된 항목 우선" : "오름차순") { model.listSort.descending = false }
+                .disabled(!menu.sortDescending)
+        }
+        Button("모든 필터 해제") { model.listFilter = MailFilter() }
+            .keyboardShortcut("l", modifiers: [.command, .option])
+            .disabled(!menu.filterActive)
+        Divider()
+        // 원본 보기: 모든 헤더와 본문 (M17)
+        Button("원본 보기") {
+            if let id = reader?.messageID ?? model.detail?.id { openWindow(id: "source", value: id) }
+        }
+        .keyboardShortcut("u", modifiers: [.command, .option])
+        .disabled(!hasMessage)
+        Divider()
+    }
+
+    private func filterToggle(_ title: String, _ key: WritableKeyPath<MailFilter, Bool>) -> some View {
+        Toggle(title, isOn: Binding(get: { menu.filter[keyPath: key] }, set: { model.listFilter[keyPath: key] = $0 }))
+            .disabled(!menu.signedIn)
+    }
+
+    // MARK: 사서함
+
+    @ViewBuilder
+    private var mailboxMenu: some View {
+        Button("모든 새로운 메일 가져오기") { Task { await model.refresh() } }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(!menu.signedIn)
+        Button("모든 메시지를 읽음으로 표시") { Task { await model.markAllReadInFolder() } }
+            .keyboardShortcut("c", modifiers: [.command, .option, .shift])
+            .disabled(!menu.inServerFolder)
+        Divider()
+        Button("지운 편지함 비우기…") {
+            if TextPrompt.confirm("지운 편지함을 비울까요?",
+                                  message: "지운 편지함의 메일 \(model.folderCount(kind: "deleteditems"))통을 영구히 지웁니다. 되돌릴 수 없습니다.",
+                                  action: "비우기") {
+                Task { await model.emptyFolder(kind: "deleteditems") }
+            }
+        }
+        .keyboardShortcut(.delete, modifiers: [.command, .shift, .option])
+        .disabled(!menu.signedIn)
+        Button("정크 메일 지우기…") {
+            if TextPrompt.confirm("정크 메일을 지울까요?",
+                                  message: "정크 메일 폴더의 메일 \(model.folderCount(kind: "junkemail"))통을 지운 편지함으로 옮깁니다.",
+                                  action: "지우기") {
+                Task { await model.emptyFolder(kind: "junkemail") }
+            }
+        }
+        .keyboardShortcut("j", modifiers: [.command, .option])
+        .disabled(!menu.signedIn)
+        Divider()
+        Button("새 폴더…") {
+            if let name = TextPrompt.ask("새 폴더", confirm: "만들기") {
+                Task { await model.createFolder(named: name, parentID: nil) }
+            }
+        }
+        .keyboardShortcut("n", modifiers: [.command, .control])
+        .disabled(!menu.signedIn)
+        Button("폴더 이름 변경…") {
+            if let folder = model.selectedEditableFolder,
+               let name = TextPrompt.ask("폴더 이름 변경", initial: folder.displayName, confirm: "변경") {
+                Task { await model.renameFolder(folder, to: name) }
+            }
+        }
+        .disabled(!menu.folderEditable)
+        Button("폴더 지우기…") {
+            if let folder = model.selectedEditableFolder,
+               TextPrompt.confirm("\"\(folder.displayName)\" 폴더를 지울까요?",
+                                  message: "폴더와 안의 메일, 하위 폴더가 지운 편지함으로 옮겨집니다.", action: "지우기") {
+                Task { await model.deleteFolder(folder) }
+            }
+        }
+        .disabled(!menu.folderEditable)
+        Divider()
+        Button("새 스마트 메일상자…") { model.newSmartMailbox() }
+            .keyboardShortcut("n", modifiers: [.command, .option])
+            .disabled(!menu.signedIn)
+        Button("스마트 메일상자 편집…") {
+            if let id = model.selectedFolderID { model.editingSmart = model.mailboxes.smart.first { $0.id == id } }
+        }
+        .disabled(!menu.smartSelected)
+        Button("스마트 메일상자 복제") { if let id = model.selectedFolderID { model.duplicateSmart(id: id) } }
+            .disabled(!menu.smartSelected)
+        Divider()
+        Button("메일 검색") {
+            // AppKit으로 칸을 찾아 초점을 주고, 못 찾으면 SwiftUI 쪽 요청으로 한 번 더.
+            if !SearchFieldFocus.focus() { model.searchFocusRequest += 1 }
+        }
+        .keyboardShortcut("f", modifiers: [.command, .option])
+        .disabled(!menu.signedIn)
+        Divider()
+        Button("이전 메일상자로 이동") { model.selectAdjacentMailbox(-1) }
+            .keyboardShortcut("[", modifiers: [.command, .control])
+            .disabled(!menu.signedIn)
+        Button("다음 메일상자로 이동") { model.selectAdjacentMailbox(1) }
+            .keyboardShortcut("]", modifiers: [.command, .control])
+            .disabled(!menu.signedIn)
+    }
+
+    // MARK: 메시지
+
+    @ViewBuilder
+    private var messageMenu: some View {
+        Button("다시 보내기") { if let d = model.sendAgainDraft() { openWindow(id: "compose", value: d) } }
+            .keyboardShortcut("d", modifiers: [.command, .option])
+            .disabled(reader != nil || !menu.hasMessage)
+        Divider()
+        Button("답장") { compose(.reply) }
+            .keyboardShortcut("r")
+            .disabled(!hasMessage)
+        Button("전체 답장") { compose(.replyAll) }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(!hasMessage)
+        Button("전달") { compose(.forward) }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+            .disabled(!hasMessage)
+        Button("첨부 파일로 전달") { if let d = model.forwardAsAttachmentDraft() { openWindow(id: "compose", value: d) } }
+            .keyboardShortcut("f", modifiers: [.command, .shift, .option])
+            .disabled(reader != nil || !menu.hasMessage)
+        Button("첨부 훑어보기") {
+            if let reader { reader.previewFirstAttachment(model: model) } else { model.previewFirstAttachment() }
+        }
+        .keyboardShortcut("y")
+        .disabled(reader == nil && !menu.hasAttachments)
+        // 임시 보관함의 초안은 작성 창에서, 그 밖의 메일은 메시지 창에서 연다 (S-022, S-043).
+        Button(menu.isDraft ? "초안 이어서 쓰기" : "새 창에서 열기") { openSelected() }
+            .keyboardShortcut("o")
+            .disabled(reader != nil || !menu.hasMessage)
+        Divider()
+        // 이동, 정크, 읽음, 우선 순위, 알림은 목록의 선택에 한다. 메시지 창이 앞에 있으면 끈다.
+        Button(menu.isUnread ? "읽음으로 표시" : "읽지 않음으로 표시") { Task { await model.toggleReadSelected() } }
+            .keyboardShortcut("u", modifiers: [.command, .shift])
+            .disabled(reader != nil || !menu.hasSelection)
+        Button(menu.inJunk ? "정크 아님" : "정크 메일로 표시") {
+            Task { await model.toggleJunkSelected(undoManager: NSApp.keyWindow?.undoManager) }
+        }
+        .keyboardShortcut("j", modifiers: [.command, .shift])
+        .disabled(reader != nil || !menu.hasSelection)
+        Button(menu.isMuted ? "알림 활성화" : "알림 비활성화") { model.toggleMuteSelected() }
+            .keyboardShortcut("m", modifiers: [.control, .shift])
+            .disabled(reader != nil || !menu.hasSelection)
+        Button(flagLabel) {
+            if let reader {
+                Task { await reader.toggleFlag(model: model) }
+            } else {
+                Task { await model.toggleFlagSelected() }
+            }
+        }
+        .keyboardShortcut("l", modifiers: [.command, .shift])
+        .disabled(reader == nil && !menu.hasSelection)
+        Menu("우선 순위 설정") {
+            ForEach([("high", "높음"), ("normal", "보통"), ("low", "낮음")], id: \.0) { pair in
+                Button {
+                    Task { await model.setImportanceSelected(pair.0) }
+                } label: {
+                    if (menu.importance ?? "normal") == pair.0 { Label(pair.1, systemImage: "checkmark") } else { Text(pair.1) }
+                }
+            }
+        }
+        .disabled(reader != nil || !menu.hasSelection)
+        Divider()
+        Button("보관") {
+            if let reader {
+                Task { await reader.move(to: "archive", undoName: "보관", model: model) }
+            } else {
+                Task { await model.archiveSelected(undoManager: NSApp.keyWindow?.undoManager) }
+            }
+        }
+        .keyboardShortcut("a", modifiers: [.command, .control])
+        .disabled(reader == nil && !menu.hasSelection)
+        Button(menu.lastMoveTitle.map { "'\($0)'(으)로 다시 이동" } ?? "같은 폴더로 다시 이동") {
+            Task { await model.moveSelectedToLastTarget(undoManager: NSApp.keyWindow?.undoManager) }
+        }
+        .keyboardShortcut("m", modifiers: [.command, .control])
+        .disabled(reader != nil || !menu.hasSelection || menu.lastMoveTitle == nil)
+        Menu("다음으로 이동") {
+            ForEach(menu.moveTargets) { target in
+                Button(target.title) {
+                    Task {
+                        await model.moveSelected(to: target.id, undoManager: NSApp.keyWindow?.undoManager, undoName: "이동")
+                    }
+                }
+            }
+        }
+        .disabled(reader != nil || !menu.hasSelection)
+        Menu("다음으로 복사") {
+            ForEach(menu.moveTargets) { target in
+                Button(target.title) { Task { await model.copySelected(to: target.id) } }
+            }
+        }
+        .disabled(reader != nil || !menu.hasSelection)
+        Button("이동…") { model.showMovePicker = true }
+            .keyboardShortcut("m", modifiers: [.command, .shift])
+            .disabled(reader != nil || !menu.hasSelection)
+        // Delete 키는 목록과 메시지 창의 onDeleteCommand가 맡는다 (메뉴 단축키로 쓰면 글자 입력 중에도 지워진다).
+        Button("지우기") {
+            if let reader {
+                Task { await reader.move(to: "deleteditems", undoName: "지우기", model: model) }
+            } else {
+                Task { await model.deleteSelected(undoManager: NSApp.keyWindow?.undoManager) }
+            }
+        }
+        .disabled(reader == nil && !menu.hasSelection)
+        Divider()
+        // VIP (S-045)
+        Button(vipTargetIsVIP ? "VIP에서 빼기" : "보낸 사람을 VIP로 지정…") {
+            guard let m = vipTarget, let address = m.from?.emailAddress.address else { return }
+            if vipTargetIsVIP { model.removeVIP(address: address) } else { model.editVIP(for: m) }
+        }
+        .keyboardShortcut("v", modifiers: [.command, .control])
+        .disabled(!hasMessage)
+        Button("VIP 이름·아이콘 변경…") { if let m = vipTarget { model.editVIP(for: m) } }
+            .disabled(!vipTargetIsVIP)
+        Divider()
+        Button("원격 이미지 불러오기") {
+            if let reader { reader.allowRemoteContent() } else { model.allowRemoteContentForSelection() }
+        }
+        .keyboardShortcut("i", modifiers: [.command, .shift])
+        .disabled(reader == nil && !menu.hasRemoteContent)
+    }
+
+    // MARK: 포맷 (작성 창)
+
+    @ViewBuilder
+    private var formatMenu: some View {
+        Menu("스타일") {
+            Button("굵게") { editor?.command("bold") }
+                .keyboardShortcut("b")
+            Button("기울임꼴") { editor?.command("italic") }
+                .keyboardShortcut("i")
+            Button("밑줄") { editor?.command("underline") }
+                .keyboardShortcut("u")
+            Button("취소선") { editor?.command("strikeThrough") }
+                .keyboardShortcut("x", modifiers: [.command, .control])
+        }
+        .disabled(editor == nil)
+        Menu("목록") {
+            Button("글머리 기호 목록") { editor?.command("insertUnorderedList") }
+                .keyboardShortcut("7", modifiers: [.command, .option])
+            Button("번호 목록") { editor?.command("insertOrderedList") }
+                .keyboardShortcut("8", modifiers: [.command, .option])
+        }
+        .disabled(editor == nil)
+        Menu("정렬") {
+            Button("왼쪽 정렬") { editor?.command("justifyLeft") }
+                .keyboardShortcut("{")
+            Button("가운데 정렬") { editor?.command("justifyCenter") }
+                .keyboardShortcut("|")
+            Button("오른쪽 정렬") { editor?.command("justifyRight") }
+                .keyboardShortcut("}")
+        }
+        .disabled(editor == nil)
+        Divider()
+        Menu("들여쓰기") {
+            Button("들여쓰기") { editor?.indent() }
+                .keyboardShortcut("]")
+            Button("내어쓰기") { editor?.outdent() }
+                .keyboardShortcut("[")
+        }
+        .disabled(editor == nil)
+        Menu("인용 단계") {
+            Button("인용 단계 늘리기") { editor?.quoteMore() }
+                .keyboardShortcut("'")
+            Button("인용 단계 줄이기") { editor?.quoteLess() }
+                .keyboardShortcut("'", modifiers: [.command, .option])
+        }
+        .disabled(editor == nil)
+    }
+
+    // MARK: helpers
 
     /// 답장·전달할 메일이 있다: 앞의 메시지 창, 또는 메인 창의 본문
     private var hasMessage: Bool { reader != nil || menu.hasMessage }

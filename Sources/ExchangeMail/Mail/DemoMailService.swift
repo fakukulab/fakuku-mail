@@ -320,6 +320,45 @@ final class DemoMailService: MailService {
         store[folder]?[index].flag = flagged ? .flagged : .notFlagged
     }
 
+    func copy(id: String, to destination: String) async throws {
+        try checkOnline()
+        guard let (folder, index) = find(id), var m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
+        let target = folderList.first { $0.id == destination || $0.wellKnownName == destination }?.id ?? destination
+        moveCounter += 1
+        let newID = "\(m.id.split(separator: "~").first ?? "")~c\(moveCounter)"
+        files[newID] = files[m.id]
+        m = MailMessage(id: newID, internetMessageId: m.internetMessageId, conversationId: m.conversationId,
+                        subject: m.subject, from: m.from, toRecipients: m.toRecipients, ccRecipients: m.ccRecipients,
+                        receivedDateTime: m.receivedDateTime, bodyPreview: m.bodyPreview, isRead: m.isRead,
+                        hasAttachments: m.hasAttachments, body: m.body)
+        store[target, default: []].append(m)
+        recount()
+    }
+
+    func setImportance(id: String, importance: String) async throws {
+        try checkOnline()
+        guard let (folder, index) = find(id) else { throw URLError(.fileDoesNotExist) }
+        store[folder]?[index].importance = importance
+    }
+
+    func mimeContent(id: String) async throws -> Data {
+        try checkOnline()
+        guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
+        let from = m.from?.emailAddress.address ?? "unknown@example.com"
+        let text = """
+        Message-ID: \(m.internetMessageId ?? "<\(m.id)@demo>")\r
+        From: \(from)\r
+        To: \(Self.myAddress)\r
+        Subject: \(m.subject ?? "")\r
+        MIME-Version: 1.0\r
+        Content-Type: text/html; charset=utf-8\r
+        \r
+        \(m.body?.content ?? "")\r
+
+        """
+        return Data(text.utf8)
+    }
+
     func searchAll(_ text: String) async throws -> MessagePage {
         try checkOnline()
         let s = text.lowercased()

@@ -19,6 +19,10 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
     public var draftMessageID: String?
     /// 다시 연 초안의 본문 전체. 있으면 서명과 인용문을 새로 넣지 않는다.
     public var bodyHTML: String?
+    /// 첨부 파일로 전달: 이 메일의 원본(.eml)을 붙인다 (M17)
+    public var attachMessageFrom: String?
+    /// 붙일 .eml 파일 이름 (확장자 없이)
+    public var attachMessageName: String?
 
     public init(kind: ComposeKind = .new, to: String = "", subject: String = "") {
         self.kind = kind

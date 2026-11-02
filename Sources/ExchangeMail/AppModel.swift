@@ -31,6 +31,7 @@ final class AppModel {
         didSet {
             guard selectedFolderID != oldValue else { return }
             searchText = ""
+            updateMenu()
             Task { await loadMessages() }
         }
     }
@@ -55,6 +56,24 @@ final class AppModel {
     var showMovePicker = false
     /// 사서함 > 메일 검색(⌥⌘F)을 누를 때마다 늘어난다. 검색 칸이 보고 초점을 받는다.
     var searchFocusRequest = 0
+    /// 마지막으로 옮긴 폴더 (메시지 > 'X'(으)로 다시 이동, ⌃⌘M). 보관·지우기·정크는 넣지 않는다.
+    var lastMoveTarget: MoveTarget? {
+        didSet { updateMenu() }
+    }
+    /// 알림을 끈 대화 (메시지 > 알림 비활성화). 이 Mac에 저장한다.
+    var mutedConversations: Set<String> = AppModel.savedMuted() {
+        didSet {
+            if !Store.isOverridden { UserDefaults.standard.set(Array(mutedConversations), forKey: "muted.conversations") }
+            updateMenu()
+        }
+    }
+    /// 지운 편지함 비우기 같은 오래 걸리는 일의 진행 글 (목록 위 막대)
+    var progressText: String?
+
+    static func savedMuted() -> Set<String> {
+        guard !Store.isOverridden else { return [] }
+        return Set(UserDefaults.standard.stringArray(forKey: "muted.conversations") ?? [])
+    }
     /// 검색 범위 (S-033). 바꾸면 검색어가 있을 때 다시 찾는다.
     var searchScope = SearchScope.folder {
         didSet {
@@ -270,6 +289,7 @@ final class AppModel {
         do {
             folders = FolderOrder.tree(try await service.folders())
             updateBadge()
+            updateMenu()
         } catch {
             report(error)
         }
@@ -459,6 +479,10 @@ final class AppModel {
             }
         }
         undoManager?.setActionName(undoName)
+        if let f = folders.first(where: { $0.id == destination || $0.wellKnownName == destination }),
+           !["archive", "deleteditems", "junkemail"].contains(f.kind ?? "") {
+            lastMoveTarget = MoveTarget(id: f.id, title: f.displayName)
+        }
         await loadFolders()
     }
 
@@ -550,9 +574,16 @@ final class AppModel {
             canPrint: detail != nil && multipleSelectionCount == 0,
             sortKey: listSort.key,
             sortDescending: listSort.descending,
-            filterActive: listFilter.isActive,
+            filter: listFilter,
             isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && detailRemote != .allowed,
-            senderIsVIP: detail.flatMap { mailboxes.vip(for: $0) } != nil))
+            senderIsVIP: detail.flatMap { mailboxes.vip(for: $0) } != nil,
+            lastMoveTitle: lastMoveTarget?.title,
+            isMuted: selectionIsMuted,
+            importance: detail?.importance,
+            inServerFolder: isSignedIn && selectedFolderID != nil && !VirtualMailbox.isVirtual(selectedFolderID),
+            folderEditable: selectedEditableFolder != nil,
+            smartSelected: { if case .smart = selectedVirtual { return true } else { return false } }(),
+            moveTargets: moveTargets))
     }
 }

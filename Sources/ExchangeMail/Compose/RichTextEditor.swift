@@ -50,6 +50,10 @@ final class RichTextController: NSObject, WKNavigationDelegate {
       }else if(anchor){anchor.remove()}
       old.forEach((e,i)=>{if(i>0)e.remove()});
       post(true)}
+    function quoteMore(){document.execCommand('styleWithCSS',false,false);document.execCommand('indent');
+      const s=window.getSelection();if(s.rangeCount){let n=s.getRangeAt(0).startContainer;
+        while(n&&n!==ed){if(n.nodeName==='BLOCKQUOTE'){n.setAttribute('type','cite');n.removeAttribute('style');break}n=n.parentNode}}
+      post(true)}
     function focusStart(){const r=document.createRange();r.setStart(ed,0);r.collapse(true);
       const s=window.getSelection();s.removeAllRanges();s.addRange(r);ed.focus()}
     </script></body></html>
@@ -119,6 +123,14 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     }
 
     func setFontFamily(_ family: String) { command("fontName", family) }
+
+    // 포맷 메뉴 (M17)
+    func indent() { command("indent") }
+    func outdent() { command("outdent") }
+    /// 인용 단계 늘리기: 고른 문단을 인용(blockquote type=cite)으로 한 단계 더 감싼다.
+    func quoteMore() { js("quoteMore()") }
+    /// 인용 단계 줄이기
+    func quoteLess() { command("outdent") }
     func setFontSize(_ px: Int) { js("fontSize(\(px))") }
 
     func setColor(_ color: NSColor) {
@@ -280,5 +292,17 @@ struct FormatToolbar: View {
         field.stringValue = "https://"
         alert.accessoryView = field
         if alert.runModal() == .alertFirstButtonReturn { controller.insertLink(field.stringValue) }
+    }
+}
+
+/// 앞에 있는 작성 창의 편집기. 포맷 메뉴가 이 편집기에 동작한다 (M17).
+nonisolated struct RichTextEditorKey: FocusedValueKey {
+    typealias Value = RichTextController
+}
+
+extension FocusedValues {
+    nonisolated var richTextEditor: RichTextController? {
+        get { self[RichTextEditorKey.self] }
+        set { self[RichTextEditorKey.self] = newValue }
     }
 }
