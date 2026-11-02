@@ -65,15 +65,9 @@ struct MailSplitView: View {
         } detail: {
             MessageDetailView()
         }
-        // 검색 칸은 사이드바 위에 둔다. 도구 막대에 두면 사용자화 시트가 검색 칸을 그리다 AppKit 예외로
-        // 앱이 꺼진다 (macOS 27, NSSearchToolbarItemView 제약 오류).
-        .searchable(text: $model.searchText, placement: .sidebar, prompt: "검색")
-        // 검색 범위: 이 폴더 / 모든 폴더 (S-033)
-        .searchScopes($model.searchScope) {
-            Text("이 폴더").tag(SearchScope.folder)
-            Text("모든 폴더").tag(SearchScope.all)
-        }
-        .onSubmit(of: .search) { Task { await model.loadMessages() } }
+        // 검색 칸은 본문 열 도구 막대 오른쪽의 MailSearchField (Views/MailSearchField.swift).
+        // 시스템 .searchable은 쓰지 않는다: 도구 막대에 두면 사용자화 시트가 그 칸을 그리다 앱이 꺼지고(macOS 27),
+        // 사이드바에 두면 검색 범위가 두 번 보인다.
         // 메시지 > 이동… (S-028)
         .sheet(isPresented: $model.showMovePicker) { MovePicker() }
         // VIP 지정·변경 (S-045), 스마트 메일상자 (S-046)

@@ -148,6 +148,9 @@ struct MailCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .control])
             .disabled(!menu.signedIn)
+            Button("메일 검색") { model.searchFocusRequest += 1 }
+                .keyboardShortcut("f", modifiers: [.command, .option])
+                .disabled(!menu.signedIn)
             Button("새 스마트 메일상자…") { model.newSmartMailbox() }
                 .keyboardShortcut("n", modifiers: [.command, .option])
                 .disabled(!menu.signedIn)

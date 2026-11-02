@@ -53,6 +53,8 @@ final class AppModel {
     }
     /// 메시지 > 이동… 시트 (S-028)
     var showMovePicker = false
+    /// 사서함 > 메일 검색(⌥⌘F)을 누를 때마다 늘어난다. 검색 칸이 보고 초점을 받는다.
+    var searchFocusRequest = 0
     /// 검색 범위 (S-033). 바꾸면 검색어가 있을 때 다시 찾는다.
     var searchScope = SearchScope.folder {
         didSet {

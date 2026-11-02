@@ -58,7 +58,9 @@ ExchangeMailKitTests (Swift Testing)        ──depends on──▶  ExchangeM
   reader with `focusedSceneValue(\.messageReader)`, and `MailCommands` acts on it when that window is in front.
 - Toolbar (S-044): the list and detail columns each attach `.toolbar(id: "mail")` (`Views/MailToolbar.swift`) with
   only `ToolbarItem(id:)` items, so items sit over their own column and the window has one customizable toolbar.
-  Search lives in the sidebar: a toolbar search field crashes the customization sheet on macOS 27.
+  Search is our own `MailSearchField` (a plain TextField plus scope menu) as the last detail-toolbar item, not
+  `.searchable`: the system toolbar search item crashes the customization sheet on macOS 27, and in the sidebar its
+  scopes showed twice. Mailbox > Search Mail (⌥⌘F) focuses it through `AppModel.searchFocusRequest`.
 - VIP and smart mailboxes (S-045, S-046): rules in Kit `Mailboxes.swift` (`VIP`, `SmartMailbox` with conditions,
   `VirtualMailbox` for sidebar ids `__flagged`, `__vip`, `vip:<address>`, `smart:<uuid>`). `MailboxStore` keeps them in
   `mailboxes.json`. `AppModel+Mailboxes.loadVirtual` fills the list: VIP mail by KQL `from:` search

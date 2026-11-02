@@ -23,11 +23,17 @@ extension MessageListView {
 extension MessageDetailView {
     @ToolbarContentBuilder
     var mailToolbar: some CustomizableToolbarContent {
-        ToolbarSpacer(.flexible)
+        // 동작 단추는 본문 열 왼쪽 끝부터, 검색 칸은 오른쪽 끝에.
         organize
         ToolbarSpacer(.fixed)
         reply
         extras
+        ToolbarSpacer(.flexible)
+        ToolbarItem(id: "search") {
+            MailSearchField(model: model)
+        }
+        // 검색 칸은 옮길 수만 있고 뺄 수는 없다.
+        .customizationBehavior(.reorderable)
     }
 
     private var noSelection: Bool { model.selectedIDs.isEmpty }
