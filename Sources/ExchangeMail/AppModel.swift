@@ -86,6 +86,10 @@ final class AppModel {
     /// 메일상자 내보내기 중 (S-053)
     var archiveExporting = false { didSet { updateMenu() } }
     /// 나의 Mac에 (S-055): 가져온 메일상자. 로그아웃해도 남는다.
+    /// 열어 본 메일과 미리 받은 메일 (AppModel+Prefetch)
+    @ObservationIgnored let detailCache = DetailCache()
+    /// 대화별 메일과 받은 시각 (1분 동안 다시 묻지 않는다)
+    @ObservationIgnored var threadCache: [String: (at: Date, list: [MailMessage])] = [:]
     /// 모든 폴더 검색에서 찾은 나의 Mac에 메일 (서버 결과 아래에 보인다)
     var localHits: [LocalHit] = []
     let localBoxes = LocalMailboxStore(directory: Store.directory.appending(path: "local", directoryHint: .isDirectory))
@@ -292,6 +296,7 @@ final class AppModel {
     func reloadAll() async {
         guard isSignedIn else {
             folders = []; messages = []; detail = nil
+            detailCache.removeAll(); threadCache = [:]
             // 로그아웃: 배지를 지우고, 다음 계정은 새 기준으로 시작한다.
             tracker = NewMailTracker()
             trackerLoaded = false
@@ -426,21 +431,50 @@ final class AppModel {
             updateMenu()
             return
         }
+        // 한 번 열었거나 미리 받은 메일: 서버를 기다리지 않고 바로 보인다.
+        if let hit = detailCache.get(id) {
+            let m = withCurrentState(hit.message)
+            detail = m
+            detailAttachments = hit.attachments ?? []
+            detailBody = MailContent.displayBody(m.body, attachments: hit.attachments ?? [])
+            updateMenu()
+            if m.isUnread { Task { await markReadAfterOpening(id) } }
+            prefetchNeighbors(of: id)
+            if hit.attachments == nil, Self.needsAttachments(m) {
+                if let attachments = try? await service.attachments(messageID: id) {
+                    detailCache.setAttachments(id, attachments)
+                    guard id == displayedMessageID else { return }
+                    detailAttachments = attachments
+                    detailBody = MailContent.displayBody(m.body, attachments: attachments)
+                    updateMenu()
+                }
+            }
+            return
+        }
         do {
+            // 목록 줄에 첨부가 있다고 나오면 첨부 목록을 본문과 같이(동시에) 요청한다.
+            let rowHasAttachments = messages.first(where: { $0.id == id })?.hasAttachments == true
+            let attachmentsTask: Task<[FileAttachment]?, Never>? = rowHasAttachments
+                ? Task { try? await service.attachments(messageID: id) } : nil
             // 본문을 먼저 보이고(첨부를 기다리지 않는다), 첨부 목록과 인라인 그림은 뒤이어 채운다.
             let m = try await service.message(id: id)
-            guard id == displayedMessageID else { return }
+            guard id == displayedMessageID else { attachmentsTask?.cancel(); return }
             detail = m
             detailAttachments = []
             detailBody = MailContent.displayBody(m.body, attachments: [])
             updateMenu()
             addressBook.noteSeen([m], me: auth.email)
             if m.isUnread { Task { await markReadAfterOpening(id) } }
-            if (m.hasAttachments ?? false) || (m.body?.content.contains("cid:") ?? false) {
-                let attachments = try await service.attachments(messageID: id)
+            detailCache.put(id, DetailCache.Entry(message: m, attachments: Self.needsAttachments(m) ? nil : []))
+            prefetchNeighbors(of: id)
+            if Self.needsAttachments(m) {
+                var attachments: [FileAttachment]? = await attachmentsTask?.value
+                if attachments == nil { attachments = try await service.attachments(messageID: id) }
+                let list = attachments ?? []
+                detailCache.setAttachments(id, list)
                 guard id == displayedMessageID else { return }
-                detailAttachments = attachments
-                detailBody = MailContent.displayBody(m.body, attachments: attachments)
+                detailAttachments = list
+                detailBody = MailContent.displayBody(m.body, attachments: list)
                 updateMenu()
             }
         } catch {
@@ -468,6 +502,9 @@ final class AppModel {
             }
             if detail?.id == id { detail?.isRead = read }
             if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].isRead = read }
+            for (key, cached) in threadCache {
+                if let t = cached.list.firstIndex(where: { $0.id == id }) { threadCache[key]?.list[t].isRead = read }
+            }
             updateBadge()
             updateMenu()
         } catch {
@@ -532,6 +569,7 @@ final class AppModel {
                 // 깃발 모아 보기처럼 여러 폴더가 섞인 목록에서도 원래 폴더로 돌아가게 메일의 폴더를 기억한다.
                 let from = m.parentFolderId ?? selectedFolderID ?? "inbox"
                 let newID = try await service.move(id: m.id, to: destination)
+                threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
                 moves.append(UndoMove(messageID: newID, folderID: from))
             }
         } catch {
@@ -569,6 +607,7 @@ final class AppModel {
     func restore(_ moves: [UndoMove]) async {
         do {
             for m in moves { _ = try await service.move(id: m.messageID, to: m.folderID) }
+            threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
             await refresh()
         } catch {
             report(error, quietIfOffline: false)

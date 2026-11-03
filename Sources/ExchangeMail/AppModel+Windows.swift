@@ -23,6 +23,7 @@ extension AppModel {
     func setFlag(id: String, flagged: Bool) async -> Bool {
         do {
             try await service.setFlag(id: id, flagged: flagged)
+            threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
         } catch {
             report(error, quietIfOffline: false)
             return false
@@ -51,6 +52,7 @@ extension AppModel {
         let from = message.parentFolderId ?? "inbox"
         do {
             let newID = try await service.move(id: message.id, to: destination)
+            threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
             let undoMoves = [UndoMove(messageID: newID, folderID: from)]
             undo?.registerUndo(withTarget: self) { target in
                 MainActor.assumeIsolated {

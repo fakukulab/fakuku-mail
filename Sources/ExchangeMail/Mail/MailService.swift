@@ -114,6 +114,11 @@ final class GraphMailService: MailService {
     private let auth: GraphAuth
     private let base = "https://graph.microsoft.com/v1.0"
     private let decoder = GraphJSON.decoder()
+
+    /// 메일 목록·본문·첨부처럼 큰 응답은 메인 스레드 밖에서 해석한다: 큰 메일을 열 때 화면이 멈추지 않게.
+    private func decodedOffMain<T: Decodable & Sendable>(_ type: T.Type, from data: Data) async throws -> T {
+        try await Task.detached(priority: .userInitiated) { try GraphJSON.decoder().decode(T.self, from: data) }.value
+    }
     /// 잘 알려진 폴더 id → 이름 (inbox 등). 언어와 상관없이 폴더를 알아보려고 한 번만 묻는다.
     private var wellKnownIDs: [String: String]?
 
@@ -203,7 +208,7 @@ final class GraphMailService: MailService {
         let searching = !(search ?? "").trimmingCharacters(in: .whitespaces).isEmpty
         let r = GraphQuery.messageList(search: search, filter: filter?.graphFilter(), oldestFirst: oldestFirst)
         let data = try await request("GET", "/me/mailFolders/\(folderID)/messages", query: r.query, headers: r.headers)
-        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         return MessagePage(messages: list.value, nextLink: list.nextLink, serverFiltered: !searching)
     }
 
@@ -215,14 +220,14 @@ final class GraphMailService: MailService {
     func nextPage(_ link: String) async throws -> MessagePage {
         let headers = link.contains("%24search") || link.contains("$search") ? ["ConsistencyLevel": "eventual"] : [:]
         let data = try await request("GET", link, headers: headers)
-        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         return MessagePage(messages: list.value, nextLink: list.nextLink)
     }
 
     func message(id: String) async throws -> MailMessage {
         let data = try await request("GET", "/me/messages/\(id)", query: ["$select": GraphQuery.detailSelect],
                                      headers: ["Prefer": "outlook.body-content-type=\"html\""])
-        var m = try decoder.decode(MailMessage.self, from: data)
+        var m = try await decodedOffMain(MailMessage.self, from: data)
         // 회의 초대면 일정도 가져온다 (S-038). 보통 메일에는 이 확장을 쓰지 않는다.
         if m.isMeetingRequest {
             let eventData = try? await request("GET", "/me/messages/\(id)", query: [
@@ -243,7 +248,7 @@ final class GraphMailService: MailService {
     func attachments(messageID: String) async throws -> [FileAttachment] {
         let data = try await request("GET", "/me/messages/\(messageID)/attachments",
                                      query: ["$select": "id,name,contentType,size,isInline"])
-        var list = try decoder.decode(GraphList<FileAttachment>.self, from: data).value
+        var list = try await decodedOffMain(GraphList<FileAttachment>.self, from: data).value
         let inline = list.indices.filter { i in
             let a = list[i]
             return a.isInline == true && (a.odataType ?? "").hasSuffix("fileAttachment")
@@ -256,7 +261,7 @@ final class GraphMailService: MailService {
             return (i, Task { try? await self.request("GET", "/me/messages/\(messageID)/attachments/\(id)") })
         }
         for (i, task) in downloads {
-            if let data = await task.value, let full = try? decoder.decode(FileAttachment.self, from: data) {
+            if let data = await task.value, let full = try? await decodedOffMain(FileAttachment.self, from: data) {
                 list[i] = full
             }
         }
@@ -345,7 +350,7 @@ final class GraphMailService: MailService {
     func conversation(id: String) async throws -> [MailMessage] {
         let r = GraphQuery.conversation(id: id)
         let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
-        return try decoder.decode(GraphList<MailMessage>.self, from: data).value
+        return try await decodedOffMain(GraphList<MailMessage>.self, from: data).value
     }
 
     func setFlag(id: String, flagged: Bool) async throws {
@@ -368,7 +373,7 @@ final class GraphMailService: MailService {
     func searchAll(_ text: String) async throws -> MessagePage {
         let r = GraphQuery.searchAll(text)
         let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
-        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         return MessagePage(messages: list.value, nextLink: list.nextLink)
     }
 
@@ -378,7 +383,7 @@ final class GraphMailService: MailService {
             : GraphQuery.messageList(search: nil, filter: filter, oldestFirst: false, top: 100)
         let path = folderID.map { "/me/mailFolders/\($0)/messages" } ?? "/me/messages"
         let data = try await request("GET", path, query: r.query, headers: r.headers)
-        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
         return MessagePage(messages: sorted, nextLink: list.nextLink, serverFiltered: false)
     }
@@ -394,7 +399,7 @@ final class GraphMailService: MailService {
     func flaggedMessages() async throws -> MessagePage {
         let r = GraphQuery.flagged()
         let data = try await request("GET", "/me/messages", query: r.query, headers: r.headers)
-        let list = try decoder.decode(GraphList<MailMessage>.self, from: data)
+        let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
         return MessagePage(messages: sorted, nextLink: nil)
     }

@@ -895,6 +895,21 @@ enum SelfTest {
             check("M17 스마트 메일상자 복제", model.mailboxes.smart.contains { $0.name == "복제 시험 사본" && $0.id != base.id })
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
 
+            // 성능: 연 메일은 기억하고, 다음 메일은 미리 받아 둔다
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            let speedOrder = model.navigationOrder
+            if speedOrder.count >= 3 {
+                model.selectedMessageID = speedOrder[0]
+                try? await Task.sleep(for: .seconds(0.8))
+                check("성능: 연 메일을 기억한다", model.detailCache.get(speedOrder[0]) != nil)
+                check("성능: 다음 메일을 미리 받아 둔다", model.detailCache.get(speedOrder[1]) != nil)
+                model.selectedMessageID = speedOrder[1]
+                try? await Task.sleep(for: .seconds(0.05))
+                check("성능: 미리 받은 메일은 바로 보인다", model.detail?.id == speedOrder[1])
+                model.selectedMessageID = nil
+            }
+
             // 데이터 폴더 이름: 예전 ExchangeMail 폴더를 FAKUKUMail로 옮긴다 (내용 그대로)
             let renameBase = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)
             try? FileManager.default.removeItem(at: renameBase)

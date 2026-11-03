@@ -37,7 +37,15 @@ extension AppModel {
             return
         }
         do {
-            let list = try await service.conversation(id: conv)
+            let list: [MailMessage]
+            // 1분 안에 받은 대화는 다시 묻지 않는다 (↓↑로 같은 대화 안을 오갈 때).
+            if let cached = threadCache[conv], Date().timeIntervalSince(cached.at) < 60 {
+                list = cached.list
+            } else {
+                list = try await service.conversation(id: conv)
+                threadCache[conv] = (Date(), list)
+                if threadCache.count > 100 { threadCache = threadCache.filter { Date().timeIntervalSince($0.value.at) < 60 } }
+            }
             guard id == selectedMessageID else { return }
             var ordered = Conversations.chronological(list)
             // 설정 > 보기 > "관련된 메시지 포함"을 끄면 이 폴더의 메일만

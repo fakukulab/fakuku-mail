@@ -34,6 +34,7 @@ extension AppModel {
         do {
             for id in ids {
                 try await service.setImportance(id: id, importance: importance)
+                threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
                 if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].importance = importance }
                 patchDetail(id) { $0.importance = importance }
             }
@@ -49,6 +50,7 @@ extension AppModel {
         guard !ids.isEmpty else { return }
         do {
             for id in ids { try await service.copy(id: id, to: destination) }
+            threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
             await loadFolders()
         } catch {
             report(error, quietIfOffline: false)
@@ -125,6 +127,7 @@ extension AppModel {
                 guard !page.messages.isEmpty else { break }
                 for m in page.messages {
                     try await service.deleteMessage(id: m.id)
+                    threadCache = [:]   // 대화가 바뀌었다 (AppModel+Prefetch)
                     done += 1
                     progressText = L("\(kind == "deleteditems" ? L("지운 편지함을 비우는 중") : L("정크 메일을 지우는 중"))… \(done)통")
                 }
