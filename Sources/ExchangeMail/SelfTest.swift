@@ -898,18 +898,18 @@ enum SelfTest {
             // 데이터 폴더 이름: 예전 ExchangeMail 폴더를 FAKUKUMail로 옮긴다 (내용 그대로)
             let renameBase = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)
             try? FileManager.default.removeItem(at: renameBase)
-            let oldData = base.appending(path: "ExchangeMail/signatures.json")
+            let oldData = renameBase.appending(path: "ExchangeMail/signatures.json")
             try? FileManager.default.createDirectory(at: oldData.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data("[]".utf8).write(to: oldData)
-            let moved = Store.migrated(in: base)
+            let moved = Store.migrated(in: renameBase)
             check("데이터 폴더를 FAKUKUMail로 옮긴다 (예전 내용 그대로)",
                   moved.lastPathComponent == "FAKUKUMail"
                   && FileManager.default.fileExists(atPath: moved.appending(path: "signatures.json").path)
-                  && !FileManager.default.fileExists(atPath: base.appending(path: "ExchangeMail").path))
-            check("이미 옮겼으면 그대로", Store.migrated(in: base) == moved)
+                  && !FileManager.default.fileExists(atPath: renameBase.appending(path: "ExchangeMail").path))
+            check("이미 옮겼으면 그대로", Store.migrated(in: renameBase) == moved)
             check("실행 파일 이름은 FAKUKUMail",
                   Bundle.main.object(forInfoDictionaryKey: "CFBundleExecutable") as? String == "FAKUKUMail")
-            try? FileManager.default.removeItem(at: base)
+            try? FileManager.default.removeItem(at: renameBase)
 
             // S-054: 시스템 언어에 따라 한국어·영어 (셀프 테스트는 한국어로 돈다)
             check("S-054 한국어 시스템에서는 화면 글자가 한국어", AppLanguage.isKorean && L("메일상자") == "메일상자")
