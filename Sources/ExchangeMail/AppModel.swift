@@ -86,6 +86,8 @@ final class AppModel {
     /// 메일상자 내보내기 중 (S-053)
     var archiveExporting = false { didSet { updateMenu() } }
     /// 나의 Mac에 (S-055): 가져온 메일상자. 로그아웃해도 남는다.
+    /// 대화 묶음 결과 (AppModel+Conversations.conversations)
+    @ObservationIgnored var conversationMemo: (key: Int, value: [Conversation])?
     /// 열어 본 메일과 미리 받은 메일 (AppModel+Prefetch)
     @ObservationIgnored let detailCache = DetailCache()
     /// 대화별 메일과 받은 시각 (1분 동안 다시 묻지 않는다)

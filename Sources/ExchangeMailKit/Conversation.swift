@@ -53,7 +53,9 @@ public enum Conversations {
                 break
             }
             // "RE[2]:" 같은 꼴
-            if !changed, let r = s.range(of: #"^(re|fw|fwd)\[\d+\]:\s*"#, options: [.regularExpression, .caseInsensitive]) {
+            // 정규식은 느리므로 "[" 가 있을 때만 본다.
+            if !changed, s.contains("["),
+               let r = s.range(of: #"^(re|fw|fwd)\[\d+\]:\s*"#, options: [.regularExpression, .caseInsensitive]) {
                 s.removeSubrange(r)
                 reply = true
                 changed = true

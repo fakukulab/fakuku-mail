@@ -9,6 +9,10 @@ struct MessageListView: View {
     @AppStorage(Prefs.listFontSize) private var listFontSize = 13
     /// 보기 > 대화별로 정리 (S-025)
     @AppStorage("list.threaded") private var threaded = true
+    /// 설정 > 보기 > 목록 미리보기 줄 수, 볼드체로 읽지 않은 메시지 표시.
+    /// 줄마다 설정을 따로 지켜보지 않게 목록이 한 번 읽어 넘긴다 (스크롤이 매끄럽게).
+    @AppStorage(Prefs.previewLines) private var previewLines = 2
+    @AppStorage(Prefs.boldUnread) private var boldUnread = true
 
     var body: some View {
         @Bindable var model = model
@@ -16,23 +20,27 @@ struct MessageListView: View {
             if threaded {
                 // 대화 한 줄의 tag는 대화의 최근 메일 id다.
                 let conversations = model.conversations
+                // 끝에서 열 줄 전에 다음 쪽을 미리 부른다: 맨 끝에서 멈칫하지 않게.
+                let tail = Set(conversations.suffix(10).map(\.id))
                 ForEach(conversations) { c in
                     ConversationRow(conversation: c, me: model.auth.email, vip: model.mailboxes.vip(for: c.latest),
-                                    flagColor: c.messages.last(where: \.isFlagged).flatMap { model.flagColor(for: $0) })
+                                    flagColor: c.messages.last(where: \.isFlagged).flatMap { model.flagColor(for: $0) },
+                                    previewLines: previewLines, boldUnread: boldUnread)
                         .tag(c.latest.id)
                         .draggable(model.dragPayload(for: c.latest.id))
                         .onAppear {
-                            if c.id == conversations.last?.id { Task { await model.loadMore() } }
+                            if tail.contains(c.id) { Task { await model.loadMore() } }
                         }
                 }
             } else {
+                let tail = Set(model.messages.suffix(10).map(\.id))
                 ForEach(model.messages) { m in
                     MessageRow(message: m, folderTag: model.folderTag(for: m), vip: model.mailboxes.vip(for: m),
-                               flagColor: model.flagColor(for: m))
+                               flagColor: model.flagColor(for: m), previewLines: previewLines, boldUnread: boldUnread)
                         .tag(m.id)
                         .draggable(model.dragPayload(for: m.id))
                         .onAppear {
-                            if m.id == model.messages.last?.id { Task { await model.loadMore() } }
+                            if tail.contains(m.id) { Task { await model.loadMore() } }
                         }
                 }
             }
@@ -234,9 +242,9 @@ struct MessageRow: View {
     var vip: VIP? = nil
     /// 깃발 색 (깃발이 없으면 nil)
     var flagColor: FlagColor? = nil
-    /// 설정 > 보기 > 목록 미리보기 줄 수, 볼드체로 읽지 않은 메시지 표시
-    @AppStorage(Prefs.previewLines) private var previewLines = 2
-    @AppStorage(Prefs.boldUnread) private var boldUnread = true
+    /// 설정 > 보기 > 목록 미리보기 줄 수, 볼드체로 읽지 않은 메시지 표시 (목록이 넘긴다)
+    var previewLines = 2
+    var boldUnread = true
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.sm) {
@@ -303,8 +311,8 @@ struct ConversationRow: View {
     var vip: VIP? = nil
     /// 대화 안 가장 최근 깃발 메일의 색
     var flagColor: FlagColor? = nil
-    @AppStorage(Prefs.previewLines) private var previewLines = 2
-    @AppStorage(Prefs.boldUnread) private var boldUnread = true
+    var previewLines = 2
+    var boldUnread = true
 
     var body: some View {
         let latest = conversation.latest

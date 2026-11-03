@@ -909,6 +909,10 @@ enum SelfTest {
                 check("성능: 미리 받은 메일은 바로 보인다", model.detail?.id == speedOrder[1])
                 model.selectedMessageID = nil
             }
+            let firstGrouping = model.conversations
+            let memoKey = model.conversationMemo?.key
+            check("성능: 메일이 그대로면 대화 묶음을 다시 만들지 않는다",
+                  memoKey != nil && model.conversations.map(\.id) == firstGrouping.map(\.id) && model.conversationMemo?.key == memoKey)
 
             // 데이터 폴더 이름: 예전 ExchangeMail 폴더를 FAKUKUMail로 옮긴다 (내용 그대로)
             let renameBase = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)

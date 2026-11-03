@@ -9,7 +9,22 @@ extension AppModel {
     }
 
     /// 지금 폴더 목록을 대화로 묶은 것
+    /// 목록이 그려질 때마다 불린다. 메일·관련 메일·정렬이 그대로면 지난번 결과를 쓴다
+    /// (수백 통을 대화로 묶는 일을 스크롤·선택 때마다 되풀이하지 않게).
     var conversations: [Conversation] {
+        var hasher = Hasher()
+        hasher.combine(messages)
+        hasher.combine(relatedMessages)
+        hasher.combine(listSort.key)
+        hasher.combine(listSort.descending)
+        let key = hasher.finalize()
+        if let memo = conversationMemo, memo.key == key { return memo.value }
+        let value = groupConversations()
+        conversationMemo = (key, value)
+        return value
+    }
+
+    private func groupConversations() -> [Conversation] {
         let groups = Conversations.group(messages, related: relatedMessages)
         // 정렬 기준이 날짜 내림차순이 아니면 대화의 최근 메일로 정렬한다 (S-042).
         guard listSort != MailSort() else { return groups }
