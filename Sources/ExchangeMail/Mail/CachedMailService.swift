@@ -13,7 +13,7 @@ final class CachedMailService: MailService {
     var onOfflineChange: ((Bool) -> Void)?
     private(set) var isOffline = false
     /// 캐시 파일 쓰기용 (메인 스레드 밖, 순서대로)
-    private static let writer = DispatchQueue(label: "ExchangeMail.cache-writer", qos: .utility)
+    private static let writer = DispatchQueue(label: "FAKUKUMail.cache-writer", qos: .utility)
 
     init(remote: any MailService, base: URL, account: @escaping () -> String?, enabled: @escaping () -> Bool) {
         self.remote = remote

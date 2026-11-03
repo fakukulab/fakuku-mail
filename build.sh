@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds ExchangeMail (shown as "FAKUKU Mail") and installs it to ~/Applications/FAKUKU Mail.app.
-# Build products live in ~/Library/Developer/ExchangeMail, outside the repo
+# Build products live in ~/Library/Developer/FAKUKUMail, outside the repo
 # (and outside Dropbox or iCloud, which would try to sync them).
 #
 # Usage: ./build.sh            release build, install
@@ -8,9 +8,10 @@
 #        ./build.sh --open     install, then quit the running copy and open the new one
 set -euo pipefail
 here=${0:A:h}
-name="ExchangeMail"          # executable and build folder (code name)
+name="ExchangeMail"          # Swift target (code name): the build product
+exe="FAKUKUMail"            # program inside the app (Info.plist CFBundleExecutable) and build folder
 display="FAKUKU Mail"       # the app people see: bundle file, Dock, menu bar
-scratch="$HOME/Library/Developer/$name/build"
+scratch="$HOME/Library/Developer/$exe/build"
 config=release
 [[ " $* " == *" --debug "* ]] && config=debug
 
@@ -23,6 +24,8 @@ fi
 [[ -n "$identity" ]] || identity=-
 
 # Siri·단축어(App Intents)용: 컴파일러가 인텐트 정보를 .swiftconstvalues로 내놓게 한다 (Xcode가 하는 일).
+# 예전 이름의 빌드 폴더(~/Library/Developer/ExchangeMail)는 캐시일 뿐이라 지운다.
+rm -rf "$HOME/Library/Developer/ExchangeMail"
 intents_protocols="$scratch/intents-protocols.json"
 mkdir -p "$scratch"
 echo '["AppIntent","AppEntity","AppEnum","EntityQuery","AppShortcutsProvider","DynamicOptionsProvider","TransientAppEntity","AppIntentsPackage"]' > "$intents_protocols"
@@ -59,7 +62,7 @@ rm -rf "$HOME/Applications/$name.app"
 mkdir -p "$HOME/Applications"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-cp "$bin" "$app/Contents/MacOS/$name"
+cp "$bin" "$app/Contents/MacOS/$exe"
 sed -e "s/__BUILD__/$(date +%Y%m%d%H%M)/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
 # The icon: Icon/AppIcon.icon -> Resources/Assets.car + AppIcon.icns, rebuilt when it changed.
 if [[ -d "$here/Icon/AppIcon.icon" ]]; then

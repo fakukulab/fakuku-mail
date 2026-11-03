@@ -173,7 +173,7 @@ struct ArchivedMailView: View {
 enum ArchivedFiles {
     static func open(_ file: ArchivedAttachment) {
         let dir = FileManager.default.temporaryDirectory
-            .appending(path: "ExchangeMail-archive/\(UUID().uuidString)", directoryHint: .isDirectory)
+            .appending(path: "FAKUKUMail-archive/\(UUID().uuidString)", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let target = dir.appending(path: FilenameEncoder.normalize(safeName(file.name)))
         guard (try? file.data.write(to: target)) != nil else { return }

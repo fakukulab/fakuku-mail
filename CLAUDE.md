@@ -1,12 +1,13 @@
 # FAKUKU Mail (code name: ExchangeMail)
 
 The visible name is "FAKUKU Mail" (`Info.plist.in`, `build.sh` `display`, window title).
-Everything else keeps the code name `ExchangeMail`. Keep the bundle id: the Azure redirect URI depends on it.
+The program inside the app (`CFBundleExecutable`), the data folder, the build folder, and temp folders are `FAKUKUMail`;
+the code (Swift package, modules, folders) keeps the code name `ExchangeMail`. Keep the bundle id: the Azure redirect URI depends on it.
 
 A native macOS mail client in SwiftUI for Microsoft Exchange Online.
 Mail stays on the server (Microsoft Graph). Local data: signatures in
-`~/Library/Application Support/ExchangeMail/signatures.json`, VIPs and smart mailboxes in `.../ExchangeMail/mailboxes.json`, individual-sending templates and groups in `.../ExchangeMail/merge.json`, imported mailboxes (On My Mac, 나의 Mac에) in `.../ExchangeMail/local/` (`index.json` plus one `.mbox` each, kept on sign-out), an offline cache of recent mail in
-`.../ExchangeMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean, and English when the Mac is in English (`docs/GLOSSARY.md` for words).
+`~/Library/Application Support/FAKUKUMail/signatures.json`, VIPs and smart mailboxes in `.../FAKUKUMail/mailboxes.json`, individual-sending templates and groups in `.../FAKUKUMail/merge.json`, imported mailboxes (On My Mac, 나의 Mac에) in `.../FAKUKUMail/local/` (`index.json` plus one `.mbox` each, kept on sign-out), an offline cache of recent mail in
+`.../FAKUKUMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean, and English when the Mac is in English (`docs/GLOSSARY.md` for words).
 Every Korean UI string is wrapped in `L("…")` (`ExchangeMailKit/Localization.swift`); the Korean text is the key and the English is in
 `Localization/en.lproj/Localizable.strings` (interpolated values become `%@`, a literal `%` becomes `%%`). Strings that are data
 (comparisons, CSV column names, placeholders like {{이름}}, names stored on the server) get `// l10n: data`.
@@ -21,7 +22,7 @@ After adding text, run `tools/l10n.py` and add the English it reports; it prints
 - `Sources/ExchangeMailKit/` rules with no SwiftUI: attachment fix (FilenameEncoder, HTMLProcessor, MIMEBuilder),
   Graph models, OAuth, reply drafts, mail content safety. Tests in `Tests/ExchangeMailKitTests/`.
 - `Package.swift` a Swift package. There is no Xcode project.
-- `build.sh` builds, signs, and installs `~/Applications/FAKUKU Mail.app` (executable `ExchangeMail`).
+- `build.sh` builds, signs, and installs `~/Applications/FAKUKU Mail.app` (executable `FAKUKUMail`).
   It also writes the Siri/Shortcuts metadata (`Contents/Resources/Metadata.appintents`) with `tools/make_intents.sh`;
   intents live in `Sources/ExchangeMail/Intents/MailIntents.swift`.
 - `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). `build.sh` compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
@@ -30,23 +31,23 @@ After adding text, run `tools/l10n.py` and add the English it reports; it prints
 ## Build and check
 
 - Build and install: `./build.sh`. Add `--open` to restart the app with the new build. The build shows warnings; fix them.
-- Unit tests: `swift test --scratch-path ~/Library/Developer/ExchangeMail/test-build`.
+- Unit tests: `swift test --scratch-path ~/Library/Developer/FAKUKUMail/test-build`.
 - Demo mode: `APP_STORE=<dir in /tmp> APP_SEED=1` runs a sample mailbox with no sign-in and no network.
   `tools/demo.sh` opens it. Snapshots and the self-test always run in demo mode.
 - Self-test (the app's real functions on the demo mailbox and a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic in `SelfTest.swift`.
 - After every UI change, take snapshots with sample data and look at them: `tools/snap.sh`.
-  It writes `/tmp/ExchangeMail-shots/<page>-light.png` and `-dark.png` for inbox, sentitems, drafts, archive,
+  It writes `/tmp/FAKUKUMail-shots/<page>-light.png` and `-dark.png` for inbox, sentitems, drafts, archive,
   deleteditems, signin, compose, message, `vip-editor` and `smart-editor` (page `mailboxes`), and `settings-<tab>-light.png` and `-dark.png` for every Settings tab, then quits.
   `APP_SNAPSHOT_PAGES=inbox,compose,settings tools/snap.sh` limits the pages.
   For a panel, sheet, or popover, add a capture to `Snapshot.swift` like the Settings loop.
 - Snapshots, demo mode, and the self-test refuse to run without `APP_STORE` in /tmp.
-- Never test against a real Exchange account or the real `~/Library/Application Support/ExchangeMail/`.
+- Never test against a real Exchange account or the real `~/Library/Application Support/FAKUKUMail/`.
 - Graph rules: sending is `POST /me/sendMail` with the base64 MIME as `text/plain` (4 MB request limit);
   moving a message changes its id; `$search` cannot be combined with `$orderby`.
 - Received HTML is untrusted: JavaScript off, navigation other than link clicks cancelled (`Views/HTMLView.swift`, `MailContent`).
   Remote content follows `RemoteContent`: with Mail activity protection (default) trackers are removed and other remote
   images load through `fakuku-proxy:` (`TrackingProtection`, `ProxyImageLoader`: no cookies, no referer); otherwise CSP blocks them.
-- Then check the grid: `tools/grid-lint.sh` and `swift tools/check-layout.swift /tmp/ExchangeMail-shots/*-layout.json`. Both print PASS.
+- Then check the grid: `tools/grid-lint.sh` and `swift tools/check-layout.swift /tmp/FAKUKUMail-shots/*-layout.json`. Both print PASS.
 - A change is done when the build has no errors, the grid checks and `tools/l10n.py` pass, and you looked at the light and dark snapshots.
 
 ## Design rules

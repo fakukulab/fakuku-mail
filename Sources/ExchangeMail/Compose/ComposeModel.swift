@@ -108,7 +108,7 @@ final class ComposeModel {
                 let base = (draft.attachMessageName ?? L("메시지")).replacingOccurrences(of: "/", with: "-")
                     .replacingOccurrences(of: ":", with: "-")
                 let dir = FileManager.default.temporaryDirectory
-                    .appending(path: "ExchangeMail-eml-\(UUID().uuidString)", directoryHint: .isDirectory)
+                    .appending(path: "FAKUKUMail-eml-\(UUID().uuidString)", directoryHint: .isDirectory)
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 let url = dir.appending(path: FilenameEncoder.normalize(String(base.prefix(80))) + ".eml")
                 try data.write(to: url)

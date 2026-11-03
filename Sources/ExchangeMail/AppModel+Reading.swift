@@ -12,7 +12,7 @@ extension AppModel {
     func previewFile(for attachment: FileAttachment) -> URL? {
         guard let data = attachment.data else { return nil }
         let dir = FileManager.default.temporaryDirectory
-            .appending(path: "ExchangeMail-preview", directoryHint: .isDirectory)
+            .appending(path: "FAKUKUMail-preview", directoryHint: .isDirectory)
             .appending(path: attachment.id.replacingOccurrences(of: "/", with: "_").prefix(64).description, directoryHint: .isDirectory)
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

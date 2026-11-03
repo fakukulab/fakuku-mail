@@ -4,7 +4,7 @@ import Foundation
 
 /// Self-test for agents: runs the app's real functions on the demo mailbox and a /tmp store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
-///   APP_STORE=/tmp/ExchangeMail-self ~/Applications/FAKUKU\ Mail.app/Contents/MacOS/ExchangeMail --selftest
+///   APP_STORE=/tmp/FAKUKUMail-self ~/Applications/FAKUKU\ Mail.app/Contents/MacOS/FAKUKUMail --selftest
 /// (tools/selftest.sh does this.) Add a check for every story with logic.
 enum SelfTest {
     static var requested: Bool { CommandLine.arguments.contains("--selftest") }
@@ -894,6 +894,22 @@ enum SelfTest {
             model.duplicateSmart(id: base.id)
             check("M17 스마트 메일상자 복제", model.mailboxes.smart.contains { $0.name == "복제 시험 사본" && $0.id != base.id })
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
+
+            // 데이터 폴더 이름: 예전 ExchangeMail 폴더를 FAKUKUMail로 옮긴다 (내용 그대로)
+            let base = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)
+            try? FileManager.default.removeItem(at: base)
+            let oldData = base.appending(path: "ExchangeMail/signatures.json")
+            try? FileManager.default.createDirectory(at: oldData.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data("[]".utf8).write(to: oldData)
+            let moved = Store.migrated(in: base)
+            check("데이터 폴더를 FAKUKUMail로 옮긴다 (예전 내용 그대로)",
+                  moved.lastPathComponent == "FAKUKUMail"
+                  && FileManager.default.fileExists(atPath: moved.appending(path: "signatures.json").path)
+                  && !FileManager.default.fileExists(atPath: base.appending(path: "ExchangeMail").path))
+            check("이미 옮겼으면 그대로", Store.migrated(in: base) == moved)
+            check("실행 파일 이름은 FAKUKUMail",
+                  Bundle.main.object(forInfoDictionaryKey: "CFBundleExecutable") as? String == "FAKUKUMail")
+            try? FileManager.default.removeItem(at: base)
 
             // S-054: 시스템 언어에 따라 한국어·영어 (셀프 테스트는 한국어로 돈다)
             check("S-054 한국어 시스템에서는 화면 글자가 한국어", AppLanguage.isKorean && L("메일상자") == "메일상자")

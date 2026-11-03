@@ -3,9 +3,9 @@
 # Usage: tools/snap.sh                              all pages
 #        APP_SNAPSHOT_PAGES=inbox,compose,settings tools/snap.sh
 set -u
-app="$HOME/Applications/FAKUKU Mail.app/Contents/MacOS/ExchangeMail"
-store=/tmp/ExchangeMail-test
-shots=/tmp/ExchangeMail-shots
+app="$HOME/Applications/FAKUKU Mail.app/Contents/MacOS/FAKUKUMail"
+store=/tmp/FAKUKUMail-test
+shots=/tmp/FAKUKUMail-shots
 # A crashed run leaves saved window state, and the next launch would wait on a "reopen windows?" alert.
 rm -rf ~/Library/Saved\ Application\ State/com.fakukulab.fakukumail.savedState
 # Demo signatures are only seeded into an empty store, so start from nothing.

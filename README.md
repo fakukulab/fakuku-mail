@@ -1,6 +1,6 @@
 # FAKUKU Mail — Exchange 연동 맥용 메일 클라이언트
 
-코드 이름은 `ExchangeMail`입니다(폴더, Swift 모듈, 실행 파일, 데이터 폴더). 화면과 Dock에 보이는 이름은 **FAKUKU Mail**입니다.
+코드 이름은 `ExchangeMail`입니다(소스 폴더, Swift 모듈). 실행 파일, 데이터 폴더(`~/Library/Application Support/FAKUKUMail/`), 빌드 폴더는 `FAKUKUMail`입니다. 화면과 Dock에 보이는 이름은 **FAKUKU Mail**입니다.
 
 맥 Mail과 비슷한 3단 레이아웃(폴더 / 목록 / 본문)의 SwiftUI 앱입니다.
 [BAMA](https://github.com/daveebbelaar/bama) 템플릿(Swift Package, macOS 26, Swift 6.2)으로 다시 만들었고,
@@ -28,7 +28,7 @@
 `~/Applications/FAKUKU Mail.app`이 설치되고 열립니다. 예전 `ExchangeMail.app`은 지워집니다. 확인 단계:
 
 ```bash
-swift test --scratch-path ~/Library/Developer/ExchangeMail/test-build   # 단위 테스트 (ExchangeMailKit)
+swift test --scratch-path ~/Library/Developer/FAKUKUMail/test-build   # 단위 테스트 (ExchangeMailKit)
 ```
 
 ```bash
@@ -36,7 +36,7 @@ tools/selftest.sh    # 데모 사서함에서 앱 함수를 돌려 PASS/FAIL 출
 ```
 
 ```bash
-tools/snap.sh        # 모든 화면을 밝은/어두운 모드로 /tmp/ExchangeMail-shots/에 저장
+tools/snap.sh        # 모든 화면을 밝은/어두운 모드로 /tmp/FAKUKUMail-shots/에 저장
 ```
 
 ```bash

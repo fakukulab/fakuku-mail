@@ -586,7 +586,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Where local data lives: ~/Library/Application Support/ExchangeMail/
+/// Where local data lives: ~/Library/Application Support/FAKUKUMail/ (before: …/ExchangeMail/, moved on first launch)
 /// Mail stays on the server; only signatures are stored here. Tokens are in the Keychain.
 enum Store {
     /// True when APP_STORE points somewhere else (tests, snapshots, demo mode).
@@ -599,12 +599,28 @@ enum Store {
         isOverridden && (ProcessInfo.processInfo.environment["APP_SEED"] == "1" || SelfTest.requested)
     }
 
+    /// ~/Library/Application Support/FAKUKUMail. 예전 이름(ExchangeMail) 폴더가 있으면 처음 한 번 그대로 옮긴다:
+    /// 서명, VIP·스마트 메일상자, 개별 발송, 오프라인 캐시, 나의 Mac에 상자가 그대로 남는다.
+    static let appSupport: URL = migrated(in: URL.applicationSupportDirectory)
+
+    /// `base` 안의 데이터 폴더. 셀프 테스트는 /tmp를 넣어 옮기기를 확인한다.
+    static func migrated(in base: URL) -> URL {
+        let fm = FileManager.default
+        let new = base.appending(path: "FAKUKUMail", directoryHint: .isDirectory)
+        let old = base.appending(path: "ExchangeMail", directoryHint: .isDirectory)
+        if !fm.fileExists(atPath: new.path), fm.fileExists(atPath: old.path) {
+            // 옮기지 못하면(권한 등) 예전 폴더를 계속 쓴다: 데이터를 잃지 않게.
+            if (try? fm.moveItem(at: old, to: new)) == nil { return old }
+        }
+        return new
+    }
+
     static var directory: URL {
         let dir: URL
         if let path = ProcessInfo.processInfo.environment["APP_STORE"], !path.isEmpty {
             dir = URL(fileURLWithPath: path, isDirectory: true)
         } else {
-            dir = URL.applicationSupportDirectory.appending(path: "ExchangeMail", directoryHint: .isDirectory)
+            dir = appSupport
         }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir

@@ -4,7 +4,8 @@
 # Usage: tools/make_intents.sh <App.app> <build scratch dir> <app sources dir>
 set -euo pipefail
 app=$1; products=$2; sources=$3
-name="ExchangeMail"
+name="ExchangeMail"   # Swift 모듈 이름 (코드 이름)
+exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")   # 앱 안의 프로그램
 bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -46,7 +47,7 @@ xcrun appintentsmetadataprocessor \
   --bundle-identifier "$bundle_id" \
   --output "$app/Contents/Resources" \
   --target-triple "$arch-apple-macos26.0" \
-  --binary-file "$app/Contents/MacOS/$name" \
+  --binary-file "$app/Contents/MacOS/$exe" \
   --dependency-file "$deps" \
   --stringsdata-file "$work/ExtractedAppShortcutsMetadata.stringsdata" \
   --source-file-list "$work/sources.txt" \
