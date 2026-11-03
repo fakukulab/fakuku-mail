@@ -969,6 +969,25 @@ enum SelfTest {
                 check("S-055 상자 안에서 검색 (제목)", !firstSubject.isEmpty
                       && model.localBoxes.filtered(firstSubject).contains { $0.subject == firstSubject })
                 check("S-055 없는 말은 0통", model.localBoxes.filtered("없는낱말xyz").isEmpty)
+                // 모든 폴더 검색: 서버 폴더에서 찾아도 나의 Mac에 메일이 함께 나온다
+                if let imported, !firstSubject.isEmpty {
+                    model.selectedFolderID = "inbox"
+                    try? await Task.sleep(for: .seconds(0.3))
+                    model.searchScope = .all
+                    model.searchText = firstSubject
+                    await model.loadMessages()
+                    let hit = model.localHits.first { $0.boxID == imported.id && $0.summary.subject == firstSubject }
+                    check("S-055 모든 폴더 검색에 나의 Mac에 메일도 나온다", hit != nil, "\(model.localHits.count)통")
+                    if let hit {
+                        model.openLocalHit(hit)
+                        try? await Task.sleep(for: .seconds(0.5))
+                        check("S-055 결과를 누르면 그 상자의 그 메일을 연다 (검색어는 남는다)",
+                              model.selectedLocalBox?.id == imported.id && model.localBoxes.selection == hit.summary.id
+                              && model.searchText == firstSubject && model.localHits.isEmpty)
+                    }
+                    model.searchText = ""
+                    model.searchScope = .folder
+                }
                 // 다른 상자를 갔다 와도 다시 읽지 않는다
                 if let imported {
                     let second = await model.importLocalMailbox(from: file)

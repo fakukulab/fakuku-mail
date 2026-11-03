@@ -23,6 +23,14 @@ nonisolated struct LocalMailbox: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// 모든 폴더 검색에서 찾은 나의 Mac에 메일 한 통
+nonisolated struct LocalHit: Identifiable, Hashable, Sendable {
+    let boxID: String
+    let boxName: String
+    let summary: ArchivedSummary
+    var id: String { "\(boxID):\(summary.id)" }
+}
+
 @Observable
 final class LocalMailboxStore {
     private(set) var boxes: [LocalMailbox] = []
@@ -47,6 +55,8 @@ final class LocalMailboxStore {
     /// 상자마다 마지막으로 고른 메일
     @ObservationIgnored private var selections: [String: ArchivedSummary.ID] = [:]
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    /// 상자를 연 뒤 고를 메일 (모든 폴더 검색 결과를 눌렀을 때)
+    @ObservationIgnored var pendingSelection: ArchivedSummary.ID?
 
     init(directory: URL) {
         self.directory = directory
@@ -66,6 +76,31 @@ final class LocalMailboxStore {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return mails }
         return mails.filter { MailArchive.matches($0.search, query: q) }
+    }
+
+    /// 모든 폴더 검색: 나의 Mac에 상자 전부의 색인에서 찾는다 (최근 메일부터, 많아야 200통).
+    func searchAll(_ query: String) async -> [LocalHit] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty, !boxes.isEmpty else { return [] }
+        let sources = boxes.map { ($0, summaryURL($0.id), fileURL($0)) }
+        return await Task.detached(priority: .userInitiated) { () -> [LocalHit] in
+            var hits: [LocalHit] = []
+            for (box, indexFile, file) in sources {
+                let list: [ArchivedSummary]
+                if let data = try? Data(contentsOf: indexFile), let decoded = try? ArchiveIndex.decode(data) {
+                    list = decoded
+                } else if let data = try? Data(contentsOf: file, options: .mappedIfSafe) {
+                    // 색인이 아직 없으면 만들어 둔다 (예전에 가져온 상자)
+                    list = ArchiveIndex.summaries(ofMbox: data)
+                    try? ArchiveIndex.encode(list).write(to: indexFile, options: .atomic)
+                } else {
+                    continue
+                }
+                hits += list.filter { MailArchive.matches($0.search, query: q) }
+                    .map { LocalHit(boxID: box.id, boxName: box.name, summary: $0) }
+            }
+            return Array(hits.sorted { ($0.summary.date ?? .distantPast) > ($1.summary.date ?? .distantPast) }.prefix(200))
+        }.value
     }
 
     // MARK: 가져오기
@@ -107,7 +142,10 @@ final class LocalMailboxStore {
 
     /// 상자를 연다: 색인만 읽으므로 바로 보인다. 색인이 없으면(예전에 가져온 상자) 한 번 만들어 저장한다.
     func open(_ id: String) async {
-        if openedID == id && failure == nil && !mails.isEmpty { return }
+        if openedID == id && failure == nil && !mails.isEmpty {
+            if let pending = pendingSelection { selection = pending; pendingSelection = nil }
+            return
+        }
         guard let box = boxes.first(where: { $0.id == id }) else { return }
         openedID = id
         failure = nil
@@ -127,7 +165,9 @@ final class LocalMailboxStore {
             guard openedID == id else { return }
             mails = list
             let remembered = selections[id].flatMap { s in list.contains { $0.id == s } ? s : nil }
-            selection = remembered ?? list.first?.id
+            let pending = pendingSelection.flatMap { p in list.contains { $0.id == p } ? p : nil }
+            pendingSelection = nil
+            selection = pending ?? remembered ?? list.first?.id
             loadSelected()
         } catch {
             failure = error.localizedDescription

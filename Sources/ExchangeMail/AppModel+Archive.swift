@@ -136,6 +136,18 @@ extension AppModel {
         }
     }
 
+    /// 모든 폴더 검색 결과의 나의 Mac에 메일을 누르면: 그 상자로 가서 그 메일을 고른다. 검색어는 남긴다.
+    func openLocalHit(_ hit: LocalHit) {
+        let query = searchText
+        localBoxes.pendingSelection = hit.summary.id
+        selectedFolderID = LocalMailbox.prefix + hit.boxID   // 목록을 바꾸며 검색어를 비운다
+        searchText = query
+        if localBoxes.openedID == hit.boxID, !localBoxes.mails.isEmpty {
+            localBoxes.selection = hit.summary.id
+            localBoxes.pendingSelection = nil
+        }
+    }
+
     func renameLocal(_ box: LocalMailbox) {
         if let name = TextPrompt.ask(L("메일상자 이름 변경"), initial: box.name, confirm: L("변경")) {
             localBoxes.rename(box.id, to: name)

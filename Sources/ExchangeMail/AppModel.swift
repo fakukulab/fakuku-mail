@@ -86,6 +86,8 @@ final class AppModel {
     /// 메일상자 내보내기 중 (S-053)
     var archiveExporting = false { didSet { updateMenu() } }
     /// 나의 Mac에 (S-055): 가져온 메일상자. 로그아웃해도 남는다.
+    /// 모든 폴더 검색에서 찾은 나의 Mac에 메일 (서버 결과 아래에 보인다)
+    var localHits: [LocalHit] = []
     let localBoxes = LocalMailboxStore(directory: Store.directory.appending(path: "local", directoryHint: .isDirectory))
     @ObservationIgnored var exportTask: Task<Void, Never>?
     /// 차단된 보낸 사람 서버 규칙 (설정 > 정크 메일). 아직 읽지 않았으면 nil.
@@ -334,10 +336,18 @@ final class AppModel {
         if let localID = LocalMailbox.id(fromSidebar: folderID) {
             messages = []
             selection = []
+            localHits = []
             await localBoxes.open(localID)
             return
         }
         let search = searchText.trimmingCharacters(in: .whitespaces)
+        // 모든 폴더 검색이면 나의 Mac에 상자도 찾는다. 서버보다 먼저: 오프라인이어도 보인다.
+        if !search.isEmpty && searchScope == .all {
+            let hits = await localBoxes.searchAll(search)
+            if folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) { localHits = hits }
+        } else {
+            localHits = []
+        }
         // 비어 있으면 저장된 목록을 먼저 보여 주고 서버 응답으로 바꾼다 (S-026).
         if messages.isEmpty, search.isEmpty, let saved = cachedService?.cache?.list(folderID: folderID) {
             messages = saved.messages

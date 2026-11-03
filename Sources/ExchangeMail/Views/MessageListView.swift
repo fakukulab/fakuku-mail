@@ -36,6 +36,26 @@ struct MessageListView: View {
                         }
                 }
             }
+            // 모든 폴더 검색: 나의 Mac에 상자에서 찾은 메일 (누르면 그 상자의 그 메일로)
+            if !model.localHits.isEmpty {
+                Section(L("나의 Mac에 (\(model.localHits.count))")) {
+                    ForEach(model.localHits) { hit in
+                        Button {
+                            model.openLocalHit(hit)
+                        } label: {
+                            VStack(alignment: .leading, spacing: Space.xs) {
+                                ArchivedMailRow(mail: hit.summary)
+                                Label(hit.boxName, systemImage: "tray.full")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(L("\"\(hit.boxName)\" 메일상자에서 열기"))
+                    }
+                }
+            }
             if model.isLoadingMore {
                 HStack {
                     Spacer()
@@ -113,7 +133,7 @@ struct MessageListView: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        if model.messages.isEmpty {
+        if model.messages.isEmpty && model.localHits.isEmpty {
             if model.isLoading {
                 ProgressView()
             } else if !model.searchText.trimmingCharacters(in: .whitespaces).isEmpty {

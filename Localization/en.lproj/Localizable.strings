@@ -821,3 +821,5 @@
 "이 메일상자에 메일이 없습니다." = "There are no messages in this mailbox.";
 "이 메일상자에서 검색" = "Search This Mailbox";
 "%@통 찾음 · 나의 Mac에" = "%@ found · On My Mac";
+"\"%@\" 메일상자에서 열기" = "Open in the mailbox “%@”";
+"나의 Mac에 (%@)" = "On My Mac (%@)";
