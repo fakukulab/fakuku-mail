@@ -1,1 +1,2 @@
 "NSContactsUsageDescription" = "Shows contact cards from addresses in message headers and adds senders to Contacts.";
+"NSCalendarsFullAccessUsageDescription" = "Adds meetings you accept to Calendar on your Mac and checks whether the meeting is already there.";

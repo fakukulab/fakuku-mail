@@ -658,6 +658,13 @@ enum SelfTest {
                       model.detail?.event?.response == .accept && model.errorMessage == nil)
                 await model.respondToMeeting(.tentativelyAccept)
                 check("S-038 수락한 뒤 미정으로 바꿀 수 있다", model.detail?.event?.response == .tentativelyAccept)
+                check("S-056 데모·셀프 테스트에서는 맥 캘린더를 건드리지 않는다", model.macCalendarStatus.isEmpty)
+                check("S-056 회의 초대면 메시지 > 맥 캘린더에 추가가 켜진다", MenuState.shared.snapshot.isMeeting)
+                if let event = model.detail?.event {
+                    let entry = CalendarEntry(event: event, fallbackTitle: model.detail?.subject)
+                    check("S-056 회의를 맥 캘린더 일정으로 바꾼다 (제목, 시각, 장소)",
+                          entry != nil && entry?.location == "3층 회의실" && (entry?.end ?? .distantPast) > (entry?.start ?? .distantFuture))
+                }
             } else {
                 check("S-038 데모 받은 편지함에 회의 초대가 있다", false)
             }

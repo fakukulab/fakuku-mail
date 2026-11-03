@@ -20,5 +20,6 @@
   <dict><key>INAlternativeAppName</key><string>파쿠쿠 메일</string></dict>
   <dict><key>INAlternativeAppName</key><string>파쿠쿠</string></dict>
 </array>
+<key>NSCalendarsFullAccessUsageDescription</key><string>수락한 회의를 맥 캘린더에 추가하고, 같은 회의가 이미 있는지 확인합니다.</string>
 <key>NSContactsUsageDescription</key><string>메일 머리글의 주소에서 연락처 카드를 보고, 보낸 사람을 연락처에 추가합니다.</string>
 </dict></plist>

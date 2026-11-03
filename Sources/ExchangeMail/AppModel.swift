@@ -87,6 +87,8 @@ final class AppModel {
     /// 메일상자 내보내기 중 (S-053)
     var archiveExporting = false { didSet { updateMenu() } }
     /// 나의 Mac에 (S-055): 가져온 메일상자. 로그아웃해도 남는다.
+    /// 회의마다 맥 캘린더에 넣은 결과 (S-056, 회의 막대에 보인다)
+    var macCalendarStatus: [String: MacCalendar.Outcome] = [:]
     /// 대화 묶음 결과 (AppModel+Conversations.conversations)
     @ObservationIgnored var conversationMemo: (key: Int, value: [Conversation])?
     /// 열어 본 메일과 미리 받은 메일 (AppModel+Prefetch)
@@ -670,7 +672,8 @@ final class AppModel {
     /// 회의 초대에 답한다 (S-038). Exchange는 응답을 비동기로 처리하므로, 보낸 뒤 일정을 다시 읽어
     /// 서버가 실제로 기록한 상태를 막대에 보인다. 몇 초 안에 반영되지 않으면 서버 상태와 함께 알린다.
     func respondToMeeting(_ response: MeetingResponse) async {
-        guard let eventID = detail?.event?.id else { return }
+        guard let eventID = detail?.event?.id, let original = detail?.event else { return }
+        let subject = detail?.subject
         do {
             try await service.respond(toEvent: eventID, with: response)
         } catch {
@@ -691,6 +694,9 @@ final class AppModel {
                 return
             }
         }
+        // 맥 캘린더에도 넣거나(수락·미정) 앱이 넣은 것을 지운다(거절) (S-056)
+        let latest = detail?.event?.id == eventID ? (detail?.event ?? original) : original
+        await syncMacCalendar(after: response, event: latest, subject: subject)
         // 메일에 딸린 일정의 상태만으로는 부족하다: 실제 일정(캘린더 보기)에 그 회의가 들어갔는지 확인한다.
         guard response != .decline, let check = try? await service.meetingCheck(eventID: eventID) else { return }
         meetingCheck = check
@@ -801,6 +807,7 @@ final class AppModel {
             smartSelected: { if case .smart = selectedVirtual { return true } else { return false } }(),
             moveTargets: moveTargets,
             exporting: archiveExporting,
+            isMeeting: detail?.event != nil,
             localSelected: selectedLocalBox != nil))
     }
 }

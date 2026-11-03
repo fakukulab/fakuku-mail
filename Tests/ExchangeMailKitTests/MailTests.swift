@@ -932,3 +932,37 @@ func groupConversationsBySubjectAndRelated() {
     #expect(Conversations.normalizedSubject("RE: FW: 회신: Re[2]:  견적   요청").base == "견적 요청")
     #expect(Conversations.normalizedSubject("견적").wasReply == false)
 }
+
+// S-056 수락한 회의를 맥 캘린더에
+
+@Test("맥 캘린더 일정: 시각 있는 회의는 그 시각, 제목·장소·표시")
+func calendarEntryTimed() throws {
+    let event = MailEvent(id: "AAMk+abc/1=", subject: "  주간 회의 ",
+                          start: GraphDateTime(dateTime: "2026-11-05T01:00:00.0000000", timeZone: "UTC"),
+                          end: GraphDateTime(dateTime: "2026-11-05T02:00:00.0000000", timeZone: "UTC"),
+                          location: "3층 회의실")
+    let entry = try #require(CalendarEntry(event: event))
+    #expect(entry.title == "주간 회의")
+    #expect(entry.start == ISO8601DateFormatter().date(from: "2026-11-05T01:00:00Z"))
+    #expect(entry.end.timeIntervalSince(entry.start) == 3600)
+    #expect(!entry.isAllDay && entry.location == "3층 회의실")
+    #expect(entry.marker.absoluteString.hasPrefix("fakuku-meeting://event/"))
+    #expect(entry.marker == CalendarEntry.marker(eventID: "AAMk+abc/1="))
+    #expect(entry.isSame(title: "주간 회의", start: entry.start.addingTimeInterval(30), isAllDay: false))
+    #expect(!entry.isSame(title: "다른 회의", start: entry.start, isAllDay: false))
+    #expect(!entry.isSame(title: "주간 회의", start: entry.start.addingTimeInterval(3600), isAllDay: false))
+}
+
+@Test("맥 캘린더 일정: 종일 회의는 날짜만 (시간대로 하루가 밀리지 않게)")
+func calendarEntryAllDay() throws {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "Asia/Seoul")!
+    let event = MailEvent(id: "x", subject: nil,
+                          start: GraphDateTime(dateTime: "2026-11-05T00:00:00.0000000", timeZone: "UTC"),
+                          end: GraphDateTime(dateTime: "2026-11-07T00:00:00.0000000", timeZone: "UTC"), isAllDay: true)
+    let entry = try #require(CalendarEntry(event: event, fallbackTitle: "워크숍", calendar: cal))
+    #expect(entry.title == "워크숍" && entry.isAllDay)
+    #expect(cal.component(.day, from: entry.start) == 5 && cal.component(.hour, from: entry.start) == 0)
+    #expect(cal.component(.day, from: entry.end) == 6)   // 이틀짜리: 6일 끝까지
+    #expect(CalendarEntry(event: MailEvent(id: "y", subject: "a", start: nil, end: nil)) == nil)
+}

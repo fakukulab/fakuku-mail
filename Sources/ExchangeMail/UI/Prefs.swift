@@ -22,6 +22,8 @@ enum Prefs {
     static let threadAllFolders = "view.threadAllFolders"   // Bool, true
     static let threadNewestFirst = "view.threadNewestFirst" // Bool, false
     static let markRead = "view.markRead"                   // String: now, delay, never
+    static let calendarAddAccepted = "calendar.addAccepted" // Bool, true (수락한 회의를 맥 캘린더에)
+    static let calendarTarget = "calendar.target"           // String, "" (기본 캘린더)
     static let prefetch = "view.prefetch"                   // Bool, true (다음·이전 메일 미리 받기)
     static let threadHeight = "view.threadHeight"           // Double, 176 (본문 위 대화 목록 높이)
     // 서체 및 색상

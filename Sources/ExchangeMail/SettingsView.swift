@@ -213,6 +213,11 @@ struct AccountSettings: View {
     @Environment(AppModel.self) private var model
     @AppStorage("azureClientID") private var clientID = ""
     @AppStorage("azureTenant") private var tenant = ""
+    // S-056 수락한 회의를 맥 캘린더에
+    @AppStorage(Prefs.calendarAddAccepted) private var addAccepted = true
+    @AppStorage(Prefs.calendarTarget) private var calendarTarget = ""
+    @State private var calendars: [(id: String, title: String)] = []
+    @State private var calendarAccess = MacCalendar.shared.hasAccess
 
     var body: some View {
         Section {
@@ -256,6 +261,39 @@ struct AccountSettings: View {
                              + L("Calendars.ReadWrite, MailboxSettings.ReadWrite. 바꾼 값은 다음 로그인부터 쓰입니다."))
             }
         }
+        Section {
+            LabeledContent(L("맥 캘린더:")) {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle(L("수락한 회의를 맥 캘린더에 추가"), isOn: $addAccepted)
+                    if calendarAccess {
+                        Picker(L("넣을 캘린더"), selection: $calendarTarget) {
+                            Text(L("기본 캘린더")).tag("")
+                            ForEach(calendars, id: \.id) { c in Text(c.title).tag(c.id) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                        .disabled(!addAccepted)
+                    } else {
+                        Button(L("캘린더 접근 허용…")) {
+                            Task {
+                                calendarAccess = await MacCalendar.shared.requestAccess()
+                                if !calendarAccess { MacCalendar.openPrivacySettings() }
+                                loadCalendars()
+                            }
+                        }
+                        .controlSize(.small)
+                    }
+                    SettingsNote(L("수락·미정으로 답한 회의를 넣고, 거절하면 앱이 넣은 일정을 지웁니다. ")
+                                 + L("같은 시각에 같은 제목의 일정이 이미 있으면(Exchange 동기화 등) 넣지 않습니다."))
+                }
+            }
+        }
+        .task { loadCalendars() }
+    }
+
+    private func loadCalendars() {
+        calendarAccess = MacCalendar.shared.hasAccess
+        calendars = MacCalendar.shared.writableCalendars().map { (id: $0.calendarIdentifier, title: "\($0.title) — \($0.source.title)") }
     }
 }
 

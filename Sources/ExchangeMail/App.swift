@@ -126,6 +126,8 @@ struct MenuSnapshot: Equatable {
     var moveTargets: [MoveTarget] = []
     /// 메일상자 내보내기 중 (S-053)
     var exporting = false
+    /// 본문 메일이 회의 초대다 (S-056 맥 캘린더에 추가)
+    var isMeeting = false
     /// 사이드바에서 나의 Mac에 상자를 골랐다 (S-055)
     var localSelected = false
 
@@ -372,6 +374,10 @@ struct MailCommands: Commands {
         Button(L("첨부 파일로 전달")) { if let d = model.forwardAsAttachmentDraft() { openWindow(id: "compose", value: d) } }
             .keyboardShortcut("f", modifiers: [.command, .shift, .option])
             .disabled(reader != nil || !menu.hasMessage)
+        // 회의 초대를 맥 캘린더에 (S-056)
+        Button(L("맥 캘린더에 추가")) { Task { await model.addMeetingToMacCalendar() } }
+            .keyboardShortcut("k", modifiers: [.command, .option])
+            .disabled(reader != nil || !menu.isMeeting)
         Button(L("첨부 훑어보기")) {
             if let reader { reader.previewFirstAttachment(model: model) } else { model.previewFirstAttachment() }
         }

@@ -527,6 +527,20 @@ struct MeetingBar: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            // 맥 캘린더 (S-056): 넣었으면 그 결과, 아니면 직접 넣는 단추
+            if let text = model.macCalendarStatus[event.id]?.label {
+                Label(text, systemImage: "calendar.badge.checkmark")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                Button(L("맥 캘린더에 추가"), systemImage: "calendar.badge.plus") {
+                    Task { await model.addMeetingToMacCalendar() }
+                }
+                .labelStyle(.iconOnly)
+                .controlSize(.small)
+                .help(L("이 회의를 맥 캘린더에 넣습니다 (⌥⌘K)"))
+            }
             // 응답 뒤 일정 확인 결과가 있으면 Outlook 웹 일정에서 바로 확인한다 (S-038)
             if let link = model.meetingCheck?.webLink {
                 Button(L("일정에서 보기")) { NSWorkspace.shared.open(link) }
