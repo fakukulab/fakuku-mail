@@ -74,10 +74,20 @@ struct MailSplitView: View {
             FolderSidebar()
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220)
         } content: {
-            MessageListView()
-                .navigationSplitViewColumnWidth(min: 280, ideal: 360)
+            // 나의 Mac에 상자를 고르면 이 Mac의 파일에서 읽은 목록과 본문 (S-055)
+            if model.selectedLocalBox != nil {
+                LocalMailList()
+                    .navigationSplitViewColumnWidth(min: 280, ideal: 360)
+            } else {
+                MessageListView()
+                    .navigationSplitViewColumnWidth(min: 280, ideal: 360)
+            }
         } detail: {
-            MessageDetailView()
+            if model.selectedLocalBox != nil {
+                LocalMailDetail()
+            } else {
+                MessageDetailView()
+            }
         }
         // 검색 칸은 본문 열 도구 막대 오른쪽의 MailSearchField (Views/MailSearchField.swift).
         // 시스템 .searchable은 쓰지 않는다: 도구 막대에 두면 사용자화 시트가 그 칸을 그리다 앱이 꺼지고(macOS 27),
@@ -162,9 +172,29 @@ struct FolderSidebar: View {
                         .contextMenu { folderMenu(folder) }
                 }
             }
+            // 나의 Mac에 (S-055): 가져온 메일상자. 서버와 상관없이 이 Mac에 저장되어 있다.
+            if !model.localBoxes.boxes.isEmpty {
+                Section(L("나의 Mac에")) {
+                    ForEach(model.localBoxes.boxes) { box in
+                        Label(box.name, systemImage: "tray.full")
+                            .tag(box.sidebarID)
+                            .help(L("이 Mac에 저장한 메일 \(box.count)통"))
+                            .contextMenu {
+                                Button(L("이름 변경…")) { model.renameLocal(box) }
+                                Button(L("메일상자 내보내기…")) { model.exportLocal(box) }
+                                Button(L("Finder에서 보기")) {
+                                    NSWorkspace.shared.activateFileViewerSelecting([model.localBoxes.fileURL(box)])
+                                }
+                                Divider()
+                                Button(L("메일상자 지우기…"), role: .destructive) { model.removeLocal(box) }
+                            }
+                    }
+                }
+            }
         }
         .contextMenu {
             Button(L("새 폴더…")) { newFolder(parent: nil) }
+            Button(L("메일상자 가져오기…")) { model.importLocalMailbox() }
             Button(L("새 스마트 메일상자…")) { model.newSmartMailbox() }
         }
         .overlay {

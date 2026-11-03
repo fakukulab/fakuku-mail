@@ -85,6 +85,8 @@ final class AppModel {
     var progressText: String?
     /// 메일상자 내보내기 중 (S-053)
     var archiveExporting = false { didSet { updateMenu() } }
+    /// 나의 Mac에 (S-055): 가져온 메일상자. 로그아웃해도 남는다.
+    let localBoxes = LocalMailboxStore(directory: Store.directory.appending(path: "local", directoryHint: .isDirectory))
     @ObservationIgnored var exportTask: Task<Void, Never>?
     /// 차단된 보낸 사람 서버 규칙 (설정 > 정크 메일). 아직 읽지 않았으면 nil.
     var blockedRule: MessageRule?
@@ -297,7 +299,8 @@ final class AppModel {
         }
         await loadFolders()
         categories = (try? await service.categories()) ?? []
-        if selectedFolderID == nil || !folders.contains(where: { $0.id == selectedFolderID }) {
+        if selectedFolderID == nil
+            || (!folders.contains(where: { $0.id == selectedFolderID }) && selectedLocalBox == nil) {
             // didSet이 목록을 불러온다.
             selectedFolderID = folders.first { $0.kind == "inbox" }?.id ?? folders.first?.id
         } else {
@@ -327,6 +330,13 @@ final class AppModel {
 
     func loadMessages(keepSelection: Bool = false) async {
         guard let folderID = selectedFolderID else { return }
+        // 나의 Mac에 (S-055): 서버가 아니라 이 Mac의 파일에서 읽는다.
+        if let localID = LocalMailbox.id(fromSidebar: folderID) {
+            messages = []
+            selection = []
+            await localBoxes.open(localID)
+            return
+        }
         let search = searchText.trimmingCharacters(in: .whitespaces)
         // 비어 있으면 저장된 목록을 먼저 보여 주고 서버 응답으로 바꾼다 (S-026).
         if messages.isEmpty, search.isEmpty, let saved = cachedService?.cache?.list(folderID: folderID) {
@@ -691,10 +701,12 @@ final class AppModel {
             lastMoveTitle: lastMoveTarget?.title,
             isMuted: selectionIsMuted,
             importance: detail?.importance,
-            inServerFolder: isSignedIn && selectedFolderID != nil && !VirtualMailbox.isVirtual(selectedFolderID),
-            folderEditable: selectedEditableFolder != nil,
+            inServerFolder: isSignedIn && selectedFolderID != nil && !VirtualMailbox.isVirtual(selectedFolderID)
+                && selectedLocalBox == nil,
+            folderEditable: selectedEditableFolder != nil || selectedLocalBox != nil,
             smartSelected: { if case .smart = selectedVirtual { return true } else { return false } }(),
             moveTargets: moveTargets,
-            exporting: archiveExporting))
+            exporting: archiveExporting,
+            localSelected: selectedLocalBox != nil))
     }
 }

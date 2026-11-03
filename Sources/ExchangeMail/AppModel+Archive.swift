@@ -105,13 +105,76 @@ extension AppModel {
         }
     }
 
-    // MARK: 메일 파일 열기
+    // MARK: 나의 Mac에 (S-055)
 
-    /// 파일 > 메일상자 가져오기… : .mbox, .eml (맥 Mail이 내보낸 .mbox 폴더도)
+    /// 사이드바에서 고른 나의 Mac에 상자
+    var selectedLocalBox: LocalMailbox? {
+        LocalMailbox.id(fromSidebar: selectedFolderID).flatMap { id in localBoxes.boxes.first { $0.id == id } }
+    }
+
+    /// 파일 > 메일상자 가져오기… : 고른 파일·폴더의 메일을 앱 안(나의 Mac에)에 저장하고 그 상자를 연다.
+    func importLocalMailbox() {
+        guard let url = Self.chooseArchive() else { return }
+        Task { await importLocalMailbox(from: url) }
+    }
+
+    @discardableResult
+    func importLocalMailbox(from url: URL) async -> LocalMailbox? {
+        progressText = L("\"\(url.lastPathComponent)\" 가져오는 중…")
+        defer { progressText = nil }
+        do {
+            let box = try await localBoxes.importMailbox(from: url)
+            if box.count == 0 {
+                noticeMessage = L("\"\(url.lastPathComponent)\"에서 메일을 찾지 못했습니다. mbox, eml, emlx 파일인지 확인하세요.")
+            }
+            selectedFolderID = box.sidebarID
+            updateMenu()
+            return box
+        } catch {
+            errorMessage = L("메일상자를 가져오지 못했습니다: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func renameLocal(_ box: LocalMailbox) {
+        if let name = TextPrompt.ask(L("메일상자 이름 변경"), initial: box.name, confirm: L("변경")) {
+            localBoxes.rename(box.id, to: name)
+        }
+    }
+
+    func removeLocal(_ box: LocalMailbox) {
+        guard TextPrompt.confirm(L("\"\(box.name)\" 메일상자를 지울까요?"),
+                                 message: L("이 Mac에 저장한 메일 \(box.count)통이 지워집니다. 서버의 메일과는 상관없습니다."),
+                                 action: L("지우기")) else { return }
+        localBoxes.remove(box.id)
+        if selectedFolderID == box.sidebarID {
+            selectedFolderID = folders.first { $0.kind == "inbox" }?.id ?? folders.first?.id
+        }
+        updateMenu()
+    }
+
+    /// 나의 Mac에 상자를 .mbox 파일로 내보낸다 (저장된 파일을 복사).
+    func exportLocal(_ box: LocalMailbox) {
+        let panel = NSSavePanel()
+        panel.title = L("메일상자 내보내기")
+        panel.prompt = L("내보내기")
+        panel.nameFieldStringValue = "\(box.name).mbox"
+        panel.allowedContentTypes = [Self.mboxType]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try? FileManager.default.removeItem(at: url)
+            try FileManager.default.copyItem(at: localBoxes.fileURL(box), to: url)
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// 파일 고르기: .mbox, .eml, .emlx (맥 Mail이 내보낸 .mbox 폴더도)
     static func chooseArchive() -> URL? {
         let panel = NSOpenPanel()
         panel.title = L("메일상자 가져오기")
-        panel.message = L("mbox 파일, 맥 Mail이 내보낸 .mbox 폴더, eml 파일을 고르세요.")
+        panel.message = L("가져온 메일은 이 Mac의 FAKUKU Mail 안에 저장되어 사이드바 '나의 Mac에'에서 언제든 볼 수 있습니다.")
         panel.prompt = L("가져오기")
         panel.allowedContentTypes = [mboxType, emlType, UTType(filenameExtension: "emlx") ?? .data, .emailMessage]
         panel.canChooseDirectories = true
@@ -123,17 +186,19 @@ extension AppModel {
 
 /// 보관 파일 읽기 (메인 스레드 밖에서)
 nonisolated enum ArchiveFile {
-    /// 파일 하나(.mbox, .eml, .emlx) 또는 폴더.
-    /// 맥 Mail이 내보낸 .mbox는 폴더이고 안의 "mbox" 파일에 메일이 있다.
-    /// 그 파일이 없는 폴더(맥 Mail 저장소의 .mbox, eml 모음)는 안의 .emlx·.eml을 모두 읽는다.
+    /// 파일 하나(.mbox, .eml, .emlx) 또는 폴더의 메일 (최근 메일부터)
     static func load(_ url: URL) throws -> [ArchivedMail] {
+        MailArchive.read(messages: try rawMessages(url))
+    }
+
+    /// 메일 원본들. 맥 Mail이 내보낸 .mbox는 폴더이고 안의 "mbox" 파일에 메일이 있다.
+    /// 그 파일이 없는 폴더(맥 Mail 저장소의 .mbox, eml 모음)는 안의 .emlx·.eml·.mbox를 모두 읽는다.
+    static func rawMessages(_ url: URL) throws -> [Data] {
         var isDirectory: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
-        guard isDirectory.boolValue else { return MailArchive.read(messages: try messages(in: url)) }
+        guard isDirectory.boolValue else { return try messages(in: url) }
         let mbox = url.appending(path: "mbox")
-        if FileManager.default.fileExists(atPath: mbox.path) {
-            return MailArchive.read(try Data(contentsOf: mbox, options: .mappedIfSafe))
-        }
+        if FileManager.default.fileExists(atPath: mbox.path) { return try messages(in: mbox) }
         var all: [Data] = []
         let files = FileManager.default.enumerator(at: url, includingPropertiesForKeys: nil)
         while let file = files?.nextObject() as? URL {
@@ -142,7 +207,7 @@ nonisolated enum ArchiveFile {
             FileManager.default.fileExists(atPath: file.path, isDirectory: &dir)
             if !dir.boolValue { all += (try? messages(in: file)) ?? [] }
         }
-        return MailArchive.read(messages: all)
+        return all
     }
 
     /// 파일 하나의 메일 원본들

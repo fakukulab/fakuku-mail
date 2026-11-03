@@ -931,6 +931,35 @@ enum SelfTest {
                 let partial = Store.directory.appending(path: ".selftest-export.mbox.part")
                 check("S-053 작업용 반쪽 파일이 남지 않는다", !FileManager.default.fileExists(atPath: partial.path))
                 check("S-053 내보내기가 끝나면 메뉴가 다시 내보내기로", !model.archiveExporting && !MenuState.shared.snapshot.exporting)
+
+                // S-055: 내보낸 파일을 나의 Mac에 가져와 앱 안에 보관한다
+                let imported = await model.importLocalMailbox(from: file)
+                check("S-055 가져오면 나의 Mac에 상자가 생기고 고른다",
+                      imported != nil && model.selectedLocalBox?.id == imported?.id && imported?.count == archived.count)
+                try? await Task.sleep(for: .seconds(0.5))
+                check("S-055 고른 상자의 메일을 이 Mac의 파일에서 읽는다",
+                      model.localBoxes.mails.count == archived.count && model.localBoxes.selectedMail != nil
+                      && model.messages.isEmpty, "\(model.localBoxes.mails.count)통")
+                check("S-055 서버 폴더 메뉴는 끄고 내보내기·이름 변경은 켠다",
+                      !MenuState.shared.snapshot.inServerFolder && MenuState.shared.snapshot.localSelected
+                      && MenuState.shared.snapshot.folderEditable)
+                let reopened = LocalMailboxStore(directory: model.localBoxes.directory)
+                check("S-055 앱을 다시 켜도 남는다 (목록과 파일)",
+                      reopened.boxes.contains { $0.id == imported?.id }
+                      && imported.map { FileManager.default.fileExists(atPath: reopened.fileURL($0).path) } == true)
+                model.localBoxes.searchText = archived.first?.subject ?? ""
+                check("S-055 상자 안에서 검색", !model.localBoxes.filtered.isEmpty
+                      && model.localBoxes.filtered.count <= model.localBoxes.mails.count)
+                model.localBoxes.searchText = ""
+                if let imported {
+                    model.localBoxes.rename(imported.id, to: "보관 2006")
+                    check("S-055 이름 변경", model.localBoxes.boxes.first { $0.id == imported.id }?.name == "보관 2006")
+                    let path = model.localBoxes.fileURL(imported).path
+                    model.localBoxes.remove(imported.id)
+                    check("S-055 지우면 목록과 파일이 없어진다",
+                          !model.localBoxes.boxes.contains { $0.id == imported.id } && !FileManager.default.fileExists(atPath: path))
+                }
+                model.selectedFolderID = "inbox"
             }
 
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")

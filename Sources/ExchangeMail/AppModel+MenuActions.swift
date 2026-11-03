@@ -145,7 +145,7 @@ extension AppModel {
         if !mailboxes.vips.isEmpty {
             ids += [VirtualMailbox.allVIPsID] + mailboxes.vips.map { VirtualMailbox.id(forVIP: $0.address) }
         }
-        return ids + folders.map(\.id)
+        return ids + folders.map(\.id) + localBoxes.boxes.map(\.sidebarID)
     }
 
     /// 이전·다음 메일상자 (⌃⌘[, ⌃⌘])

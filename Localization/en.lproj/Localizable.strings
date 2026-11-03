@@ -802,3 +802,21 @@
 "찾을 말" = "Search For";
 "읽지 않은 메일" = "Unread Mail";
 "VIP 메일" = "VIP Mail";
+
+/* S-055 나의 Mac에 */
+"\"%@\" 가져오는 중…" = "Importing “%@”…";
+"\"%@\" 메일상자를 지울까요?" = "Delete the mailbox “%@”?";
+"\"%@\"에서 메일을 찾지 못했습니다. mbox, eml, emlx 파일인지 확인하세요." = "No messages were found in “%@”. Check that it’s an mbox, eml, or emlx file.";
+"%@통 · 나의 Mac에" = "%@ messages · On My Mac";
+"Finder에서 보기" = "Show in Finder";
+"가져온 메일" = "Imported Mail";
+"가져온 메일은 이 Mac의 FAKUKU Mail 안에 저장되어 사이드바 '나의 Mac에'에서 언제든 볼 수 있습니다." = "Imported mail is saved in FAKUKU Mail on this Mac, so you can read it any time under “On My Mac” in the sidebar.";
+"나의 Mac에" = "On My Mac";
+"메일상자 이름 변경" = "Rename Mailbox";
+"메일상자 지우기…" = "Delete Mailbox…";
+"메일상자를 가져오지 못했습니다: %@" = "Couldn’t import the mailbox: %@";
+"메일상자를 열 수 없습니다" = "Can’t Open Mailbox";
+"이 Mac에 저장한 메일 %@통" = "%@ messages saved on this Mac";
+"이 Mac에 저장한 메일 %@통이 지워집니다. 서버의 메일과는 상관없습니다." = "The %@ messages saved on this Mac will be deleted. Mail on the server isn’t affected.";
+"이 메일상자에 메일이 없습니다." = "There are no messages in this mailbox.";
+"이 메일상자에서 검색" = "Search This Mailbox";

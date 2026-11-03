@@ -81,16 +81,6 @@ struct ExchangeMailApp: App {
         }
         .defaultSize(width: 760, height: 640)
 
-        // 메일 파일 (S-053): 내 Mac의 .mbox·.eml 파일을 읽기 전용으로 본다.
-        WindowGroup(L("메일 파일"), id: "archive", for: URL.self) { $url in
-            ArchiveWindow(url: url)
-                .environment(model)
-                .themed()
-                .frame(minWidth: 760, minHeight: 480)
-        }
-        .defaultSize(width: 1100, height: 720)
-        .windowToolbarStyle(.unified)
-
         Settings {
             SettingsView()
                 .environment(model)
@@ -136,6 +126,8 @@ struct MenuSnapshot: Equatable {
     var moveTargets: [MoveTarget] = []
     /// 메일상자 내보내기 중 (S-053)
     var exporting = false
+    /// 사이드바에서 나의 Mac에 상자를 골랐다 (S-055)
+    var localSelected = false
 
     var filterActive: Bool { filter.isActive }
 }
@@ -173,10 +165,8 @@ struct MailCommands: Commands {
         // S-053: 내 Mac에 보관한 메일(.mbox, .eml)을 연다. 맥 Mail처럼 파일 메뉴에 따로 둔다. 로그인하지 않아도 된다.
         CommandGroup(after: .newItem) {
             Divider()
-            Button(L("메일상자 가져오기…")) {
-                if let url = AppModel.chooseArchive() { openWindow(id: "archive", value: url) }
-            }
-            .keyboardShortcut("o", modifiers: [.command, .option])
+            Button(L("메일상자 가져오기…")) { model.importLocalMailbox() }
+                .keyboardShortcut("o", modifiers: [.command, .option])
             Divider()
         }
         CommandGroup(after: .sidebar) { viewMenu }
@@ -295,14 +285,18 @@ struct MailCommands: Commands {
         .keyboardShortcut("n", modifiers: [.command, .control])
         .disabled(!menu.signedIn)
         Button(L("폴더 이름 변경…")) {
-            if let folder = model.selectedEditableFolder,
+            if let box = model.selectedLocalBox {
+                model.renameLocal(box)
+            } else if let folder = model.selectedEditableFolder,
                let name = TextPrompt.ask(L("폴더 이름 변경"), initial: folder.displayName, confirm: L("변경")) {
                 Task { await model.renameFolder(folder, to: name) }
             }
         }
         .disabled(!menu.folderEditable)
         Button(L("폴더 지우기…")) {
-            if let folder = model.selectedEditableFolder,
+            if let box = model.selectedLocalBox {
+                model.removeLocal(box)
+            } else if let folder = model.selectedEditableFolder,
                TextPrompt.confirm(L("\"\(folder.displayName)\" 폴더를 지울까요?"),
                                   message: L("폴더와 안의 메일, 하위 폴더가 지운 편지함으로 옮겨집니다."), action: L("지우기")) {
                 Task { await model.deleteFolder(folder) }
@@ -317,11 +311,9 @@ struct MailCommands: Commands {
         } else {
             Button(L("메일상자 내보내기…")) { model.exportSelectedMailbox() }
                 .keyboardShortcut("e", modifiers: [.command, .option])
-                .disabled(!menu.inServerFolder)
+                .disabled(!menu.inServerFolder && !menu.localSelected)
         }
-        Button(L("메일상자 가져오기…")) {
-            if let url = AppModel.chooseArchive() { openWindow(id: "archive", value: url) }
-        }
+        Button(L("메일상자 가져오기…")) { model.importLocalMailbox() }
         Divider()
         Button(L("새 스마트 메일상자…")) { model.newSmartMailbox() }
             .keyboardShortcut("n", modifiers: [.command, .option])
