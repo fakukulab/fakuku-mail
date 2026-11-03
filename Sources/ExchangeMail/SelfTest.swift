@@ -959,6 +959,8 @@ enum SelfTest {
                 check("S-055 서버 폴더 메뉴는 끄고 내보내기·이름 변경은 켠다",
                       !MenuState.shared.snapshot.inServerFolder && MenuState.shared.snapshot.localSelected
                       && MenuState.shared.snapshot.folderEditable)
+                check("S-055 가져올 때 목록 색인을 만들어 둔다 (열 때 파일 전체를 다시 읽지 않게)",
+                      imported.map { FileManager.default.fileExists(atPath: model.localBoxes.summaryURL($0.id).path) } == true)
                 let reopened = LocalMailboxStore(directory: model.localBoxes.directory)
                 check("S-055 앱을 다시 켜도 남는다 (목록과 파일)",
                       reopened.boxes.contains { $0.id == imported?.id }

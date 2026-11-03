@@ -26,27 +26,27 @@ nonisolated struct LocalMailbox: Codable, Identifiable, Hashable, Sendable {
 @Observable
 final class LocalMailboxStore {
     private(set) var boxes: [LocalMailbox] = []
-    /// 지금 연 상자와 그 메일
+    /// 지금 연 상자와 그 목록(요약). 본문·첨부는 고른 메일 한 통만 읽는다.
     private(set) var openedID: String?
-    private(set) var mails: [ArchivedMail] = []
+    private(set) var mails: [ArchivedSummary] = []
     private(set) var isLoading = false
     private(set) var failure: String?
-    /// 목록에서 고른 메일
-    var selection: ArchivedMail.ID?
+    /// 목록에서 고른 메일. 바뀌면 그 메일을 파일에서 읽는다.
+    var selection: ArchivedSummary.ID? {
+        didSet {
+            guard selection != oldValue else { return }
+            if let openedID { selections[openedID] = selection }
+            loadSelected()
+        }
+    }
+    /// 고른 메일 (본문·첨부까지)
+    private(set) var selectedMail: ArchivedMail?
 
     @ObservationIgnored let directory: URL
     private var indexURL: URL { directory.appending(path: "index.json") }
-
-    /// 한 번 읽은 상자는 기억한다: 다른 상자를 갔다 와도 파일을 다시 읽지 않는다 (최근 4개).
-    private struct Loaded {
-        var mails: [ArchivedMail]
-        /// 메일 id → 검색용 글 (MailArchive.searchText)
-        var search: [Int: String]
-        var selection: ArchivedMail.ID?
-    }
-    @ObservationIgnored private var loaded: [String: Loaded] = [:]
-    @ObservationIgnored private var recent: [String] = []
-    @ObservationIgnored private var search: [Int: String] = [:]
+    /// 상자마다 마지막으로 고른 메일
+    @ObservationIgnored private var selections: [String: ArchivedSummary.ID] = [:]
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
 
     init(directory: URL) {
         self.directory = directory
@@ -58,22 +58,23 @@ final class LocalMailboxStore {
     }
 
     func fileURL(_ box: LocalMailbox) -> URL { directory.appending(path: box.fileName) }
+    /// 목록 색인: <id>.index-v<n>.json
+    func summaryURL(_ id: String) -> URL { directory.appending(path: "\(id).index-v\(ArchiveIndex.version).json") }
 
     /// 검색: 메인 창 도구 막대의 검색 칸 글로 거른다. 제목·사람·본문·첨부 이름, 낱말이 모두 들어 있어야.
-    func filtered(_ query: String) -> [ArchivedMail] {
+    func filtered(_ query: String) -> [ArchivedSummary] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return mails }
-        return mails.filter { MailArchive.matches(search[$0.id] ?? MailArchive.searchText($0), query: q) }
+        return mails.filter { MailArchive.matches($0.search, query: q) }
     }
-
-    var selectedMail: ArchivedMail? { mails.first { $0.id == selection } }
 
     // MARK: 가져오기
 
-    /// 파일(.mbox, .eml, .emlx)이나 폴더의 메일을 앱 안에 mbox로 저장하고 목록에 넣는다.
+    /// 파일(.mbox, .eml, .emlx)이나 폴더의 메일을 앱 안에 mbox로 저장하고, 목록 색인을 만들어 둔다.
     func importMailbox(from url: URL) async throws -> LocalMailbox {
         let id = UUID().uuidString
         let target = directory.appending(path: "\(id).mbox")
+        let indexFile = summaryURL(id)
         let dir = directory
         let count = try await Task.detached(priority: .userInitiated) { () throws -> Int in
             let raw = try ArchiveFile.rawMessages(url)
@@ -83,7 +84,9 @@ final class LocalMailboxStore {
                 out.append(MailArchive.mboxEntry(message, date: MailArchive.parse(message).date))
             }
             try out.write(to: target, options: .atomic)
-            return raw.count
+            let summaries = ArchiveIndex.summaries(ofMbox: out)
+            try ArchiveIndex.encode(summaries).write(to: indexFile, options: .atomic)
+            return summaries.count
         }.value
         var name = url.deletingPathExtension().lastPathComponent
         if name.isEmpty { name = L("가져온 메일") }
@@ -102,47 +105,52 @@ final class LocalMailboxStore {
 
     // MARK: 열기
 
-    /// 상자의 메일을 읽는다. 이미 열려 있거나 전에 읽었으면 파일을 다시 읽지 않는다.
+    /// 상자를 연다: 색인만 읽으므로 바로 보인다. 색인이 없으면(예전에 가져온 상자) 한 번 만들어 저장한다.
     func open(_ id: String) async {
         if openedID == id && failure == nil && !mails.isEmpty { return }
         guard let box = boxes.first(where: { $0.id == id }) else { return }
-        // 지금 상자의 고른 메일을 기억해 둔다.
-        if let current = openedID { loaded[current]?.selection = selection }
         openedID = id
         failure = nil
-        if let cached = loaded[id] {
-            mails = cached.mails
-            search = cached.search
-            selection = cached.selection ?? cached.mails.first?.id
-            touch(id)
-            return
-        }
         mails = []
-        search = [:]
-        selection = nil
+        selectedMail = nil
         isLoading = true
         defer { isLoading = false }
-        let url = fileURL(box)
+        let file = fileURL(box)
+        let indexFile = summaryURL(id)
         do {
-            let (list, index) = try await Task.detached(priority: .userInitiated) { () throws -> ([ArchivedMail], [Int: String]) in
-                let list = try ArchiveFile.load(url)
-                return (list, Dictionary(uniqueKeysWithValues: list.map { ($0.id, MailArchive.searchText($0)) }))
+            let list = try await Task.detached(priority: .userInitiated) { () throws -> [ArchivedSummary] in
+                if let data = try? Data(contentsOf: indexFile), let list = try? ArchiveIndex.decode(data) { return list }
+                let summaries = ArchiveIndex.summaries(ofMbox: try Data(contentsOf: file, options: .mappedIfSafe))
+                try? ArchiveIndex.encode(summaries).write(to: indexFile, options: .atomic)
+                return summaries
             }.value
-            loaded[id] = Loaded(mails: list, search: index, selection: list.first?.id)
-            touch(id)
             guard openedID == id else { return }
             mails = list
-            search = index
-            selection = list.first?.id
+            let remembered = selections[id].flatMap { s in list.contains { $0.id == s } ? s : nil }
+            selection = remembered ?? list.first?.id
+            loadSelected()
         } catch {
             failure = error.localizedDescription
         }
     }
 
-    private func touch(_ id: String) {
-        recent.removeAll { $0 == id }
-        recent.append(id)
-        while recent.count > 4 { loaded[recent.removeFirst()] = nil }
+    /// 고른 메일 한 통만 파일에서 읽어 해석한다 (메인 스레드 밖에서).
+    private func loadSelected() {
+        loadTask?.cancel()
+        guard let id = selection, let summary = mails.first(where: { $0.id == id }),
+              let box = boxes.first(where: { $0.id == openedID }) else {
+            selectedMail = nil
+            return
+        }
+        if selectedMail?.id == id { return }
+        let file = fileURL(box)
+        loadTask = Task { [weak self] in
+            let mail = await Task.detached(priority: .userInitiated) {
+                try? ArchiveIndex.message(summary, inFile: file)
+            }.value
+            guard !Task.isCancelled, let self, self.selection == id else { return }
+            self.selectedMail = mail
+        }
     }
 
     // MARK: 이름 바꾸기, 지우기
@@ -157,10 +165,15 @@ final class LocalMailboxStore {
     func remove(_ id: String) {
         guard let box = boxes.first(where: { $0.id == id }) else { return }
         try? FileManager.default.removeItem(at: fileURL(box))
+        try? FileManager.default.removeItem(at: summaryURL(id))
         boxes.removeAll { $0.id == id }
-        loaded[id] = nil
-        recent.removeAll { $0 == id }
-        if openedID == id { openedID = nil; mails = []; search = [:]; selection = nil }
+        selections[id] = nil
+        if openedID == id {
+            openedID = nil
+            mails = []
+            selectedMail = nil
+            selection = nil
+        }
         try? save()
     }
 

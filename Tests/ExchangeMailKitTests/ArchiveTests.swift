@@ -155,3 +155,25 @@ func archiveSearch() {
     #expect(!MailArchive.matches(text, query: "회의 없는말"))
     #expect(!MailArchive.matches(text, query: "  "))
 }
+
+@Test("목록 색인: 메일마다 위치와 요약, 그 위치에서 한 통만 다시 읽는다")
+func archiveIndex() throws {
+    let second = "From: b@example.com\r\nSubject: 둘째\r\nDate: Tue, 3 Nov 2026 09:00:00 +0900\r\n\r\nFrom here on\r\n"
+    var mbox = MailArchive.mboxEntry(Data(sample.utf8), date: nil)
+    mbox.append(MailArchive.mboxEntry(Data(second.utf8), date: nil))
+    #expect(ArchiveIndex.entryRanges(mbox).count == 2)
+    let list = ArchiveIndex.summaries(ofMbox: mbox)
+    #expect(list.map(\.subject) == ["둘째", "회의 자료"])   // 최근 메일부터
+    let first = try #require(list.first { $0.subject == "회의 자료" })
+    #expect(first.hasAttachments && first.preview.hasPrefix("안녕"))
+    #expect(MailArchive.matches(first.search, query: "보고서"))
+    let back = try ArchiveIndex.decode(ArchiveIndex.encode(list))
+    #expect(back == list)
+    let url = FileManager.default.temporaryDirectory.appending(path: "archive-index-test.mbox")
+    try mbox.write(to: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+    let mail = try ArchiveIndex.message(first, inFile: url)
+    #expect(mail.subject == "회의 자료" && mail.attachments.count == 2 && mail.id == first.id)
+    let other = try ArchiveIndex.message(try #require(list.first { $0.subject == "둘째" }), inFile: url)
+    #expect(other.text == "From here on\n")
+}

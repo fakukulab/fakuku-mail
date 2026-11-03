@@ -37,9 +37,9 @@ struct LocalMailList: View {
     }
 }
 
-/// 가져온 메일 한 줄: 보낸 사람, 날짜, 제목, 첨부 표시, 미리보기
+/// 가져온 메일 한 줄: 보낸 사람, 날짜, 제목, 첨부 표시, 미리보기 (색인에 미리 만들어 둔 글)
 struct ArchivedMailRow: View {
-    let mail: ArchivedMail
+    let mail: ArchivedSummary
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
@@ -58,13 +58,13 @@ struct ArchivedMailRow: View {
             HStack(spacing: Space.xs) {
                 Text(mail.title)
                     .lineLimit(1)
-                if mail.attachments.contains(where: { !$0.isInline }) {
+                if mail.hasAttachments {
                     Image(systemName: "paperclip")
                         .foregroundStyle(.secondary)
                         .accessibilityLabel(L("첨부 있음"))
                 }
             }
-            Text(MailArchive.preview(mail))
+            Text(mail.preview)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
@@ -92,6 +92,9 @@ struct LocalMailDetail: View {
     var body: some View {
         if let mail = model.localBoxes.selectedMail {
             ArchivedMailView(mail: mail, css: readingStyle.css)
+        } else if model.localBoxes.selection != nil {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView(L("메일을 고르세요"), systemImage: "envelope")
         }

@@ -112,3 +112,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인: 가운데·오른쪽 열의 뷰를 `if`로 통째로 바꿨다. 그 열에 달린 사용자화 도구 막대(`.toolbar(id: "mail")`) 항목이 빠졌다 들어가며 AppKit이 도구 막대를 다시 짜다 예외.
 - 고침: 열 뷰(MessageListView, MessageDetailView)는 그대로 두고 나의 Mac에 화면을 `.overlay`로 덮는다. 제목은 model.listTitle.
 - 규칙: `.toolbar(id:)`가 달린 열이나 창의 뷰는 조건에 따라 바꾸지 않는다. 안의 내용만 바꾸거나 덮는다.
+
+## 2026-11-03 나의 Mac에 상자를 열 때마다 다시 읽음
+- 증상: 상자를 고를 때마다 "메일을 읽는 중…"이 반복되고 느리다 (상자가 여러 개일 때 특히).
+- 원인: 열 때마다 mbox 전체를 첨부까지 해석했고, 메모리에 기억하는 상자는 최근 4개뿐이었다. 목록 미리보기도 그릴 때마다 HTML에서 뽑았다.
+- 고침: 가져올 때 목록 색인(<id>.index-v1.json: 요약, 미리보기, 검색 글, 파일 안 위치)을 만들어 두고 열 때는 색인만 읽는다.
+  본문·첨부는 고른 메일 한 통만 그 위치에서 읽는다 (ArchiveIndex). 예전에 가져온 상자는 처음 열 때 한 번 색인을 만든다.
