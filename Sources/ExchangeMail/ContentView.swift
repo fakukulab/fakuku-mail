@@ -74,20 +74,25 @@ struct MailSplitView: View {
             FolderSidebar()
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220)
         } content: {
-            // 나의 Mac에 상자를 고르면 이 Mac의 파일에서 읽은 목록과 본문 (S-055)
-            if model.selectedLocalBox != nil {
-                LocalMailList()
-                    .navigationSplitViewColumnWidth(min: 280, ideal: 360)
-            } else {
-                MessageListView()
-                    .navigationSplitViewColumnWidth(min: 280, ideal: 360)
-            }
+            // 나의 Mac에 상자를 고르면 이 Mac의 파일에서 읽은 목록과 본문을 위에 덮는다 (S-055).
+            // 열의 뷰를 통째로 바꾸면 그 열의 사용자화 도구 막대(.toolbar(id:))가 빠졌다 들어가며
+            // AppKit이 도구 막대를 다시 짜다 앱이 꺼진다(NSToolbarItemViewer). 그래서 열 뷰는 그대로 두고 덮는다.
+            MessageListView()
+                .overlay {
+                    if model.selectedLocalBox != nil {
+                        LocalMailList()
+                            .background(.background)
+                    }
+                }
+                .navigationSplitViewColumnWidth(min: 280, ideal: 360)
         } detail: {
-            if model.selectedLocalBox != nil {
-                LocalMailDetail()
-            } else {
-                MessageDetailView()
-            }
+            MessageDetailView()
+                .overlay {
+                    if model.selectedLocalBox != nil {
+                        LocalMailDetail()
+                            .background(.background)
+                    }
+                }
         }
         // 검색 칸은 본문 열 도구 막대 오른쪽의 MailSearchField (Views/MailSearchField.swift).
         // 시스템 .searchable은 쓰지 않는다: 도구 막대에 두면 사용자화 시트가 그 칸을 그리다 앱이 꺼지고(macOS 27),

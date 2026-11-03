@@ -106,3 +106,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인 3: 빌드 결과 폴더는 심볼릭 링크라 `find -L`로 찾는다.
 - 고침: build.sh가 위 옵션으로 빌드하고 tools/make_intents.sh가 메타데이터를 만든다 (Xcode 27B52에서 확인).
 - 규칙: 매개변수(@Parameter)가 있는 인텐트는 nonisolated struct로 둘 수 없다 → `@preconcurrency AppIntent`.
+
+## 2026-11-03 나의 Mac에 상자를 고르면 앱이 꺼짐 (도구 막대)
+- 증상: 메일상자를 가져와 고르자마자 종료. 충돌 위치 `-[NSToolbarItemViewer _configurePositioningConstraints]` → `-[__NSArrayM insertObject:atIndex:]`.
+- 원인: 가운데·오른쪽 열의 뷰를 `if`로 통째로 바꿨다. 그 열에 달린 사용자화 도구 막대(`.toolbar(id: "mail")`) 항목이 빠졌다 들어가며 AppKit이 도구 막대를 다시 짜다 예외.
+- 고침: 열 뷰(MessageListView, MessageDetailView)는 그대로 두고 나의 Mac에 화면을 `.overlay`로 덮는다. 제목은 model.listTitle.
+- 규칙: `.toolbar(id:)`가 달린 열이나 창의 뷰는 조건에 따라 바꾸지 않는다. 안의 내용만 바꾸거나 덮는다.

@@ -68,6 +68,7 @@ After adding text, run `tools/l10n.py` and add the English it reports; it prints
 - `Label` for icon and text pairs. SF Symbols for icons.
 - `ContentUnavailableView` for empty states.
 - Liquid Glass belongs to floating controls only, never to content.
+- Never swap a view that carries `.toolbar(id:)` (the main window's list and detail columns) with `if`: AppKit crashes rebuilding the customizable toolbar. Change or overlay its content instead (docs/FIXLOG.md).
 
 ## Skills
 

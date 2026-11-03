@@ -15,7 +15,7 @@ extension AppModel {
         case .allVIPs: "VIP"
         case .vip(let address): mailboxes.vip(address: address)?.title ?? address
         case .smart(let id): mailboxes.smart.first { $0.id == id }?.name ?? L("스마트 메일상자")
-        case nil: selectedFolder?.displayName ?? L("메일")
+        case nil: selectedLocalBox?.name ?? selectedFolder?.displayName ?? L("메일")
         }
     }
 

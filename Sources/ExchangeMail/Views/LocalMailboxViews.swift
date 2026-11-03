@@ -38,8 +38,8 @@ struct LocalMailList: View {
                 .padding(.horizontal, Space.md)
                 .padding(.vertical, Space.sm)
         }
-        .navigationTitle(box?.name ?? L("나의 Mac에"))
-        .navigationSubtitle(L("\(store.mails.count)통 · 나의 Mac에"))
+        // 창 제목은 목록 열(MessageListView)이 model.listTitle로 단다.
+        .accessibilityLabel(box?.name ?? L("나의 Mac에"))
     }
 }
 
