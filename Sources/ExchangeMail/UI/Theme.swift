@@ -97,6 +97,8 @@ enum Palette {
     static var accent: Color { ThemeStore.shared.theme.accent }
     static var accentText: Color { ThemeStore.shared.theme.accentText }
     static var onAccent: Color { ThemeStore.shared.theme.onAccent }
+    /// 강조색을 옅게 깐 배경 (지금 보고 있는 줄처럼 "여기"를 알리는 자리). 밝은·어두운 모드 모두 글자가 읽힌다.
+    static var accentFill: Color { ThemeStore.shared.theme.accent.opacity(0.18) }
 }
 
 extension View {

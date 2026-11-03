@@ -323,21 +323,33 @@ struct ThreadStrip: View {
     @AppStorage(Prefs.threadHeight) private var height = Prefs.threadHeightDefault
 
     var body: some View {
+        let rows = newestFirst ? Array(model.thread.reversed()) : model.thread
+        let position = rows.firstIndex { $0.id == model.displayedMessageID }.map { $0 + 1 }
         VStack(alignment: .leading, spacing: 0) {
-            Text(L("대화 \(model.thread.count)통"))
+            // "대화 5통 중 3번째": 지금 보는 메일의 자리
+            Text(position.map { L("대화 \(model.thread.count)통 중 \($0)번째") } ?? L("대화 \(model.thread.count)통"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, Space.margin)
                 .padding(.top, Space.sm)
                 .padding(.bottom, Space.xs)
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(newestFirst ? Array(model.thread.reversed()) : model.thread) { m in
-                        ThreadRow(message: m, isShown: m.id == model.displayedMessageID,
-                                  folderTag: model.folderTag(for: m), me: model.auth.email) {
-                            model.showInThread(m.id)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 2) {
+                        ForEach(rows) { m in
+                            ThreadRow(message: m, isShown: m.id == model.displayedMessageID,
+                                      folderTag: model.folderTag(for: m), me: model.auth.email) {
+                                model.showInThread(m.id)
+                            }
+                            .id(m.id)
                         }
                     }
+                    .padding(.horizontal, Space.sm)
+                }
+                // 대화가 길어도 지금 보는 줄이 보이게 스크롤한다.
+                .onAppear { if let id = model.displayedMessageID { proxy.scrollTo(id, anchor: .center) } }
+                .onChange(of: model.displayedMessageID) { _, id in
+                    if let id { withAnimation { proxy.scrollTo(id, anchor: .center) } }
                 }
             }
             .frame(maxHeight: height)
@@ -399,18 +411,25 @@ struct ThreadRow: View {
     var body: some View {
         Button(action: open) {
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
-                // 펼친 메일은 강조색 막대
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(isShown ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
-                    .frame(width: 2, height: 16)
                 Text(sender)
-                    .fontWeight(message.isUnread ? .semibold : .regular)
+                    .fontWeight(isShown || message.isUnread ? .semibold : .regular)
+                    .foregroundStyle(isShown ? AnyShapeStyle(Palette.accentText) : AnyShapeStyle(.primary))
                     .lineLimit(1)
                     .frame(width: 120, alignment: .leading)
                 Text(message.bodyPreview ?? message.title)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isShown ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
                 Spacer(minLength: Space.sm)
+                // 지금 보고 있는 메일: 강조색 꼬리표
+                if isShown {
+                    Label(L("보는 중"), systemImage: "eye.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.onAccent)
+                        .padding(.horizontal, Space.sm)
+                        .padding(.vertical, 2)
+                        .background(Palette.accent, in: Capsule())
+                        .fixedSize()
+                }
                 if let folderTag {
                     Text(folderTag)
                         .font(.caption)
@@ -424,10 +443,24 @@ struct ThreadRow: View {
                     .monospacedDigit()
             }
             .font(.callout)
-            .padding(.horizontal, Space.margin)
-            .padding(.vertical, Space.xs)
+            // 줄 바깥 여백(Space.sm)과 합쳐 본문 머리글의 왼쪽 선(Space.margin)에 맞춘다.
+            .padding(.leading, Space.margin - Space.sm + Space.xs)
+            .padding(.trailing, Space.margin - Space.sm)
+            .padding(.vertical, Space.sm)
             .contentShape(Rectangle())
-            .background(isShown ? AnyShapeStyle(.quaternary) : AnyShapeStyle(Color.clear))
+            // 지금 보고 있는 줄: 강조색 배경과 왼쪽의 굵은 막대
+            .background {
+                if isShown {
+                    RoundedRectangle(cornerRadius: Space.sm, style: .continuous)
+                        .fill(Palette.accentFill)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(Palette.accent)
+                                .frame(width: Space.xs)
+                                .padding(.vertical, Space.xs)
+                        }
+                }
+            }
         }
         .buttonStyle(.plain)
         .help(isShown ? L("지금 보고 있는 메일") : L("이 메일 펼치기"))
