@@ -25,7 +25,8 @@ struct MessageListView: View {
                 ForEach(conversations) { c in
                     ConversationRow(conversation: c, me: model.auth.email, vip: model.mailboxes.vip(for: c.latest),
                                     flagColor: c.messages.last(where: \.isFlagged).flatMap { model.flagColor(for: $0) },
-                                    previewLines: previewLines, boldUnread: boldUnread)
+                                    previewLines: previewLines, boldUnread: boldUnread,
+                                    knownCount: model.threadCounts[c.id])
                         .tag(c.latest.id)
                         .draggable(model.dragPayload(for: c.latest.id))
                         .onAppear {
@@ -313,6 +314,10 @@ struct ConversationRow: View {
     var flagColor: FlagColor? = nil
     var previewLines = 2
     var boldUnread = true
+    /// 대화를 열어 서버에서 확인한 수 (있으면 이것을 보인다)
+    var knownCount: Int? = nil
+
+    private var count: Int { knownCount ?? conversation.count }
 
     var body: some View {
         let latest = conversation.latest
@@ -330,13 +335,13 @@ struct ConversationRow: View {
                     Text(conversation.participants(me: me).joined(separator: ", "))
                         .fontWeight(conversation.isUnread && boldUnread ? .semibold : .regular)
                         .lineLimit(1)
-                    if conversation.count > 1 {
-                        Text("\(conversation.count)")
+                    if count > 1 {
+                        Text("\(count)")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, Space.xs)
                             .background(.quaternary, in: Capsule())
-                            .accessibilityLabel(L("메일 \(conversation.count)통"))
+                            .accessibilityLabel(L("메일 \(count)통"))
                     }
                     Spacer(minLength: Space.xs)
                     if let flagColor {

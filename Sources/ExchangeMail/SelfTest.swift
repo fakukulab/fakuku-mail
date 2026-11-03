@@ -895,6 +895,20 @@ enum SelfTest {
             check("M17 스마트 메일상자 복제", model.mailboxes.smart.contains { $0.name == "복제 시험 사본" && $0.id != base.id })
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
 
+            // 대화 수: 목록 줄의 수와 본문 위 대화 목록의 수가 같다
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            if AppModel.organizeByConversation, let row = model.conversations.first(where: { $0.count > 1 }) {
+                model.selectedMessageID = row.latest.id
+                try? await Task.sleep(for: .seconds(0.8))
+                let shown = model.threadCounts[row.id] ?? row.count
+                check("대화 수: 목록 줄의 수와 대화 목록의 수가 같다", model.thread.count == shown,
+                      "목록 \(shown), 대화 \(model.thread.count)")
+                check("대화에 지운 편지함·임시 보관함 메일은 넣지 않는다",
+                      !model.thread.contains { ["deleteditems", "drafts"].contains($0.parentFolderId ?? "") })
+                model.selectedMessageID = nil
+            }
+
             // 성능: 연 메일은 기억하고, 다음 메일은 미리 받아 둔다
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.5))

@@ -44,32 +44,64 @@ extension AppModel {
         return messages.filter { $0.conversationId == conv }.map(\.id)
     }
 
-    /// 고른 메일의 대화 전체를 가져온다. 대화별로 정리 중이면 이 폴더의 그 대화 안 읽은 메일을 읽음으로.
+    /// 대화에 세지 않는 폴더: 임시 보관함, 지운 편지함, 정크 메일, 보낼 편지함 (지금 그 폴더를 보고 있으면 센다).
+    /// 목록 줄의 수(loadRelated)와 본문 위 대화 목록(loadThread)이 같은 규칙을 쓴다.
+    var threadExcludedFolderIDs: Set<String> {
+        let kinds: Set<String> = ["drafts", "deleteditems", "junkemail", "outbox"]
+        var ids = Set(folders.filter { kinds.contains($0.kind ?? "") }.map(\.id)).union(kinds)
+        if let current = selectedFolderID { ids.remove(current) }
+        if let kind = selectedFolder?.kind { ids.remove(kind) }
+        return ids
+    }
+
+    /// 고른 메일의 대화 전체를 가져온다. 목록 줄이 제목으로 여러 대화를 합쳤으면 그 대화들을 모두 가져온다.
+    /// 다 가져오면 목록 줄의 수도 이 수로 맞춘다 (threadCounts). 대화별로 정리 중이면 그 대화 안 읽은 메일을 읽음으로.
     func loadThread() async {
-        guard let id = selectedMessageID,
-              let conv = messages.first(where: { $0.id == id })?.conversationId, !conv.isEmpty else {
+        guard let id = selectedMessageID, messages.contains(where: { $0.id == id }) else {
+            thread = []
+            return
+        }
+        // 목록 줄 (대화별 정리일 때) 또는 그 메일 하나
+        let row = Self.organizeByConversation ? conversations.first { $0.messages.contains { $0.id == id } } : nil
+        let members = row.map { $0.messages + $0.related } ?? messages.filter { $0.id == id }
+        var conversationIDs: [String] = []
+        for m in members {
+            if let c = m.conversationId, !c.isEmpty, !conversationIDs.contains(c) { conversationIDs.append(c) }
+        }
+        guard !conversationIDs.isEmpty else {
             thread = []
             return
         }
         do {
-            let list: [MailMessage]
-            // 1분 안에 받은 대화는 다시 묻지 않는다 (↓↑로 같은 대화 안을 오갈 때).
-            if let cached = threadCache[conv], Date().timeIntervalSince(cached.at) < 60 {
-                list = cached.list
-            } else {
-                list = try await service.conversation(id: conv)
-                threadCache[conv] = (Date(), list)
-                if threadCache.count > 100 { threadCache = threadCache.filter { Date().timeIntervalSince($0.value.at) < 60 } }
+            var list: [MailMessage] = []
+            var seen = Set<String>()
+            // 1분 안에 받은 대화는 다시 묻지 않는다 (↓↑로 같은 대화 안을 오갈 때). 합쳐진 대화는 많아야 넷.
+            for conv in conversationIDs.prefix(4) {
+                let part: [MailMessage]
+                if let cached = threadCache[conv], Date().timeIntervalSince(cached.at) < 60 {
+                    part = cached.list
+                } else {
+                    part = try await service.conversation(id: conv)
+                    threadCache[conv] = (Date(), part)
+                }
+                for m in part where seen.insert(m.id).inserted { list.append(m) }
             }
+            if threadCache.count > 100 { threadCache = threadCache.filter { Date().timeIntervalSince($0.value.at) < 60 } }
             guard id == selectedMessageID else { return }
-            var ordered = Conversations.chronological(list)
+            // 임시 보관함·지운 편지함·정크·보낼 편지함의 메일은 대화에 넣지 않는다 (고른 메일은 남긴다).
+            let excluded = threadExcludedFolderIDs
+            var ordered = Conversations.chronological(list).filter {
+                $0.id == id || $0.parentFolderId.map { !excluded.contains($0) } ?? true
+            }
             // 설정 > 보기 > "관련된 메시지 포함"을 끄면 이 폴더의 메일만
             if !Prefs.bool(Prefs.threadAllFolders, true), let folder = selectedFolderID, !VirtualMailbox.isVirtual(folder) {
                 ordered = ordered.filter { $0.parentFolderId == nil || $0.parentFolderId == folder || $0.id == id }
             }
             thread = ordered
-            if Self.organizeByConversation {
-                for m in messages where m.conversationId == conv && m.isUnread && m.id != id {
+            // 목록 줄의 수를 실제 대화 수로 (한 번 연 대화는 같은 수가 보인다)
+            if let row, ordered.count != row.count { threadCounts[row.id] = ordered.count }
+            if Self.organizeByConversation, let row {
+                for m in row.messages where m.isUnread && m.id != id {
                     await setRead(id: m.id, true)
                 }
             }

@@ -31,6 +31,7 @@ final class AppModel {
         didSet {
             guard selectedFolderID != oldValue else { return }
             searchText = ""
+            threadCounts = [:]
             updateMenu()
             Task { await loadMessages() }
         }
@@ -91,7 +92,12 @@ final class AppModel {
     /// 열어 본 메일과 미리 받은 메일 (AppModel+Prefetch)
     @ObservationIgnored let detailCache = DetailCache()
     /// 대화별 메일과 받은 시각 (1분 동안 다시 묻지 않는다)
-    @ObservationIgnored var threadCache: [String: (at: Date, list: [MailMessage])] = [:]
+    @ObservationIgnored var threadCache: [String: (at: Date, list: [MailMessage])] = [:] {
+        // 옮기기·지우기 등으로 비우면 목록 줄의 확인된 수도 다시 센다.
+        didSet { if threadCache.isEmpty && !threadCounts.isEmpty { threadCounts = [:] } }
+    }
+    /// 대화를 열어 서버에서 확인한 메일 수 (목록 줄 id → 수). 목록 줄은 이 수를 먼저 쓴다.
+    var threadCounts: [String: Int] = [:]
     /// 모든 폴더 검색에서 찾은 나의 Mac에 메일 (서버 결과 아래에 보인다)
     var localHits: [LocalHit] = []
     let localBoxes = LocalMailboxStore(directory: Store.directory.appending(path: "local", directoryHint: .isDirectory))
@@ -417,6 +423,11 @@ final class AppModel {
         }
         let kind = folders.first { $0.id == folderID }?.kind ?? folderID
         guard !["drafts", "deleteditems", "junkemail", "outbox"].contains(kind) else {
+            relatedMessages = []
+            return
+        }
+        // 설정 > 보기 > "관련된 메시지 포함"을 끄면 다른 폴더의 메일은 세지 않는다 (대화 목록과 같은 규칙).
+        guard Prefs.bool(Prefs.threadAllFolders, true) else {
             relatedMessages = []
             return
         }
