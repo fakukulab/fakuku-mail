@@ -13,6 +13,10 @@ Every Korean UI string is wrapped in `L("…")` (`ExchangeMailKit/Localization.s
 (comparisons, CSV column names, placeholders like {{이름}}, names stored on the server) get `// l10n: data`.
 After adding text, run `tools/l10n.py` and add the English it reports; it prints PASS l10n. `APP_LANG=en tools/snap.sh` shows the English screens.
 
+## Talking with the user
+
+- Explain to the user in Korean (answers, summaries, test steps). Code, comments, and commit messages follow the rules below.
+
 ## Layout
 
 - `Sources/ExchangeMail/` the app. `App.swift` has the windows, menus, and the data location (`Store`).
