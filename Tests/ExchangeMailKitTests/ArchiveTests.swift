@@ -111,3 +111,36 @@ func localizationKeys() {
     #expect(L("\(Date(timeIntervalSince1970: 0), format: .iso8601.year())년") == "1970년")
     #expect(AppLanguage.isKorean)
 }
+
+@Test("옛 Mac 줄 끝(CR만)과 앞의 빈 줄, 빈 줄 없는 구분 줄도 메일마다 나눈다")
+func mboxOldMacLineEndings() {
+    let lf = """
+    From kim@example.com Mon Dec  4 10:00:00 2006
+    From: Kim <kim@example.com>
+    Subject: First
+    Content-Type: text/plain
+
+    Hello
+    From lee@example.com Tue Dec  5 11:30:00 2006
+    From: Lee <lee@example.com>
+    Subject: Second
+
+    World
+
+    """
+    let cr = "\n\n" + lf.replacingOccurrences(of: "\n", with: "\r")
+    let list = MailArchive.read(Data(cr.utf8))
+    #expect(list.count == 2)
+    #expect(Set(list.map(\.subject)) == ["First", "Second"])
+    #expect(list.first { $0.subject == "First" }?.text?.hasPrefix("Hello") == true)
+    #expect(list.first { $0.subject == "Second" }?.from.hasPrefix("Lee") == true)
+}
+
+@Test("맥 Mail의 .emlx: 길이 줄 뒤의 원본만")
+func emlxMessage() {
+    let mime = "Subject: Hi\r\n\r\nBody\r\n"
+    let emlx = "\(mime.utf8.count)\n" + mime + "<?xml version=\"1.0\"?><plist></plist>"
+    let mail = MailArchive.parse(MailArchive.emlxMessage(Data(emlx.utf8)))
+    #expect(mail.subject == "Hi")
+    #expect(mail.text == "Body\n")
+}

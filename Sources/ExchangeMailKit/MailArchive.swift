@@ -52,18 +52,37 @@ public enum MailArchive {
 
     // MARK: mbox·eml 읽기
 
-    /// 파일 내용을 메일 원본 목록으로 나눈다. "From "으로 시작하지 않으면 eml 한 통으로 본다.
+    /// 줄 끝을 "\n" 하나로: CRLF(Windows·인터넷), CR만(옛 Mac: Entourage, 2000년대 맥 Mail), LF.
+    /// Swift는 "\r\n"을 한 글자로 보므로 줄로 나누기 전에 꼭 바꾼다.
+    static func normalizeLines(_ text: String) -> String {
+        text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+    }
+
+    /// mbox 구분 줄: "From 보낸이 Mon Dec  4 10:00:00 2006" (날짜·시각이 있는 꼴)
+    nonisolated(unsafe) static let separatorPattern = try? NSRegularExpression(pattern: #"^From \S+ +.*\d{1,2}:\d{2}.*\d{4}"#)
+
+    static func isSeparator(_ line: Substring, previousBlank: Bool) -> Bool {
+        guard line.hasPrefix("From ") else { return false }
+        // 앞이 빈 줄이면 mbox 규칙대로 구분 줄. 빈 줄 없이 붙여 쓴 파일은 날짜 꼴로 알아본다.
+        if previousBlank { return true }
+        let s = String(line)
+        return separatorPattern?.firstMatch(in: s, range: NSRange(location: 0, length: (s as NSString).length)) != nil
+    }
+
+    /// 파일 내용을 메일 원본 목록으로 나눈다. 첫 줄이 "From "이 아니면 eml 한 통으로 본다.
     public static func split(_ data: Data) -> [Data] {
-        // Swift는 "\r\n"을 한 글자로 보므로 먼저 "\n"으로 바꾼다.
-        let text = latin1(data).replacingOccurrences(of: "\r\n", with: "\n")
-        guard text.hasPrefix("From ") else { return text.isEmpty ? [] : [data] }
+        var text = normalizeLines(latin1(data))
+        // 앞의 BOM(UTF-8)과 빈 줄은 건너뛴다.
+        if text.hasPrefix("\u{00EF}\u{00BB}\u{00BF}") { text.removeFirst(3) }
+        while text.first == "\n" || text.first == " " { text.removeFirst() }
+        guard text.hasPrefix("From ") else { return text.isEmpty ? [] : [bytes(text)] }
         var messages: [Data] = []
         var current: [Substring] = []
         var previousBlank = true
         func flush() {
-            guard !current.isEmpty else { return }
             // 구분 줄 앞의 빈 줄은 mbox가 붙인 것이다.
             while let last = current.last, last.isEmpty { current.removeLast() }
+            guard !current.isEmpty else { return }
             let body = current.map { line -> String in
                 // mboxrd 되돌리기: >From → From
                 line.hasPrefix(">") && line.drop { $0 == ">" }.hasPrefix("From ") ? String(line.dropFirst()) : String(line)
@@ -72,7 +91,7 @@ public enum MailArchive {
             current = []
         }
         for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            if previousBlank && line.hasPrefix("From ") {
+            if isSeparator(line, previousBlank: previousBlank) {
                 flush()
             } else {
                 current.append(line)
@@ -83,11 +102,26 @@ public enum MailArchive {
         return messages
     }
 
-    /// 보관 파일 전체를 읽는다 (최근 메일부터).
-    public static func read(_ data: Data) -> [ArchivedMail] {
-        split(data).enumerated()
+    /// 맥 Mail이 메일 한 통씩 저장하는 .emlx: 첫 줄은 원본 길이(바이트), 그다음 원본, 끝에 plist.
+    public static func emlxMessage(_ data: Data) -> Data {
+        guard let newline = data.firstIndex(of: UInt8(ascii: "\n")),
+              let length = Int(String(decoding: data[data.startIndex..<newline], as: UTF8.self)
+                .trimmingCharacters(in: .whitespaces)) else { return data }
+        let start = data.index(after: newline)
+        let end = min(data.endIndex, start + length)
+        return Data(data[start..<end])
+    }
+
+    /// 메일 원본 여러 통 (폴더 안의 eml·emlx 파일들)을 읽는다 (최근 메일부터).
+    public static func read(messages: [Data]) -> [ArchivedMail] {
+        messages.enumerated()
             .map { parse($0.element, id: $0.offset) }
             .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
+
+    /// 보관 파일 전체를 읽는다 (최근 메일부터).
+    public static func read(_ data: Data) -> [ArchivedMail] {
+        read(messages: split(data))
     }
 
     // MARK: 목록에 보일 글
@@ -138,7 +172,9 @@ public enum MailArchive {
         var body: String
 
         init(_ raw: String) {
-            let normalized = raw.replacingOccurrences(of: "\r\n", with: "\n")
+            var normalized = MailArchive.normalizeLines(raw)
+            // 머리글 앞의 빈 줄은 건너뛴다.
+            while normalized.first == "\n" { normalized.removeFirst() }
             let split = normalized.range(of: "\n\n")
             let head = split.map { String(normalized[..<$0.lowerBound]) } ?? normalized
             body = split.map { String(normalized[$0.upperBound...]) } ?? ""

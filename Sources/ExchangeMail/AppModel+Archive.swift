@@ -113,7 +113,7 @@ extension AppModel {
         panel.title = L("메일상자 가져오기")
         panel.message = L("mbox 파일, 맥 Mail이 내보낸 .mbox 폴더, eml 파일을 고르세요.")
         panel.prompt = L("가져오기")
-        panel.allowedContentTypes = [mboxType, emlType, .emailMessage]
+        panel.allowedContentTypes = [mboxType, emlType, UTType(filenameExtension: "emlx") ?? .data, .emailMessage]
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK else { return nil }
@@ -123,12 +123,32 @@ extension AppModel {
 
 /// 보관 파일 읽기 (메인 스레드 밖에서)
 nonisolated enum ArchiveFile {
-    /// 맥 Mail의 .mbox는 폴더이고 안의 "mbox" 파일에 메일이 있다.
+    /// 파일 하나(.mbox, .eml, .emlx) 또는 폴더.
+    /// 맥 Mail이 내보낸 .mbox는 폴더이고 안의 "mbox" 파일에 메일이 있다.
+    /// 그 파일이 없는 폴더(맥 Mail 저장소의 .mbox, eml 모음)는 안의 .emlx·.eml을 모두 읽는다.
     static func load(_ url: URL) throws -> [ArchivedMail] {
         var isDirectory: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
-        let file = isDirectory.boolValue ? url.appending(path: "mbox") : url
+        guard isDirectory.boolValue else { return MailArchive.read(messages: try messages(in: url)) }
+        let mbox = url.appending(path: "mbox")
+        if FileManager.default.fileExists(atPath: mbox.path) {
+            return MailArchive.read(try Data(contentsOf: mbox, options: .mappedIfSafe))
+        }
+        var all: [Data] = []
+        let files = FileManager.default.enumerator(at: url, includingPropertiesForKeys: nil)
+        while let file = files?.nextObject() as? URL {
+            guard ["emlx", "eml", "mbox"].contains(file.pathExtension.lowercased()) else { continue }
+            var dir: ObjCBool = false
+            FileManager.default.fileExists(atPath: file.path, isDirectory: &dir)
+            if !dir.boolValue { all += (try? messages(in: file)) ?? [] }
+        }
+        return MailArchive.read(messages: all)
+    }
+
+    /// 파일 하나의 메일 원본들
+    private static func messages(in file: URL) throws -> [Data] {
         let data = try Data(contentsOf: file, options: .mappedIfSafe)
-        return MailArchive.read(data)
+        if file.pathExtension.lowercased() == "emlx" { return [MailArchive.emlxMessage(data)] }
+        return MailArchive.split(data)
     }
 }
