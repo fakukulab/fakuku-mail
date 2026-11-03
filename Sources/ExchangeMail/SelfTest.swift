@@ -914,6 +914,18 @@ enum SelfTest {
             check("성능: 메일이 그대로면 대화 묶음을 다시 만들지 않는다",
                   memoKey != nil && model.conversations.map(\.id) == firstGrouping.map(\.id) && model.conversationMemo?.key == memoKey)
 
+            // 본문 위 대화 목록 높이: 메뉴로 늘리고 줄이고, 범위 안에서만
+            let savedHeight = UserDefaults.standard.object(forKey: Prefs.threadHeight)
+            Prefs.adjustThreadHeight(by: 0)
+            Prefs.adjustThreadHeight(by: Prefs.threadHeightStep)
+            check("대화 목록 높이를 늘린다", UserDefaults.standard.double(forKey: Prefs.threadHeight) == Prefs.threadHeightDefault + Prefs.threadHeightStep)
+            for _ in 0..<30 { Prefs.adjustThreadHeight(by: -Prefs.threadHeightStep) }
+            check("대화 목록 높이는 너무 작아지지 않는다", UserDefaults.standard.double(forKey: Prefs.threadHeight) == 64)
+            Prefs.adjustThreadHeight(by: 0)
+            check("기본 높이로", UserDefaults.standard.double(forKey: Prefs.threadHeight) == Prefs.threadHeightDefault)
+            if let savedHeight { UserDefaults.standard.set(savedHeight, forKey: Prefs.threadHeight) }
+            else { UserDefaults.standard.removeObject(forKey: Prefs.threadHeight) }
+
             // 데이터 폴더 이름: 예전 ExchangeMail 폴더를 FAKUKUMail로 옮긴다 (내용 그대로)
             let renameBase = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)
             try? FileManager.default.removeItem(at: renameBase)

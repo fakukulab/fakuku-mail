@@ -22,6 +22,7 @@ enum Prefs {
     static let threadAllFolders = "view.threadAllFolders"   // Bool, true
     static let threadNewestFirst = "view.threadNewestFirst" // Bool, false
     static let markRead = "view.markRead"                   // String: now, delay, never
+    static let threadHeight = "view.threadHeight"           // Double, 176 (본문 위 대화 목록 높이)
     // 서체 및 색상
     static let listFontSize = "font.listSize"               // Int, 13
     static let bodyFontFamily = "font.bodyFamily"           // String, "" (시스템)
@@ -34,6 +35,17 @@ enum Prefs {
 
     /// 인용 단계 색 기본값 (맥 Mail과 같은 보라, 청록, 초록)
     static let defaultQuoteColors = ["#5856D6", "#00A3BF", "#34C759"]
+
+    /// 본문 위 대화 목록의 높이 (경계선을 끌어 바꾼다)
+    static let threadHeightDefault = 176.0
+    static let threadHeightStep = 48.0
+    static func clampThreadHeight(_ value: Double) -> Double { min(max(value, 64), 640) }
+
+    /// 보기 메뉴: 대화 목록 높이를 늘리거나 줄인다 (0이면 기본 높이로)
+    static func adjustThreadHeight(by delta: Double) {
+        let current = UserDefaults.standard.object(forKey: threadHeight) as? Double ?? threadHeightDefault
+        UserDefaults.standard.set(delta == 0 ? threadHeightDefault : clampThreadHeight(current + delta), forKey: threadHeight)
+    }
 
     static func bool(_ key: String, _ fallback: Bool) -> Bool {
         guard !Store.isOverridden, UserDefaults.standard.object(forKey: key) != nil else { return fallback }

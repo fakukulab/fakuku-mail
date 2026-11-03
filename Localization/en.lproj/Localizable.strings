@@ -823,3 +823,8 @@
 "%@통 찾음 · 나의 Mac에" = "%@ found · On My Mac";
 "\"%@\" 메일상자에서 열기" = "Open in the mailbox “%@”";
 "나의 Mac에 (%@)" = "On My Mac (%@)";
+"대화 목록 높이" = "Conversation List Height";
+"늘리기" = "Taller";
+"줄이기" = "Shorter";
+"기본 높이" = "Default Height";
+"끌어서 대화 목록 높이 조절, 두 번 누르면 기본 높이" = "Drag to resize the conversation list; double-click for the default height";

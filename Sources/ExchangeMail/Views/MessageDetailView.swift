@@ -32,7 +32,9 @@ struct MessageDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if threaded && model.thread.count > 1 {
                         ThreadStrip()
-                        Divider()
+                        // 잡는 자리가 아래 머리글에 가려지지 않게 앞에 둔다.
+                        ThreadResizeHandle()
+                            .zIndex(1)
                     }
                     MessageHeader(message: m, attachments: model.listedAttachments) { a in Task { await model.preview(a) } }
                     if model.isDraftSelected {
@@ -317,6 +319,8 @@ struct ThreadStrip: View {
     @Environment(AppModel.self) private var model
     /// 설정 > 보기 > "가장 최근 메시지를 맨 위에서 보기"
     @AppStorage(Prefs.threadNewestFirst) private var newestFirst = false
+    /// 경계선을 끌어 바꾼 높이 (ThreadResizeHandle)
+    @AppStorage(Prefs.threadHeight) private var height = Prefs.threadHeightDefault
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -336,8 +340,47 @@ struct ThreadStrip: View {
                     }
                 }
             }
-            .frame(maxHeight: 176)
+            .frame(maxHeight: height)
         }
+    }
+}
+
+/// 대화 목록과 본문 사이 경계선. 위아래로 끌면 대화 목록 높이가 바뀌고(기억한다), 두 번 누르면 기본 높이.
+/// 보기 메뉴의 "대화 목록 늘리기·줄이기"(⌥⌘↓, ⌥⌘↑)와 같은 값을 쓴다.
+struct ThreadResizeHandle: View {
+    @AppStorage(Prefs.threadHeight) private var height = Prefs.threadHeightDefault
+    @State private var dragStart: Double?
+
+    var body: some View {
+        Divider()
+            .overlay {
+                // 1pt 선은 잡기 어려우므로 위아래로 넓은 잡는 자리를 둔다.
+                Color.clear
+                    .frame(height: Space.sm)
+                    .contentShape(Rectangle())
+                    .pointerStyle(.rowResize)
+                    .onTapGesture(count: 2) { height = Prefs.threadHeightDefault }
+                    .gesture(
+                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                            .onChanged { value in
+                                let start = dragStart ?? height
+                                dragStart = start
+                                height = Prefs.clampThreadHeight(start + value.translation.height)
+                            }
+                            .onEnded { _ in dragStart = nil }
+                    )
+                    .help(L("끌어서 대화 목록 높이 조절, 두 번 누르면 기본 높이"))
+            }
+            .accessibilityElement()
+            .accessibilityLabel(L("대화 목록 높이"))
+            .accessibilityValue("\(Int(height))")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: height = Prefs.clampThreadHeight(height + Prefs.threadHeightStep)
+                case .decrement: height = Prefs.clampThreadHeight(height - Prefs.threadHeightStep)
+                @unknown default: break
+                }
+            }
     }
 }
 

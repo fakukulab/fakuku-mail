@@ -194,6 +194,15 @@ struct MailCommands: Commands {
         // ⌥⌘T는 macOS의 "도구 막대 가리기"라 쓰지 않는다.
         Toggle(L("대화별로 정리"), isOn: $threaded)
             .keyboardShortcut("t", modifiers: [.command, .control])
+        // 본문 위 대화 목록 높이 (경계선을 끌어도 된다)
+        Menu(L("대화 목록 높이")) {
+            Button(L("늘리기")) { Prefs.adjustThreadHeight(by: Prefs.threadHeightStep) }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            Button(L("줄이기")) { Prefs.adjustThreadHeight(by: -Prefs.threadHeightStep) }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+            Button(L("기본 높이")) { Prefs.adjustThreadHeight(by: 0) }
+        }
+        .disabled(!threaded)
         // 필터 (S-041)
         Menu(L("필터")) {
             filterToggle(L("읽지 않음"), \.unread)
