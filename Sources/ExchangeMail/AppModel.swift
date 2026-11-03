@@ -312,6 +312,11 @@ final class AppModel {
         remoteContentMemo = (key, value)
         return value
     }
+    /// 고른 메일의 본문을 아직 받는 중 (지금 보이는 것은 이전 메일). 본문 위 진행 막대가 쓴다.
+    var isLoadingDetail: Bool {
+        guard let shown = displayedMessageID, multipleSelectionCount == 0 else { return false }
+        return detail?.id != shown
+    }
     var remoteContentAllowed: Bool { detail != nil && allowRemoteFor == detail?.id }
 
     // MARK: 불러오기

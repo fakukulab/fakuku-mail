@@ -834,3 +834,5 @@
 "끄면 서버 요청이 줄어듭니다." = "Turn off to make fewer server requests.";
 "대화 %@통 중 %@번째" = "Message %2$@ of %1$@ in conversation";
 "보는 중" = "Viewing";
+"불러오는 중…" = "Loading…";
+"새 메일을 불러오는 중" = "Loading the new message";

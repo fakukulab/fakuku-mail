@@ -66,6 +66,12 @@ struct MessageDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        // 새 메일을 받는 동안: 이전 메일을 두고 맨 위에 얇은 진행 막대와 "불러오는 중…"
+        .overlay(alignment: .top) {
+            if model.isLoadingDetail && model.detail != nil {
+                LoadingStrip()
+            }
+        }
         .toolbar(id: "mail") { mailToolbar }
         // 첨부 미리보기 (S-032)
         .quickLookPreview(Binding(get: { model.previewURL }, set: { model.previewURL = $0 }))
@@ -89,6 +95,29 @@ struct MessageDetailView: View {
         .padding(.horizontal, Space.margin)
         .padding(.vertical, Space.sm)
         .background(.bar)
+    }
+}
+
+/// 새 메일 본문을 받는 동안 본문 맨 위에 보이는 얇은 진행 막대와 작은 꼬리표.
+/// 이전 메일은 그대로 두므로 깜빡이지 않고, 무엇인가 오고 있다는 것만 알린다.
+struct LoadingStrip: View {
+    var body: some View {
+        VStack(alignment: .trailing, spacing: Space.xs) {
+            ProgressView()
+                .progressViewStyle(.linear)
+                .tint(Palette.accent)
+            Label(L("불러오는 중…"), systemImage: "arrow.down.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, Space.sm)
+                .padding(.vertical, Space.xs)
+                .background(.regularMaterial, in: Capsule())
+                .padding(.trailing, Space.sm)
+        }
+        .allowsHitTesting(false)
+        .transition(.opacity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L("새 메일을 불러오는 중"))
     }
 }
 

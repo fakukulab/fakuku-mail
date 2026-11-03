@@ -924,6 +924,7 @@ enum SelfTest {
                 // 기억해 둔 메일로 돌아가면 기다림 없이(같은 순간에) 본문이 바뀐다
                 model.selectedMessageID = speedOrder[0]
                 check("깜빡임 없이: 기억해 둔 메일은 누르는 즉시 본문이 바뀐다", model.detail?.id == speedOrder[0])
+                check("기억해 둔 메일은 불러오는 중 막대가 뜨지 않는다", !model.isLoadingDetail)
                 model.selectedMessageID = nil
             }
             let firstGrouping = model.conversations
