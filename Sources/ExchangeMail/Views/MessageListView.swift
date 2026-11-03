@@ -100,7 +100,11 @@ struct MessageListView: View {
     }
 
     private var subtitle: String {
-        if model.selectedLocalBox != nil { return L("\(model.localBoxes.mails.count)통 · 나의 Mac에") }
+        if model.selectedLocalBox != nil {
+            let query = model.searchText.trimmingCharacters(in: .whitespaces)
+            return query.isEmpty ? L("\(model.localBoxes.mails.count)통 · 나의 Mac에")
+                : L("\(model.localBoxes.filtered(query).count)통 찾음 · 나의 Mac에")
+        }
         guard let f = model.selectedFolder else { return "" }
         let unread = f.unreadItemCount ?? 0
         let total = f.totalItemCount ?? model.messages.count

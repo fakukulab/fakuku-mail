@@ -144,3 +144,14 @@ func emlxMessage() {
     #expect(mail.subject == "Hi")
     #expect(mail.text == "Body\n")
 }
+
+@Test("메일 파일 검색: HTML 본문, 첨부 이름, 낱말 여러 개")
+func archiveSearch() {
+    let mail = MailArchive.parse(Data(sample.utf8))
+    let text = MailArchive.searchText(mail)
+    #expect(MailArchive.matches(text, query: "안녕"))           // HTML·평문 본문
+    #expect(MailArchive.matches(text, query: "보고서.pdf"))     // 첨부 이름
+    #expect(MailArchive.matches(text, query: "회의 KIM"))       // 제목 + 보낸 사람, 대소문자 무시
+    #expect(!MailArchive.matches(text, query: "회의 없는말"))
+    #expect(!MailArchive.matches(text, query: "  "))
+}

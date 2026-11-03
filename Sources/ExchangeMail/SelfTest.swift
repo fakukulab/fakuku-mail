@@ -963,10 +963,28 @@ enum SelfTest {
                 check("S-055 앱을 다시 켜도 남는다 (목록과 파일)",
                       reopened.boxes.contains { $0.id == imported?.id }
                       && imported.map { FileManager.default.fileExists(atPath: reopened.fileURL($0).path) } == true)
-                model.localBoxes.searchText = archived.first?.subject ?? ""
-                check("S-055 상자 안에서 검색", !model.localBoxes.filtered.isEmpty
-                      && model.localBoxes.filtered.count <= model.localBoxes.mails.count)
-                model.localBoxes.searchText = ""
+                let firstSubject = archived.first?.subject ?? ""
+                check("S-055 상자 안에서 검색 (제목)", !firstSubject.isEmpty
+                      && model.localBoxes.filtered(firstSubject).contains { $0.subject == firstSubject })
+                check("S-055 없는 말은 0통", model.localBoxes.filtered("없는낱말xyz").isEmpty)
+                // 다른 상자를 갔다 와도 다시 읽지 않는다
+                if let imported {
+                    let second = await model.importLocalMailbox(from: file)
+                    model.localBoxes.selection = model.localBoxes.mails.last?.id
+                    let picked = model.localBoxes.selection
+                    model.selectedFolderID = imported.sidebarID
+                    try? await Task.sleep(for: .seconds(0.3))
+                    check("S-055 전에 읽은 상자는 다시 읽지 않고 바로 보인다",
+                          !model.localBoxes.isLoading && model.localBoxes.mails.count == archived.count)
+                    if let second {
+                        model.selectedFolderID = second.sidebarID
+                        try? await Task.sleep(for: .seconds(0.3))
+                        check("S-055 상자마다 고른 메일을 기억한다", model.localBoxes.selection == picked)
+                        model.localBoxes.remove(second.id)
+                    }
+                    model.selectedFolderID = imported.sidebarID
+                    try? await Task.sleep(for: .seconds(0.3))
+                }
                 if let imported {
                     model.localBoxes.rename(imported.id, to: "보관 2006")
                     check("S-055 이름 변경", model.localBoxes.boxes.first { $0.id == imported.id }?.name == "보관 2006")

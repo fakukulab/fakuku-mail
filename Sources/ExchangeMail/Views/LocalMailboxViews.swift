@@ -10,6 +10,8 @@ struct LocalMailList: View {
     var body: some View {
         @Bindable var store = model.localBoxes
         let box = model.selectedLocalBox
+        // 검색은 메인 창 도구 막대의 검색 칸 (글자를 넣는 대로 거른다)
+        let shown = store.filtered(model.searchText)
         Group {
             if let failure = store.failure {
                 ContentUnavailableView(L("메일상자를 열 수 없습니다"), systemImage: "externaldrive.badge.xmark",
@@ -21,22 +23,14 @@ struct LocalMailList: View {
                 ContentUnavailableView(L("메일 없음"), systemImage: "tray",
                                        description: Text(L("이 메일상자에 메일이 없습니다.")))
             } else {
-                List(store.filtered, selection: $store.selection) { mail in
+                List(shown, selection: $store.selection) { mail in
                     ArchivedMailRow(mail: mail)
                         .tag(mail.id)
                 }
                 .overlay {
-                    if store.filtered.isEmpty { ContentUnavailableView.search(text: store.searchText) }
+                    if shown.isEmpty { ContentUnavailableView.search(text: model.searchText) }
                 }
             }
-        }
-        // 이 상자 안에서 찾기 (서버 검색 칸과 따로)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            TextField(L("이 메일상자에서 검색"), text: $store.searchText, prompt: Text(L("이 메일상자에서 검색")))
-                .textFieldStyle(.roundedBorder)
-                .labelsHidden()
-                .padding(.horizontal, Space.md)
-                .padding(.vertical, Space.sm)
         }
         // 창 제목은 목록 열(MessageListView)이 model.listTitle로 단다.
         .accessibilityLabel(box?.name ?? L("나의 Mac에"))

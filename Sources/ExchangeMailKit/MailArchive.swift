@@ -137,6 +137,24 @@ public enum MailArchive {
 
     /// 본문 앞부분 (평문이 없으면 HTML에서 태그를 뺀 글)
     public static func preview(_ mail: ArchivedMail, limit: Int = 160) -> String {
+        let words = bodyText(mail)
+        return words.count > limit ? String(words.prefix(limit)) + "…" : words
+    }
+
+    /// 검색용 글: 제목, 보낸 사람, 받는 사람, 참조, 본문(평문이 없으면 HTML에서 태그를 뺀 글), 첨부 이름. 소문자.
+    public static func searchText(_ mail: ArchivedMail) -> String {
+        ([mail.subject, mail.from, mail.to, mail.cc, bodyText(mail)] + mail.attachments.map(\.name))
+            .joined(separator: "\n").lowercased()
+    }
+
+    /// 찾을 말의 낱말이 모두 들어 있으면 맞다 ("견적 2006" → 둘 다 있는 메일).
+    public static func matches(_ searchText: String, query: String) -> Bool {
+        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
+        return !words.isEmpty && words.allSatisfy { searchText.contains($0) }
+    }
+
+    /// 본문 글 (공백을 하나로)
+    static func bodyText(_ mail: ArchivedMail) -> String {
         var source = mail.text ?? ""
         if source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let html = mail.html {
             source = html
@@ -147,8 +165,7 @@ public enum MailArchive {
                 .replacingOccurrences(of: "&lt;", with: "<")
                 .replacingOccurrences(of: "&gt;", with: ">")
         }
-        let words = source.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).joined(separator: " ")
-        return words.count > limit ? String(words.prefix(limit)) + "…" : words
+        return source.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).joined(separator: " ")
     }
 
     // MARK: MIME 해석

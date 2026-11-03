@@ -31,12 +31,22 @@ final class LocalMailboxStore {
     private(set) var mails: [ArchivedMail] = []
     private(set) var isLoading = false
     private(set) var failure: String?
-    /// 목록에서 고른 메일, 검색어
+    /// 목록에서 고른 메일
     var selection: ArchivedMail.ID?
-    var searchText = ""
 
     @ObservationIgnored let directory: URL
     private var indexURL: URL { directory.appending(path: "index.json") }
+
+    /// 한 번 읽은 상자는 기억한다: 다른 상자를 갔다 와도 파일을 다시 읽지 않는다 (최근 4개).
+    private struct Loaded {
+        var mails: [ArchivedMail]
+        /// 메일 id → 검색용 글 (MailArchive.searchText)
+        var search: [Int: String]
+        var selection: ArchivedMail.ID?
+    }
+    @ObservationIgnored private var loaded: [String: Loaded] = [:]
+    @ObservationIgnored private var recent: [String] = []
+    @ObservationIgnored private var search: [Int: String] = [:]
 
     init(directory: URL) {
         self.directory = directory
@@ -49,13 +59,11 @@ final class LocalMailboxStore {
 
     func fileURL(_ box: LocalMailbox) -> URL { directory.appending(path: box.fileName) }
 
-    var filtered: [ArchivedMail] {
-        let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+    /// 검색: 메인 창 도구 막대의 검색 칸 글로 거른다. 제목·사람·본문·첨부 이름, 낱말이 모두 들어 있어야.
+    func filtered(_ query: String) -> [ArchivedMail] {
+        let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return mails }
-        return mails.filter {
-            $0.subject.lowercased().contains(q) || $0.from.lowercased().contains(q) || $0.to.lowercased().contains(q)
-                || ($0.text ?? "").lowercased().contains(q)
-        }
+        return mails.filter { MailArchive.matches(search[$0.id] ?? MailArchive.searchText($0), query: q) }
     }
 
     var selectedMail: ArchivedMail? { mails.first { $0.id == selection } }
@@ -94,26 +102,47 @@ final class LocalMailboxStore {
 
     // MARK: 열기
 
-    /// 상자의 메일을 읽는다 (이미 열려 있으면 그대로).
+    /// 상자의 메일을 읽는다. 이미 열려 있거나 전에 읽었으면 파일을 다시 읽지 않는다.
     func open(_ id: String) async {
-        if openedID == id && failure == nil { return }
+        if openedID == id && failure == nil && !mails.isEmpty { return }
         guard let box = boxes.first(where: { $0.id == id }) else { return }
+        // 지금 상자의 고른 메일을 기억해 둔다.
+        if let current = openedID { loaded[current]?.selection = selection }
         openedID = id
-        mails = []
-        selection = nil
-        searchText = ""
         failure = nil
+        if let cached = loaded[id] {
+            mails = cached.mails
+            search = cached.search
+            selection = cached.selection ?? cached.mails.first?.id
+            touch(id)
+            return
+        }
+        mails = []
+        search = [:]
+        selection = nil
         isLoading = true
         defer { isLoading = false }
         let url = fileURL(box)
         do {
-            let list = try await Task.detached(priority: .userInitiated) { try ArchiveFile.load(url) }.value
+            let (list, index) = try await Task.detached(priority: .userInitiated) { () throws -> ([ArchivedMail], [Int: String]) in
+                let list = try ArchiveFile.load(url)
+                return (list, Dictionary(uniqueKeysWithValues: list.map { ($0.id, MailArchive.searchText($0)) }))
+            }.value
+            loaded[id] = Loaded(mails: list, search: index, selection: list.first?.id)
+            touch(id)
             guard openedID == id else { return }
             mails = list
+            search = index
             selection = list.first?.id
         } catch {
             failure = error.localizedDescription
         }
+    }
+
+    private func touch(_ id: String) {
+        recent.removeAll { $0 == id }
+        recent.append(id)
+        while recent.count > 4 { loaded[recent.removeFirst()] = nil }
     }
 
     // MARK: 이름 바꾸기, 지우기
@@ -129,7 +158,9 @@ final class LocalMailboxStore {
         guard let box = boxes.first(where: { $0.id == id }) else { return }
         try? FileManager.default.removeItem(at: fileURL(box))
         boxes.removeAll { $0.id == id }
-        if openedID == id { openedID = nil; mails = []; selection = nil }
+        loaded[id] = nil
+        recent.removeAll { $0 == id }
+        if openedID == id { openedID = nil; mails = []; search = [:]; selection = nil }
         try? save()
     }
 
