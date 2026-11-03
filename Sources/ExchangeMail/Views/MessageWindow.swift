@@ -33,12 +33,12 @@ struct MessageWindow: View {
                     MessageHeader(message: m, attachments: reader.listedAttachments) { reader.preview($0, model: model) }
                     UnsubscribeBar(message: m)
                     let remote = model.remoteMode(for: m, allowed: reader.allowRemote)
-                    let page = model.protectedPage(id: m.id, body: reader.body, remote: remote)
+                    let page = model.protectedPage(id: m.id, body: reader.body, remote: remote, css: readingStyle.css)
                     if reader.hasRemoteContent {
                         RemoteContentBar(remote: remote, blockedTrackers: page.blockedTrackers) { reader.allowRemoteContent() }
                     }
                     Divider()
-                    HTMLView(html: page.html + readingStyle.css,
+                    HTMLView(html: page.html,
                              scroller: reader.pageScroller, onPrint: { reader.print(model: model) }) { url in
                         openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }

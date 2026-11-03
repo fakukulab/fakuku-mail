@@ -161,6 +161,7 @@ final class AppModel {
     }
     /// 본문 문서 캐시: 추적기 바꾸기는 정규식이라 같은 메일을 다시 그릴 때마다 하지 않는다.
     @ObservationIgnored var pageCache: [String: ProtectedPage] = [:]
+    @ObservationIgnored var remoteContentMemo: (key: String, value: Bool)?
 
     static func savedFlag(_ key: String, default value: Bool) -> Bool {
         guard !Store.isOverridden, UserDefaults.standard.object(forKey: key) != nil else { return value }
@@ -295,7 +296,16 @@ final class AppModel {
     var selectedMessage: MailMessage? { messages.first { $0.id == selectedMessageID } }
     var listedAttachments: [FileAttachment] { detailAttachments.filter(\.isListed) }
 
-    var detailHasRemoteContent: Bool { detailBody.map { $0.isHTML && MailContent.hasRemoteContent($0.content) } ?? false }
+    /// 본문에 원격 그림이 있는가. 정규식 여러 개로 본문 전체를 훑으므로 메일마다 한 번만 계산한다
+    /// (창 크기를 바꾸는 동안 본문 열이 계속 다시 그려진다).
+    var detailHasRemoteContent: Bool {
+        guard let body = detailBody, body.isHTML else { return false }
+        let key = "\(detail?.id ?? "")|\(body.content.utf8.count)"
+        if let memo = remoteContentMemo, memo.key == key { return memo.value }
+        let value = MailContent.hasRemoteContent(body.content)
+        remoteContentMemo = (key, value)
+        return value
+    }
     var remoteContentAllowed: Bool { detail != nil && allowRemoteFor == detail?.id }
 
     // MARK: 불러오기

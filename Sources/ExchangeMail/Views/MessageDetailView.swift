@@ -46,14 +46,14 @@ struct MessageDetailView: View {
                         MeetingBar(event: event)
                     }
                     let remote = model.detailRemote
-                    let page = model.protectedPage(id: m.id, body: model.detailBody, remote: remote)
+                    let page = model.protectedPage(id: m.id, body: model.detailBody, remote: remote, css: readingStyle.css)
                     if model.detailHasRemoteContent {
                         RemoteContentBar(remote: remote, blockedTrackers: page.blockedTrackers) {
                             model.allowRemoteContentForSelection()
                         }
                     }
                     Divider()
-                    HTMLView(html: page.html + readingStyle.css,
+                    HTMLView(html: page.html,
                              scroller: model.pageScroller, onPrint: { model.printDisplayed() }) { url in
                         openWindow(id: "compose", value: ComposeDraft.mailto(url))
                     }

@@ -32,13 +32,15 @@ extension AppModel {
         return remoteMode(for: m, allowed: remoteContentAllowed)
     }
 
-    /// 웹 보기에 넣을 문서. 같은 메일·같은 방식이면 다시 만들지 않는다.
-    func protectedPage(id: String?, body: MailMessage.Body?, remote: RemoteContent) -> ProtectedPage {
-        let key = "\(id ?? "")|\(remote.rawValue)|\(body?.content.count ?? 0)"
+    /// 웹 보기에 넣을 문서 (읽기 서식 `css`까지 붙인 것). 같은 메일·같은 방식·같은 서식이면 다시 만들지 않는다.
+    /// 본문 열은 창 크기를 바꾸는 동안 수십 번 다시 그려지므로, 같은 문자열을 돌려줘
+    /// 웹 보기의 "바뀌었나" 비교도 바로 끝나게 한다. 키의 길이는 utf8.count(바로 나온다)로.
+    func protectedPage(id: String?, body: MailMessage.Body?, remote: RemoteContent, css: String = "") -> ProtectedPage {
+        let key = "\(id ?? "")|\(remote.rawValue)|\(body?.content.utf8.count ?? 0)|\(css)"
         if let hit = pageCache[key] { return hit }
         let blocked = remote == .proxied && body?.isHTML == true
             ? TrackingProtection.rewrite(html: body?.content ?? "").blocked : 0
-        let page = ProtectedPage(html: MailContent.page(body: body, remote: remote), blockedTrackers: blocked)
+        let page = ProtectedPage(html: MailContent.page(body: body, remote: remote) + css, blockedTrackers: blocked)
         if pageCache.count > 24 { pageCache.removeAll() }
         pageCache[key] = page
         return page

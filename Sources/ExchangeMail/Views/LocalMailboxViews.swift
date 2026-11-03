@@ -109,13 +109,7 @@ struct ArchivedMailView: View {
 
     private var files: [ArchivedAttachment] { mail.attachments.filter { !$0.isInline } }
 
-    private var page: String {
-        let html = MailArchive.inlineImages(mail)
-        let body = html.map { MailMessage.Body(contentType: "html", content: $0) }
-            ?? MailMessage.Body(contentType: "text", content: mail.text ?? "")
-        // 보관 파일은 오래 두고 보는 것이므로 원격 그림은 늘 막는다 (보낸 사람에게 열람이 알려지지 않게).
-        return MailContent.page(body: body, remote: .blocked) + css
-    }
+    private var page: String { ArchivedPageCache.page(for: mail, css: css) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -163,6 +157,27 @@ struct ArchivedMailView: View {
                 .textSelection(.enabled)
                 .lineLimit(3)
         }
+    }
+}
+
+/// 가져온 메일의 웹 보기 문서. 본문 그림을 data: 주소로 바꾸는 일이 무거워 메일마다 한 번만 만든다
+/// (창 크기를 바꾸는 동안 본문이 계속 다시 그려진다). 최근 8통.
+enum ArchivedPageCache {
+    private static var pages: [String: String] = [:]
+    private static var order: [String] = []
+
+    static func page(for mail: ArchivedMail, css: String) -> String {
+        let key = "\(mail.id)|\(mail.size)|\(css)"
+        if let hit = pages[key] { return hit }
+        let html = MailArchive.inlineImages(mail)
+        let body = html.map { MailMessage.Body(contentType: "html", content: $0) }
+            ?? MailMessage.Body(contentType: "text", content: mail.text ?? "")
+        // 보관 파일은 오래 두고 보는 것이므로 원격 그림은 늘 막는다 (보낸 사람에게 열람이 알려지지 않게).
+        let page = MailContent.page(body: body, remote: .blocked) + css
+        pages[key] = page
+        order.append(key)
+        while order.count > 8 { pages[order.removeFirst()] = nil }
+        return page
     }
 }
 

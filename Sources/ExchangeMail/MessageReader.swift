@@ -26,7 +26,16 @@ final class MessageReader {
     }
 
     var listedAttachments: [FileAttachment] { attachments.filter(\.isListed) }
-    var hasRemoteContent: Bool { body.map { $0.isHTML && MailContent.hasRemoteContent($0.content) } ?? false }
+    /// 본문에 원격 그림이 있는가 (본문이 바뀔 때만 다시 계산: 창 크기를 바꿀 때 느려지지 않게)
+    var hasRemoteContent: Bool {
+        guard let body, body.isHTML else { return false }
+        let size = body.content.utf8.count
+        if let memo = remoteMemo, memo.size == size { return memo.value }
+        let value = MailContent.hasRemoteContent(body.content)
+        remoteMemo = (size, value)
+        return value
+    }
+    @ObservationIgnored private var remoteMemo: (size: Int, value: Bool)?
 
     func load(using model: AppModel) async {
         do {

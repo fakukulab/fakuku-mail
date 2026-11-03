@@ -136,3 +136,11 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인 2: 메일을 고를 때마다 `thread = []`로 대화 목록을 지웠다가 다시 채웠다 (같은 대화 안에서 옮겨도).
 - 고침: 새 본문이 올 때까지 지금 메일을 그대로 둔다. 기억해 둔 메일은 didSet 안에서 바로 바꾼다 (`showCachedDetail`).
   같은 대화면 대화 목록을 지우지 않는다.
+
+## 2026-11-03 본문 창 크기를 바꿀 때 느림
+- 본문 열은 창·열 크기를 바꾸는 동안 수십 번 다시 그려진다. 그때마다 본문 HTML 전체를 훑는 일이 되풀이됐다:
+  원격 그림 검사(정규식 여러 개), 캐시 키의 `content.count`(글자 수 세기는 전체를 훑는다), `page.html + css`(큰 문자열 새로 만들기 →
+  웹 보기도 전체를 비교), 가져온 메일은 본문 그림을 data: 주소로 다시 만들기.
+- 고침: 원격 그림 검사는 메일마다 한 번(`remoteContentMemo`), 키는 `utf8.count`, 서식까지 붙인 문서를 캐시해 같은 문자열을 넘긴다
+  (`protectedPage(css:)`), 가져온 메일 문서도 캐시 (`ArchivedPageCache`).
+- 규칙: 뷰 body에서 본문 크기에 비례하는 일을 하지 않는다. 필요하면 메일 id(와 크기)로 기억한다.
