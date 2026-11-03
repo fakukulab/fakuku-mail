@@ -194,7 +194,13 @@ final class AppModel {
             }
             allowRemoteFor = nil
             shownMessageID = nil
-            thread = []
+            // 같은 대화 안에서 옮기면 대화 목록을 비우지 않는다 (깜빡이지 않게). 다른 대화면 비운다.
+            let newConversation = selectedMessageID.flatMap { id in messages.first { $0.id == id }?.conversationId }
+            if newConversation == nil || !thread.contains(where: { $0.conversationId == newConversation }) {
+                thread = []
+            }
+            // 기억해 둔 메일은 기다리지 않고 바로 바꿔 보인다 (한 프레임도 비지 않게).
+            showCachedDetail()
             updateMenu()
             // 본문과 대화를 동시에 불러온다 (대화가 본문을 기다리지 않게).
             Task { await loadDetail() }
@@ -427,6 +433,16 @@ final class AppModel {
         }
     }
 
+    /// 보려는 메일이 기억에 있으면 그 자리에서 바로 바꿔 보인다 (loadDetail의 Task를 기다리지 않는다, AppModel+Prefetch).
+    /// 없으면 아무것도 바꾸지 않는다: 새 본문이 올 때까지 지금 화면을 그대로 둔다.
+    func showCachedDetail() {
+        guard let id = displayedMessageID, let hit = detailCache.get(id) else { return }
+        let m = withCurrentState(hit.message)
+        detail = m
+        detailAttachments = hit.attachments ?? []
+        detailBody = MailContent.displayBody(m.body, attachments: hit.attachments ?? [])
+    }
+
     func loadDetail() async {
         guard let id = displayedMessageID else {
             detail = nil; detailBody = nil; detailAttachments = []
@@ -621,6 +637,7 @@ final class AppModel {
         guard id != displayedMessageID else { return }
         shownMessageID = id == selectedMessageID ? nil : id
         allowRemoteFor = nil
+        showCachedDetail()
         Task { await loadDetail() }
     }
 

@@ -907,6 +907,9 @@ enum SelfTest {
                 model.selectedMessageID = speedOrder[1]
                 try? await Task.sleep(for: .seconds(0.05))
                 check("성능: 미리 받은 메일은 바로 보인다", model.detail?.id == speedOrder[1])
+                // 기억해 둔 메일로 돌아가면 기다림 없이(같은 순간에) 본문이 바뀐다
+                model.selectedMessageID = speedOrder[0]
+                check("깜빡임 없이: 기억해 둔 메일은 누르는 즉시 본문이 바뀐다", model.detail?.id == speedOrder[0])
                 model.selectedMessageID = nil
             }
             let firstGrouping = model.conversations

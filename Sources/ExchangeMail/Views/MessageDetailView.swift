@@ -28,7 +28,8 @@ struct MessageDetailView: View {
                 ContentUnavailableView(L("메시지 \(model.multipleSelectionCount)개 선택됨"), systemImage: "tray.full",
                                        description: Text(L("보관, 지우기, 이동, 읽음, 깃발을 한 번에 할 수 있습니다.")))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let m = model.detail, m.id == model.displayedMessageID {
+            } else if let m = model.detail, model.displayedMessageID != nil {
+                // 새 메일을 받는 동안에는 지금 보이는 메일을 그대로 둔다 (진행 표시로 비우지 않아 깜빡이지 않는다).
                 VStack(alignment: .leading, spacing: 0) {
                     if threaded && model.thread.count > 1 {
                         ThreadStrip()
