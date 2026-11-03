@@ -896,8 +896,8 @@ enum SelfTest {
             for box in model.mailboxes.smart { model.removeSmart(id: box.id) }
 
             // 데이터 폴더 이름: 예전 ExchangeMail 폴더를 FAKUKUMail로 옮긴다 (내용 그대로)
-            let base = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)
-            try? FileManager.default.removeItem(at: base)
+            let renameBase = Store.directory.appending(path: "rename-test", directoryHint: .isDirectory)
+            try? FileManager.default.removeItem(at: renameBase)
             let oldData = base.appending(path: "ExchangeMail/signatures.json")
             try? FileManager.default.createDirectory(at: oldData.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data("[]".utf8).write(to: oldData)

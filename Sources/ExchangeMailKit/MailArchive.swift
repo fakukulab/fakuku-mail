@@ -59,7 +59,7 @@ public enum MailArchive {
     }
 
     /// mbox 구분 줄: "From 보낸이 Mon Dec  4 10:00:00 2006" (날짜·시각이 있는 꼴)
-    nonisolated(unsafe) static let separatorPattern = try? NSRegularExpression(pattern: #"^From \S+ +.*\d{1,2}:\d{2}.*\d{4}"#)
+    static let separatorPattern = try? NSRegularExpression(pattern: #"^From \S+ +.*\d{1,2}:\d{2}.*\d{4}"#)
 
     static func isSeparator(_ line: Substring, previousBlank: Bool) -> Bool {
         guard line.hasPrefix("From ") else { return false }
