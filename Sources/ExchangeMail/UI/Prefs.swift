@@ -22,6 +22,7 @@ enum Prefs {
     static let threadAllFolders = "view.threadAllFolders"   // Bool, true
     static let threadNewestFirst = "view.threadNewestFirst" // Bool, false
     static let markRead = "view.markRead"                   // String: now, delay, never
+    static let prefetch = "view.prefetch"                   // Bool, true (다음·이전 메일 미리 받기)
     static let threadHeight = "view.threadHeight"           // Double, 176 (본문 위 대화 목록 높이)
     // 서체 및 색상
     static let listFontSize = "font.listSize"               // Int, 13

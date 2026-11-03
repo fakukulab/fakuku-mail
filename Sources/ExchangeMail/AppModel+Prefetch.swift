@@ -73,6 +73,8 @@ extension AppModel {
 
     /// 목록의 다음 두 통과 이전 한 통을 미리 받아 둔다 (본문, 그림이 있으면 첨부 목록).
     func prefetchNeighbors(of id: String) {
+        // 설정 > 일반 > 미리 받기
+        guard Prefs.bool(Prefs.prefetch, true) else { return }
         let order = navigationOrder
         guard let i = order.firstIndex(of: id) else { return }
         let neighbors = [i + 1, i + 2, i - 1].filter { order.indices.contains($0) }.map { order[$0] }

@@ -168,6 +168,7 @@ struct GeneralSettings: View {
 struct OfflineSettings: View {
     @Environment(AppModel.self) private var model
     @AppStorage("cache.enabled") private var enabled = true
+    @AppStorage(Prefs.prefetch) private var prefetch = true
     @State private var size = 0
 
     var body: some View {
@@ -187,6 +188,13 @@ struct OfflineSettings: View {
                             .disabled(size == 0)
                     }
                     SettingsNote(L("네트워크가 없을 때 최근 목록과 열어 본 메일을 보여 줍니다. 로그아웃하면 지웁니다."))
+                }
+            }
+            LabeledContent(L("미리 받기:")) {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle(L("다음·이전 메일을 미리 받아 두기"), isOn: $prefetch)
+                    SettingsNote(L("메일을 열면 목록의 다음 두 통과 이전 한 통을 미리 받아 ↓↑로 넘길 때 바로 보입니다. ")
+                                 + L("끄면 서버 요청이 줄어듭니다."))
                 }
             }
         }

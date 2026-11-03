@@ -828,3 +828,7 @@
 "줄이기" = "Shorter";
 "기본 높이" = "Default Height";
 "끌어서 대화 목록 높이 조절, 두 번 누르면 기본 높이" = "Drag to resize the conversation list; double-click for the default height";
+"미리 받기:" = "Prefetch:";
+"다음·이전 메일을 미리 받아 두기" = "Download the next and previous messages in advance";
+"메일을 열면 목록의 다음 두 통과 이전 한 통을 미리 받아 ↓↑로 넘길 때 바로 보입니다. " = "When you open a message, the next two and the previous one in the list are downloaded so ↓↑ shows them right away. ";
+"끄면 서버 요청이 줄어듭니다." = "Turn off to make fewer server requests.";
