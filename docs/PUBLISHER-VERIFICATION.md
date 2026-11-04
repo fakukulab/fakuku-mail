@@ -31,12 +31,12 @@ IT 관리자의 승인이 필요하다. 확인을 받으면 동의 화면에 회
   - 화면이 주는 `microsoft-identity-association.json` 파일을 `https://<도메인>/.well-known/` 에 올려 확인
 - [ ] 조건: 파트너 프로그램 가입 때 확인한 메일 주소의 도메인과 게시자 도메인이 같아야 한다.
 
-## 3. 브랜딩 채우기 (동의 화면에 보인다, 신뢰에 중요)
+## 3. 브랜딩 채우기 (동의 화면에 보인다, 신뢰에 중요) — 링크 넣음 2026-11-04
 
 - [ ] 로고 (Icon/AppIcon.icon을 PNG로: `tools/icon_review.sh`로 만든 그림에서 잘라 쓴다)
-- [ ] 홈페이지: https://mail.fakukulab.com/
-- [ ] **개인정보 처리방침 URL**: https://mail.fakukulab.com/privacy.html
-- [ ] **서비스 약관 URL**: https://mail.fakukulab.com/terms.html
+- [x] 홈페이지: https://mail.fakukulab.com/
+- [x] **개인정보 처리방침 URL**: https://mail.fakukulab.com/privacy.html
+- [x] **서비스 약관 URL**: https://mail.fakukulab.com/terms.html
       (site/ 폴더, .github/workflows/pages.yml이 올린다. 처음 한 번 Settings → Pages → Source = GitHub Actions)
 
 ## 4. 게시자 확인 실행
