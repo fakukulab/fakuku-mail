@@ -1073,6 +1073,14 @@ enum SelfTest {
                 model.selectedFolderID = "inbox"
             }
 
+            // 목록에서 쓸기 (설정 > 보기)
+            check("쓸기: 기본은 왼쪽 끝까지 지우기, 그 뒤 보관·깃발 (오른쪽의 읽음은 빼고)",
+                  SwipeAction.leftButtons(left: .delete, right: .read, more: true) == [.delete, .archive, .flag])
+            check("쓸기: 왼쪽을 보관으로 바꾸면 보관이 맨 앞", SwipeAction.leftButtons(left: .archive, right: .read, more: true).first == .archive)
+            check("쓸기: 다른 단추를 끄면 하나만, 없음이면 비어 있다",
+                  SwipeAction.leftButtons(left: .flag, right: .read, more: false) == [.flag]
+                  && SwipeAction.leftButtons(left: .none, right: .read, more: true).isEmpty)
+
             // Exchange 한도: 동시에 나가는 요청 수를 묶는다 (넘으면 기다렸다가 차례로)
             let gate = RequestGate(limit: 2)
             await gate.acquire()

@@ -24,6 +24,9 @@ enum Prefs {
     static let markRead = "view.markRead"                   // String: now, delay, never
     static let calendarAddAccepted = "calendar.addAccepted" // Bool, true (수락한 회의를 맥 캘린더에)
     static let calendarTarget = "calendar.target"           // String, "" (기본 캘린더)
+    static let swipeRight = "view.swipeRight"               // SwipeAction, read (오른쪽으로 쓸기)
+    static let swipeLeft = "view.swipeLeft"                 // SwipeAction, delete (왼쪽으로 끝까지 쓸기)
+    static let swipeLeftMore = "view.swipeLeftMore"         // Bool, true (왼쪽으로 쓸 때 다른 단추도)
     static let prefetch = "view.prefetch"                   // Bool, true (다음·이전 메일 미리 받기)
     static let threadHeight = "view.threadHeight"           // Double, 176 (본문 위 대화 목록 높이)
     // 서체 및 색상
@@ -98,5 +101,33 @@ extension Color {
     var hexString: String {
         guard let c = NSColor(self).usingColorSpace(.sRGB) else { return "#000000" }
         return String(format: "#%02X%02X%02X", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
+    }
+}
+
+/// 메일 목록 줄을 좌우로 쓸 때 하는 일 (설정 > 보기 > 목록에서 쓸기)
+enum SwipeAction: String, CaseIterable, Identifiable {
+    case read, flag, archive, delete, junk, move, none
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .read: L("읽음 / 읽지 않음")
+        case .flag: L("깃발 달기 / 떼기")
+        case .archive: L("보관")
+        case .delete: L("지우기")
+        case .junk: L("정크 메일로 표시")
+        case .move: L("이동…")
+        case .none: L("없음")
+        }
+    }
+
+    /// 왼쪽으로 쓸 때 끝까지 쓴 동작 뒤에 함께 보일 단추 (차례대로)
+    static let extras: [SwipeAction] = [.delete, .archive, .flag, .read]
+
+    /// 왼쪽으로 쓸 때 보일 단추: 끝까지 쓸 동작, 그 뒤로 (켜져 있으면) 나머지 중 오른쪽 쓸기와 겹치지 않는 것
+    static func leftButtons(left: SwipeAction, right: SwipeAction, more: Bool) -> [SwipeAction] {
+        guard left != .none else { return [] }
+        return [left] + (more ? extras.filter { $0 != left && $0 != right } : [])
     }
 }

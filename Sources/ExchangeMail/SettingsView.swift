@@ -530,6 +530,9 @@ struct ViewingSettings: View {
     @AppStorage(Prefs.markRead) private var markRead = "now"
     @AppStorage(Prefs.threadAllFolders) private var threadAllFolders = true
     @AppStorage(Prefs.threadNewestFirst) private var threadNewestFirst = false
+    @AppStorage(Prefs.swipeRight) private var swipeRight = SwipeAction.read
+    @AppStorage(Prefs.swipeLeft) private var swipeLeft = SwipeAction.delete
+    @AppStorage(Prefs.swipeLeftMore) private var swipeLeftMore = true
 
     var body: some View {
         @Bindable var model = model
@@ -577,6 +580,28 @@ struct ViewingSettings: View {
                     .labelsHidden()
             }
             .fixedSize()
+        }
+        Section {
+            LabeledContent(L("오른쪽으로 쓸기:")) {
+                Picker(L("오른쪽으로 쓸기"), selection: $swipeRight) {
+                    ForEach(SwipeAction.allCases) { Text($0.title).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+            LabeledContent(L("왼쪽으로 쓸기:")) {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Picker(L("왼쪽으로 쓸기"), selection: $swipeLeft) {
+                        ForEach(SwipeAction.allCases) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    Toggle(L("다른 동작 단추도 함께 보이기"), isOn: $swipeLeftMore)
+                        .disabled(swipeLeft == .none)
+                    SettingsNote(L("메일 목록의 줄을 트랙패드 두 손가락(또는 Magic Mouse 한 손가락)으로 좌우로 쓸 때 하는 일입니다. ")
+                                 + L("끝까지 쓸면 고른 동작을 바로 합니다. 지우기와 보관은 ⌘Z로 되돌릴 수 있습니다."))
+                }
+            }
         }
         Section {
             LabeledContent(L("대화 보기:")) {

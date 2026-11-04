@@ -854,3 +854,12 @@
 "맥 캘린더에 추가" = "Add to Calendar";
 "이 회의를 맥 캘린더에 넣습니다 (⌥⌘K)" = "Adds this meeting to Calendar on this Mac (⌥⌘K)";
 "읽음" = "Read";
+"깃발 달기 / 떼기" = "Flag / Unflag";
+"읽음 / 읽지 않음" = "Read / Unread";
+"오른쪽으로 쓸기:" = "Swipe right:";
+"오른쪽으로 쓸기" = "Swipe right";
+"왼쪽으로 쓸기:" = "Swipe left:";
+"왼쪽으로 쓸기" = "Swipe left";
+"다른 동작 단추도 함께 보이기" = "Also show buttons for other actions";
+"메일 목록의 줄을 트랙패드 두 손가락(또는 Magic Mouse 한 손가락)으로 좌우로 쓸 때 하는 일입니다. " = "What happens when you swipe a message in the list left or right with two fingers on a trackpad (or one finger on a Magic Mouse). ";
+"끝까지 쓸면 고른 동작을 바로 합니다. 지우기와 보관은 ⌘Z로 되돌릴 수 있습니다." = "A full swipe does the chosen action right away. Delete and Archive can be undone with ⌘Z.";

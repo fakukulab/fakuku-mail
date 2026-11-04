@@ -13,6 +13,10 @@ struct MessageListView: View {
     /// 줄마다 설정을 따로 지켜보지 않게 목록이 한 번 읽어 넘긴다 (스크롤이 매끄럽게).
     @AppStorage(Prefs.previewLines) private var previewLines = 2
     @AppStorage(Prefs.boldUnread) private var boldUnread = true
+    /// 설정 > 보기 > 목록에서 쓸기
+    @AppStorage(Prefs.swipeRight) private var swipeRight = SwipeAction.read
+    @AppStorage(Prefs.swipeLeft) private var swipeLeft = SwipeAction.delete
+    @AppStorage(Prefs.swipeLeftMore) private var swipeLeftMore = true
 
     var body: some View {
         @Bindable var model = model
@@ -29,9 +33,11 @@ struct MessageListView: View {
                                     knownCount: model.threadCounts[c.id])
                         .tag(c.latest.id)
                         .draggable(model.dragPayload(for: c.latest.id))
-                        .swipeActions(edge: .leading) { readSwipe(c.latest.id, unread: c.isUnread) }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            rightSwipe(c.latest.id, unread: c.isUnread, flagged: c.messages.allSatisfy(\.isFlagged))
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            organizeSwipe(c.latest.id, flagged: c.messages.allSatisfy(\.isFlagged))
+                            leftSwipe(c.latest.id, unread: c.isUnread, flagged: c.messages.allSatisfy(\.isFlagged))
                         }
                         .onAppear {
                             if tail.contains(c.id) { Task { await model.loadMore() } }
@@ -44,8 +50,12 @@ struct MessageListView: View {
                                flagColor: model.flagColor(for: m), previewLines: previewLines, boldUnread: boldUnread)
                         .tag(m.id)
                         .draggable(model.dragPayload(for: m.id))
-                        .swipeActions(edge: .leading) { readSwipe(m.id, unread: m.isUnread) }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) { organizeSwipe(m.id, flagged: m.isFlagged) }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            rightSwipe(m.id, unread: m.isUnread, flagged: m.isFlagged)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            leftSwipe(m.id, unread: m.isUnread, flagged: m.isFlagged)
+                        }
                         .onAppear {
                             if tail.contains(m.id) { Task { await model.loadMore() } }
                         }
@@ -225,37 +235,70 @@ struct MessageListView: View {
 
     // MARK: 쓸기 (트랙패드 두 손가락, Magic Mouse 한 손가락으로 줄을 좌우로)
 
-    /// 오른쪽으로 쓸기: 읽음 ↔ 읽지 않음 (맥 Mail과 같다)
+    /// 오른쪽으로 쓸기: 설정에서 고른 동작 하나 (기본: 읽음 ↔ 읽지 않음, 맥 Mail과 같다)
     @ViewBuilder
-    private func readSwipe(_ id: String, unread: Bool) -> some View {
-        Button {
-            act([id]) { await model.toggleReadSelected() }
-        } label: {
-            Label(unread ? L("읽음") : L("읽지 않음"), systemImage: unread ? "envelope.open" : "envelope.badge")
+    private func rightSwipe(_ id: String, unread: Bool, flagged: Bool) -> some View {
+        if swipeRight != .none {
+            swipeButton(swipeRight, id, unread: unread, flagged: flagged)
         }
-        .tint(Palette.accent)
     }
 
-    /// 왼쪽으로 쓸기: 지우기(끝까지 쓸면 바로), 보관, 깃발
+    /// 왼쪽으로 쓸기: 끝까지 쓰면 설정에서 고른 동작 (기본: 지우기), 그 뒤로 다른 단추들
     @ViewBuilder
-    private func organizeSwipe(_ id: String, flagged: Bool) -> some View {
-        Button(role: .destructive) {
-            act([id]) { await model.deleteSelected(undoManager: undoManager) }
-        } label: {
-            Label(L("지우기"), systemImage: "trash")
+    private func leftSwipe(_ id: String, unread: Bool, flagged: Bool) -> some View {
+        ForEach(SwipeAction.leftButtons(left: swipeLeft, right: swipeRight, more: swipeLeftMore)) { action in
+            swipeButton(action, id, unread: unread, flagged: flagged)
         }
-        Button {
-            act([id]) { await model.archiveSelected(undoManager: undoManager) }
-        } label: {
-            Label(L("보관"), systemImage: "archivebox")
+    }
+
+    /// 쓸기 단추 하나. 동작은 메뉴와 같은 함수를 쓴다 (되돌리기 포함).
+    @ViewBuilder
+    private func swipeButton(_ action: SwipeAction, _ id: String, unread: Bool, flagged: Bool) -> some View {
+        switch action {
+        case .read:
+            Button {
+                act([id]) { await model.toggleReadSelected() }
+            } label: {
+                Label(unread ? L("읽음") : L("읽지 않음"), systemImage: unread ? "envelope.open" : "envelope.badge")
+            }
+            .tint(Palette.accent)
+        case .flag:
+            Button {
+                act([id]) { await model.toggleFlagSelected() }
+            } label: {
+                Label(flagged ? L("깃발 떼기") : L("깃발 달기"), systemImage: flagged ? "flag.slash" : "flag")
+            }
+            .tint(.orange)
+        case .archive:
+            Button {
+                act([id]) { await model.archiveSelected(undoManager: undoManager) }
+            } label: {
+                Label(L("보관"), systemImage: "archivebox")
+            }
+            .tint(.indigo)
+        case .delete:
+            Button(role: .destructive) {
+                act([id]) { await model.deleteSelected(undoManager: undoManager) }
+            } label: {
+                Label(L("지우기"), systemImage: "trash")
+            }
+        case .junk:
+            Button {
+                act([id]) { await model.toggleJunkSelected(undoManager: undoManager) }
+            } label: {
+                Label(model.selectedFolder?.kind == "junkemail" ? L("정크 아님") : L("정크"), systemImage: "xmark.bin")
+            }
+            .tint(.brown)
+        case .move:
+            Button {
+                act([id]) { model.showMovePicker = true }
+            } label: {
+                Label(L("이동…"), systemImage: "folder")
+            }
+            .tint(.teal)
+        case .none:
+            EmptyView()
         }
-        .tint(.indigo)
-        Button {
-            act([id]) { await model.toggleFlagSelected() }
-        } label: {
-            Label(flagged ? L("깃발 떼기") : L("깃발 달기"), systemImage: flagged ? "flag.slash" : "flag")
-        }
-        .tint(.orange)
     }
 
     /// 메뉴를 연 줄들을 고른 뒤 동작한다.
