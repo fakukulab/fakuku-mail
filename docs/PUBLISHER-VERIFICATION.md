@@ -34,8 +34,10 @@ IT 관리자의 승인이 필요하다. 확인을 받으면 동의 화면에 회
 ## 3. 브랜딩 채우기 (동의 화면에 보인다, 신뢰에 중요)
 
 - [ ] 로고 (Icon/AppIcon.icon을 PNG로: `tools/icon_review.sh`로 만든 그림에서 잘라 쓴다)
-- [ ] 홈페이지 URL
-- [ ] **개인정보 처리방침 URL**, **서비스 약관 URL** (이 저장소의 docs/PRIVACY.md, docs/TERMS.md를 웹에 올려 링크)
+- [ ] 홈페이지: https://fakukulab.github.io/fakuku-mail/
+- [ ] **개인정보 처리방침 URL**: https://fakukulab.github.io/fakuku-mail/privacy.html
+- [ ] **서비스 약관 URL**: https://fakukulab.github.io/fakuku-mail/terms.html
+      (site/ 폴더, .github/workflows/pages.yml이 올린다. 처음 한 번 Settings → Pages → Source = GitHub Actions)
 
 ## 4. 게시자 확인 실행
 

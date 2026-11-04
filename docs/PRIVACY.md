@@ -1,8 +1,8 @@
-# FAKUKU Mail 개인정보 처리방침 (초안)
+# FAKUKU Mail 개인정보 처리방침 
 
-> 초안입니다. 게시하기 전에 회사 정보(이름, 연락처, 시행일)를 채우고 법률 검토를 받으세요.
+> 웹 게시본: site/privacy.html → https://fakukulab.github.io/fakuku-mail/privacy.html (둘을 함께 고친다)
 
-시행일: ____년 __월 __일 · 운영: ________ (fakukulab) · 문의: ________@________
+시행일: 2026년 11월 4일 · 운영: FAKUKU Lab · 문의: https://github.com/fakukulab/fakuku-mail/issues
 
 FAKUKU Mail("앱")은 Microsoft Exchange Online 메일을 macOS에서 읽고 쓰는 앱입니다.
 
@@ -43,4 +43,4 @@ and is accessed directly through Microsoft Graph. Sign-in tokens are kept in you
 Signatures, VIPs, templates, an offline copy of recent mail (removed when you sign out), and imported mailboxes are stored only on your Mac.
 Calendar and Contacts are used only if you allow them. Permissions requested: User.Read, Mail.ReadWrite, Mail.Send,
 Calendars.ReadWrite, MailboxSettings.ReadWrite, offline_access — for the purposes listed above.
-Contact: ________@________
+Contact: https://github.com/fakukulab/fakuku-mail/issues

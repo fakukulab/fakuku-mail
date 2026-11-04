@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인정보 처리방침 · FAKUKU Mail</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<p><a href="index.html">FAKUKU Mail</a></p>
+<h1>개인정보 처리방침</h1>
+<p class="muted">시행일: 2026년 11월 4일 · 운영: FAKUKU Lab · 문의: <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a></p>
+
+<p>FAKUKU Mail(“앱”)은 Microsoft Exchange Online 메일을 macOS에서 읽고 쓰는 앱입니다.</p>
+
+<h2>1. 앱 제작자가 모으는 정보</h2>
+<p><strong>없습니다.</strong> 앱은 제작자의 서버로 메일, 주소, 사용 기록, 분석 정보를 보내지 않습니다. 광고나 분석 도구가 없습니다.</p>
+
+<h2>2. 앱이 다루는 정보와 저장 위치</h2>
+<ul>
+  <li><strong>메일, 일정, 사서함 설정</strong>: 사용자의 Microsoft 365(Exchange Online) 사서함에 있으며, 앱은 Microsoft Graph로 직접 읽고 씁니다.</li>
+  <li><strong>로그인 토큰</strong>: 사용자의 Mac 키체인에만 저장합니다. 비밀번호는 앱이 받지 않으며 Microsoft 로그인 창에서 입력합니다.</li>
+  <li><strong>이 Mac에만 저장되는 것</strong>: 서명, VIP·스마트 메일상자, 개별 발송 템플릿과 그룹, 최근 메일의 오프라인 사본(로그아웃하면 지움), 사용자가 가져온 메일상자.</li>
+  <li><strong>맥 캘린더·연락처</strong>: 사용자가 허용한 경우에만, 수락한 회의를 캘린더에 넣고 연락처 카드를 보입니다.</li>
+</ul>
+
+<h2>3. 요청하는 Microsoft 권한과 이유</h2>
+<table>
+  <tr><th>권한</th><th>이유</th></tr>
+  <tr><td>User.Read</td><td>로그인한 사람의 이름과 주소</td></tr>
+  <tr><td>Mail.ReadWrite</td><td>메일 읽기, 옮기기, 지우기, 초안</td></tr>
+  <tr><td>Mail.Send</td><td>메일 보내기</td></tr>
+  <tr><td>Calendars.ReadWrite</td><td>회의 초대에 답하기</td></tr>
+  <tr><td>MailboxSettings.ReadWrite</td><td>받은 편지함 규칙, 자동 응답</td></tr>
+  <tr><td>offline_access</td><td>다시 로그인하지 않고 계속 쓰기</td></tr>
+</table>
+
+<h2>4. 원격 그림</h2>
+<p>메일 활동 보호가 켜져 있으면 메일 안의 원격 그림은 사용자의 Mac이 쿠키와 리퍼러 없이 직접 받아 보여 줍니다. 제작자의 중계 서버를 거치지 않습니다.</p>
+
+<h2>5. 지우기와 철회</h2>
+<p>앱에서 로그아웃하면 토큰과 오프라인 사본을 지웁니다. 앱과 <code>~/Library/Application Support/FAKUKUMail/</code> 폴더를 지우면 이 Mac의 앱 데이터가 모두 없어집니다.
+Microsoft 계정에 준 앱 권한은 <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> 또는 회사 관리자에게서 철회할 수 있습니다.</p>
+
+<h2>6. 바뀌는 경우</h2>
+<p>이 방침이 바뀌면 이 페이지에 알리고 시행일을 고칩니다.</p>
+
+<hr>
+
+<h1>Privacy Policy</h1>
+<p class="muted">Effective November 4, 2026 · Operated by FAKUKU Lab · Contact: <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a></p>
+
+<h3>What the developer collects</h3>
+<p><strong>Nothing.</strong> FAKUKU Mail does not send your mail, contacts, usage, or analytics to the developer. There are no ads or analytics.</p>
+<h3>What the app handles and where</h3>
+<ul>
+  <li><strong>Mail, calendar, and mailbox settings</strong> stay in your Microsoft 365 mailbox and are accessed directly through Microsoft Graph.</li>
+  <li><strong>Sign-in tokens</strong> are kept only in your Mac’s Keychain. The app never receives your password; you enter it in Microsoft’s sign-in window.</li>
+  <li><strong>Stored only on your Mac</strong>: signatures, VIPs and smart mailboxes, individual-sending templates and groups, an offline copy of recent mail (removed when you sign out), and mailboxes you import.</li>
+  <li><strong>Calendar and Contacts</strong> are used only if you allow them, to add accepted meetings and show contact cards.</li>
+</ul>
+<h3>Microsoft permissions</h3>
+<p>User.Read (your name and address), Mail.ReadWrite (read, move, delete, drafts), Mail.Send (send mail), Calendars.ReadWrite (answer meeting invitations), MailboxSettings.ReadWrite (Inbox rules, automatic replies), offline_access (stay signed in).</p>
+<h3>Remote images</h3>
+<p>With Protect Mail Activity on, remote images are downloaded by your Mac without cookies or referrer, never through a developer relay.</p>
+<h3>Deleting and revoking</h3>
+<p>Signing out removes tokens and the offline copy. Deleting the app and <code>~/Library/Application Support/FAKUKUMail/</code> removes all app data on your Mac. You can revoke the app’s permissions at <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> or through your administrator.</p>
+
+<footer>© 2026 FAKUKU Lab</footer>
+</main>
+</body>
+</html>
