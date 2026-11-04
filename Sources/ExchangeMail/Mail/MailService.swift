@@ -126,6 +126,9 @@ final class GraphMailService: MailService {
         self.auth = auth
     }
 
+    /// 사서함 하나에 동시에 4개 요청까지 (Exchange 한도). 모든 Graph 요청이 이 관문을 지난다.
+    static let gate = RequestGate(limit: 4)
+
     private struct ErrorBody: Decodable {
         struct Inner: Decodable { let code: String?; let message: String? }
         let error: Inner
@@ -151,14 +154,38 @@ final class GraphMailService: MailService {
             req.setValue(contentType, forHTTPHeaderField: "Content-Type")
         }
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
-        let (data, response) = try await URLSession.shared.data(for: req)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        guard (200..<300).contains(http.statusCode) else {
-            let e = try? JSONDecoder().decode(ErrorBody.self, from: data)
-            throw GraphError(status: http.statusCode, code: e?.error.code,
-                             message: e?.error.message ?? String(decoding: data, as: UTF8.self))
+        // 서버가 잠시 막으면(429, 503) 알려 준 시간(Retry-After)만큼 쉬고 세 번까지 다시 보낸다.
+        // 막힌 요청은 처리되지 않으므로 다시 보내도 두 번 처리되지 않는다.
+        var attempt = 0
+        while true {
+            await Self.gate.acquire()
+            let result: (Data, URLResponse)
+            do {
+                result = try await URLSession.shared.data(for: req)
+            } catch {
+                Self.gate.release()
+                throw error
+            }
+            Self.gate.release()
+            let (data, response) = result
+            guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+            if http.statusCode == 429 || http.statusCode == 503 {
+                let advised = http.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init)
+                GraphThrottle.note(retryAfter: advised ?? 0)
+                if attempt < 3 {
+                    let wait = min(advised ?? pow(2, Double(attempt + 1)), 30)
+                    try await Task.sleep(for: .seconds(wait))
+                    attempt += 1
+                    continue
+                }
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                let e = try? JSONDecoder().decode(ErrorBody.self, from: data)
+                throw GraphError(status: http.statusCode, code: e?.error.code,
+                                 message: e?.error.message ?? String(decoding: data, as: UTF8.self))
+            }
+            return data
         }
-        return data
     }
 
     private func json(_ object: [String: Any]) throws -> Data {

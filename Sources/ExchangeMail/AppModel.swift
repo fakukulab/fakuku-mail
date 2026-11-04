@@ -93,6 +93,8 @@ final class AppModel {
     @ObservationIgnored var conversationMemo: (key: Int, value: [Conversation])?
     /// 열어 본 메일과 미리 받은 메일 (AppModel+Prefetch)
     @ObservationIgnored let detailCache = DetailCache()
+    /// 미리 받기 (다른 메일을 열면 앞의 것을 그만둔다)
+    @ObservationIgnored var prefetchTask: Task<Void, Never>?
     /// 대화별 메일과 받은 시각 (1분 동안 다시 묻지 않는다)
     @ObservationIgnored var threadCache: [String: (at: Date, list: [MailMessage])] = [:] {
         // 옮기기·지우기 등으로 비우면 목록 줄의 확인된 수도 다시 센다.

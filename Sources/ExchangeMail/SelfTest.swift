@@ -1073,6 +1073,20 @@ enum SelfTest {
                 model.selectedFolderID = "inbox"
             }
 
+            // Exchange 한도: 동시에 나가는 요청 수를 묶는다 (넘으면 기다렸다가 차례로)
+            let gate = RequestGate(limit: 2)
+            await gate.acquire()
+            await gate.acquire()
+            var third = false
+            let waiting = Task { await gate.acquire(); third = true }
+            try? await Task.sleep(for: .seconds(0.1))
+            let blocked = !third
+            gate.release()
+            try? await Task.sleep(for: .seconds(0.1))
+            check("요청 관문: 한도를 넘는 요청은 자리가 날 때까지 기다린다", blocked && third, "\(blocked) \(third)")
+            waiting.cancel()
+            gate.release(); gate.release()
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

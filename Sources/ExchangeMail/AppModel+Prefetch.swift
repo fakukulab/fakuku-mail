@@ -72,15 +72,26 @@ extension AppModel {
     }
 
     /// 목록의 다음 두 통과 이전 한 통을 미리 받아 둔다 (본문, 그림이 있으면 첨부 목록).
+    /// 서버 한도를 넘지 않게: 한 번에 한 통씩 차례로, 다른 요청이 몰려 있거나 최근에 막혔으면(2분) 쉰다.
     func prefetchNeighbors(of id: String) {
         // 설정 > 일반 > 미리 받기
-        guard Prefs.bool(Prefs.prefetch, true) else { return }
+        guard Prefs.bool(Prefs.prefetch, true), GraphThrottle.isCalm else { return }
         let order = navigationOrder
         guard let i = order.firstIndex(of: id) else { return }
         let neighbors = [i + 1, i + 2, i - 1].filter { order.indices.contains($0) }.map { order[$0] }
-        for next in neighbors where detailCache.get(next) == nil && detailCache.begin(next) {
-            Task(priority: .utility) { [weak self] in
-                guard let self else { return }
+            .filter { detailCache.get($0) == nil && !detailCache.inFlight.contains($0) }
+        guard !neighbors.isEmpty else { return }
+        prefetchTask?.cancel()
+        prefetchTask = Task(priority: .utility) { [weak self] in
+            for next in neighbors {
+                guard let self, !Task.isCancelled, GraphThrottle.isCalm else { return }
+                // 사용자가 연 메일의 요청이 먼저: 관문이 바쁘면 잠깐 기다린다.
+                var waited = 0
+                while GraphMailService.gate.isBusy && waited < 20 {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    waited += 1
+                }
+                guard !Task.isCancelled, self.detailCache.get(next) == nil, self.detailCache.begin(next) else { continue }
                 defer { self.detailCache.end(next) }
                 guard let m = try? await self.service.message(id: next) else { return }
                 var attachments: [FileAttachment]? = Self.needsAttachments(m) ? nil : []
