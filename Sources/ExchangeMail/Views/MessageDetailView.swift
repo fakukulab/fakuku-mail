@@ -61,6 +61,10 @@ struct MessageDetailView: View {
             } else if model.selectedMessageID != nil {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if model.missingMessageNotice {
+                ContentUnavailableView(L("메일을 찾을 수 없습니다"), systemImage: "envelope.badge.shield.half.filled",
+                                       description: Text(L("다른 기기나 규칙이 이 메일을 옮겼거나 지웠습니다. 목록을 새로 고쳤습니다.")))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(L("메시지를 선택하세요"), systemImage: "envelope")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

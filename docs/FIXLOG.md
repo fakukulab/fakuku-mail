@@ -163,3 +163,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   한국어 Siri는 ko.lproj/AppShortcuts.strings에서 문구를 찾는데 그 파일이 없었다 → 한국어 Siri에 등록된 명령이 없었다.
 - 고침: ko.lproj/AppShortcuts.strings (문구 그대로). tools/l10n.py가 코드의 Siri 문구가 en·ko 표에 모두 있는지 본다.
 - 확인이 안 되면: 단축어 앱에서 FAKUKU Mail 동작을 직접 실행해 오류 글을 본다.
+
+## 2026-11-04 메일을 열 때 "메일 서버 오류 (404): The specified object was not found in the store."
+- 원인: 목록에 있는 메일이 서버에는 없다. 휴대폰 Outlook·다른 Mac·서버 규칙이 옮기면(옮기면 id가 바뀐다) 또는 지우면,
+  앱은 새로 고치기 전의 목록에서 옛 id로 열었다. 오류 창을 그대로 띄웠다.
+- 고침: 본문을 받다 404면 그 메일을 목록·기억(DetailCache, 대화)에서 빼고, 본문 열에 "메일을 찾을 수 없습니다"를 보이고, 목록을 조용히
+  새로 고친다 (`forgetMissing`). 다른 동작의 404도 오류 창 대신 새로 고침 (10초에 한 번). 데모 서비스도 없는 메일에 Graph처럼 404.

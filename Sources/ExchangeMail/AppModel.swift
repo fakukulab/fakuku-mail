@@ -89,6 +89,9 @@ final class AppModel {
     /// 나의 Mac에 (S-055): 가져온 메일상자. 로그아웃해도 남는다.
     /// 회의마다 맥 캘린더에 넣은 결과 (S-056, 회의 막대에 보인다)
     var macCalendarStatus: [String: MacCalendar.Outcome] = [:]
+    /// 열려던 메일이 서버에 없었다 (다른 기기·규칙이 옮겼거나 지웠다). 본문 열에 짧게 알린다.
+    var missingMessageNotice = false
+    @ObservationIgnored var lastNotFoundRefresh: Date?
     /// 대화 묶음 결과 (AppModel+Conversations.conversations)
     @ObservationIgnored var conversationMemo: (key: Int, value: [Conversation])?
     /// 열어 본 메일과 미리 받은 메일 (AppModel+Prefetch)
@@ -205,6 +208,7 @@ final class AppModel {
             }
             allowRemoteFor = nil
             shownMessageID = nil
+            if selectedMessageID != nil { missingMessageNotice = false }
             // 같은 대화 안에서 옮기면 대화 목록을 비우지 않는다 (깜빡이지 않게). 다른 대화면 비운다.
             let newConversation = selectedMessageID.flatMap { id in messages.first { $0.id == id }?.conversationId }
             if newConversation == nil || !thread.contains(where: { $0.conversationId == newConversation }) {
@@ -525,9 +529,35 @@ final class AppModel {
                 detailBody = MailContent.displayBody(m.body, attachments: list)
                 updateMenu()
             }
+        } catch let error as GraphError where error.status == 404 {
+            // 목록에는 있지만 서버에는 없다: 다른 기기·Outlook·규칙이 옮겼거나(옮기면 id가 바뀐다) 지웠다.
+            forgetMissing(id)
         } catch {
             report(error)
         }
+    }
+
+    /// 서버에서 사라진 메일을 목록과 기억에서 빼고, 목록을 조용히 새로 고친다 (오류 창을 띄우지 않는다).
+    func forgetMissing(_ id: String) {
+        detailCache.remove(id)
+        threadCache = [:]
+        messages.removeAll { $0.id == id }
+        selection.remove(id)
+        if displayedMessageID == id {
+            shownMessageID = nil
+            if selectedMessageID == id { selectedMessageID = nil }
+            detail = nil; detailBody = nil; detailAttachments = []
+            missingMessageNotice = true
+        }
+        updateMenu()
+        refreshAfterNotFound()
+    }
+
+    /// 404가 이어져도 새로 고침은 10초에 한 번만 (새로 고침이 또 404를 내도 되풀이하지 않게).
+    func refreshAfterNotFound() {
+        if let last = lastNotFoundRefresh, Date().timeIntervalSince(last) < 10 { return }
+        lastNotFoundRefresh = Date()
+        Task { await loadMessages(keepSelection: true) }
     }
 
     /// 필터의 앱 쪽 부분을 걸고 정렬한다 (S-041, S-042).
@@ -779,6 +809,11 @@ final class AppModel {
             isOffline = true
             if quietIfOffline { return }
             errorMessage = (error as? OfflineError)?.localizedDescription ?? OfflineError.unavailable(L("이 작업을 할")).localizedDescription
+            return
+        }
+        // 없는 메일(404): 다른 곳에서 옮겨졌거나 지워졌다. 오류 창 대신 목록을 새로 고쳐 실제 상태를 보인다.
+        if let g = error as? GraphError, g.status == 404 {
+            refreshAfterNotFound()
             return
         }
         errorMessage = error.localizedDescription

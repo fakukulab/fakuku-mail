@@ -35,6 +35,12 @@ final class DetailCache {
         while order.count > limit { entries[order.removeFirst()] = nil }
     }
 
+    /// 서버에서 사라진 메일 (옮겨졌거나 지워졌다)
+    func remove(_ id: String) {
+        entries[id] = nil
+        order.removeAll { $0 == id }
+    }
+
     func setAttachments(_ id: String, _ list: [FileAttachment]) {
         entries[id]?.attachments = list
     }

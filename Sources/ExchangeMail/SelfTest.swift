@@ -1096,6 +1096,21 @@ enum SelfTest {
             }
             model.selectedMessageID = nil
 
+            // 다른 기기가 옮기거나 지운 메일(404): 오류 창 없이 목록에서 빼고 알린다
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            if let victim = model.messages.last {
+                // 서버(데모)에서만 지운다: 앱의 목록에는 아직 있다 (미리 받은 기억도 지운다)
+                model.detailCache.remove(victim.id)
+                try? await model.service.deleteMessage(id: victim.id)
+                model.errorMessage = nil
+                model.selectedMessageID = victim.id
+                try? await Task.sleep(for: .seconds(0.6))
+                check("없는 메일을 열면 오류 창 대신 목록에서 빼고 '찾을 수 없음'을 보인다",
+                      model.errorMessage == nil && model.missingMessageNotice && !model.messages.contains { $0.id == victim.id },
+                      model.errorMessage ?? "")
+            }
+
             // Exchange 한도: 동시에 나가는 요청 수를 묶는다 (넘으면 기다렸다가 차례로)
             let gate = RequestGate(limit: 2)
             await gate.acquire()

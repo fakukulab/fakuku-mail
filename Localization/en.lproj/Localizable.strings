@@ -912,3 +912,5 @@
 "회사가 자체 Azure 앱 등록을 쓰는 경우에만 넣습니다. 비워 두면 FAKUKU Mail의 앱 등록을 씁니다. " = "Only needed if your organization uses its own Azure app registration. Leave empty to use FAKUKU Mail’s registration. ";
 "바꾼 값은 다음 로그인부터 쓰입니다." = "Changes take effect at the next sign-in.";
 "기본값으로 되돌리기" = "Restore Defaults";
+"메일을 찾을 수 없습니다" = "Message Not Found";
+"다른 기기나 규칙이 이 메일을 옮겼거나 지웠습니다. 목록을 새로 고쳤습니다." = "Another device or a rule moved or deleted this message. The list has been refreshed.";

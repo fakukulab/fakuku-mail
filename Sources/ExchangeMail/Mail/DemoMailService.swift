@@ -217,7 +217,10 @@ final class DemoMailService: MailService {
 
     func message(id: String) async throws -> MailMessage {
         try checkOnline()
-        guard let (folder, index) = find(id), let m = store[folder]?[index] else { throw URLError(.fileDoesNotExist) }
+        // 없는 메일은 Graph처럼 404 (다른 기기가 옮기거나 지운 메일)
+        guard let (folder, index) = find(id), let m = store[folder]?[index] else {
+            throw GraphError(status: 404, code: "ErrorItemNotFound", message: "The specified object was not found in the store.")
+        }
         return m
     }
 
