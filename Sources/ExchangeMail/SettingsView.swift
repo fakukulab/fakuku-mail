@@ -244,7 +244,9 @@ struct AccountSettings: View {
         }
         Section {
             LabeledContent(L("클라이언트 ID:")) {
-                TextField(L("클라이언트 ID"), text: $clientID)
+                // 앱에 등록 번호가 들어 있으면 비워 둔다 (고급: 회사가 자체 앱 등록을 쓸 때만)
+                TextField(L("클라이언트 ID"), text: $clientID,
+                          prompt: Text(GraphAuth.bundledClientID.isEmpty ? "00000000-0000-0000-0000-000000000000" : L("비우면 앱 기본값")))
                     .labelsHidden()
             }
             LabeledContent(L("테넌트:")) {

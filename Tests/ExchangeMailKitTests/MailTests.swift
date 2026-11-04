@@ -990,3 +990,28 @@ func speechUnread() {
     #expect(text.hasSuffix("외 4통."))
     #expect(MailSpeech.unreadSummary([], total: 0) == "읽지 않은 메일이 없습니다.")
 }
+
+// S-058 이메일만으로 로그인 (멀티 테넌트 앱)
+
+@Test("로그인 주소: 이메일을 주면 login_hint로 채우고, 없으면 계정 고르기")
+func authorizeHint() throws {
+    let redirect = OAuth.redirectURI(bundleID: "com.fakukulab.fakukumail")
+    let hinted = try #require(OAuth.authorizeURL(tenant: "", clientID: "cid", redirectURI: redirect,
+                                                 challenge: "c", state: "s", loginHint: " kim@corp.com "))
+    let items = URLComponents(url: hinted, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.first { $0.name == "login_hint" }?.value == "kim@corp.com")
+    #expect(!items.contains { $0.name == "prompt" })
+    #expect(hinted.absoluteString.hasPrefix("https://login.microsoftonline.com/common/"))
+    let plain = try #require(OAuth.authorizeURL(tenant: "", clientID: "cid", redirectURI: redirect, challenge: "c", state: "s"))
+    #expect(URLComponents(url: plain, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "prompt" }?.value == "select_account")
+}
+
+@Test("관리자 승인: 주소와 오류 알아보기")
+func adminConsent() throws {
+    let url = try #require(OAuth.adminConsentURL(tenant: "", clientID: "cid", redirectURI: "msauth.x://auth"))
+    #expect(url.absoluteString.hasPrefix("https://login.microsoftonline.com/organizations/v2.0/adminconsent?"))
+    #expect(url.absoluteString.contains("client_id=cid"))
+    #expect(OAuth.needsAdminConsent("AADSTS65001: The user or administrator has not consented to use the application"))
+    #expect(OAuth.needsAdminConsent("AADSTS90094: Admin approval required"))
+    #expect(!OAuth.needsAdminConsent("AADSTS50126: Invalid username or password"))
+}

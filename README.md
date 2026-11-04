@@ -54,14 +54,25 @@ tools/demo.sh        # 로그인 없이 예시 메일로 앱 둘러보기
 - `Info.plist.in`의 `CFBundleIdentifier`
 - `tools/snap.sh`, `tools/selftest.sh`의 `savedState` 경로
 
-## Azure 앱 등록 (1회)
+## Azure 앱 등록 (멀티 테넌트, 개발자가 1회)
+
+사용자는 이메일만 넣고 로그인합니다. 그러려면 앱을 만드는 사람이 Azure에 앱을 **한 번** 등록하고,
+그 번호를 `Config/azure-client-id.txt`에 넣어 빌드합니다 (번호는 비밀이 아닙니다).
 
 1. portal.azure.com → Microsoft Entra ID → 앱 등록 → 새 등록
-2. 지원 계정 유형: 조직 디렉터리(+개인 계정 필요 시 포함)
-3. 플랫폼 추가 → **모바일 및 데스크톱 애플리케이션** → 사용자 지정 리디렉션 URI: `msauth.<번들ID>://auth`
-   (기본값이면 `msauth.com.fakukulab.fakukumail://auth`. 앱의 로그인 화면과 설정 > 계정에도 표시됩니다)
-4. API 사용 권한(위임): `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `offline_access`, `Calendars.ReadWrite`(회의 초대 답하기), `MailboxSettings.ReadWrite`(규칙, 자동 응답) (조직 정책에 따라 관리자 동의 필요)
-5. 앱 실행 → 로그인 화면에 **애플리케이션(클라이언트) ID** 입력 → "Microsoft로 로그인"
+2. 이름: FAKUKU Mail. **지원 계정 유형: "모든 조직 디렉터리의 계정 및 개인 Microsoft 계정"** (다른 회사 사람도 로그인)
+3. 플랫폼 추가 → **모바일 및 데스크톱 애플리케이션** → 사용자 지정 리디렉션 URI: `msauth.com.fakukulab.fakukumail://auth`
+4. API 사용 권한(위임, Microsoft Graph): `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `offline_access`,
+   `Calendars.ReadWrite`(회의 초대 답하기), `MailboxSettings.ReadWrite`(규칙, 자동 응답)
+5. 개요의 **애플리케이션(클라이언트) ID**를 `Config/azure-client-id.txt`에 한 줄로 넣고 `./build.sh`
+   (또는 `AZURE_CLIENT_ID=… ./build.sh`)
+6. 권장: 브랜딩 및 속성 → **게시자 확인**(Microsoft Partner Network ID). 확인되지 않은 게시자의 앱은
+   회사 정책에 따라 사용자가 승인할 수 없고 IT 관리자의 승인이 필요합니다.
+
+사용자 쪽: 로그인 화면에 회사 이메일 → "로그인" → Microsoft 창에서 비밀번호와 다중 인증.
+회사가 관리자 승인을 요구하면 로그인 화면의 **관리자 승인 링크 복사**로 링크를 IT 관리자에게 보냅니다
+(관리자가 한 번 승인하면 그 회사 직원은 바로 로그인합니다).
+회사가 자체 앱 등록을 쓰면 로그인 화면의 "고급"이나 설정 > 계정에 그 클라이언트 ID와 테넌트를 넣습니다.
 
 ## 구조
 

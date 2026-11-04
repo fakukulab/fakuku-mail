@@ -63,7 +63,15 @@ mkdir -p "$HOME/Applications"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/$exe"
-sed -e "s/__BUILD__/$(date +%Y%m%d%H%M)/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
+# Azure 앱 등록 번호(멀티 테넌트): 환경 변수 AZURE_CLIENT_ID, 없으면 Config/azure-client-id.txt (# 줄은 설명).
+# 비어 있으면 사용자가 설정 > 계정 > 고급에 직접 넣어야 한다.
+client_id="${AZURE_CLIENT_ID:-}"
+if [[ -z "$client_id" && -f "$here/Config/azure-client-id.txt" ]]; then
+  client_id=$(grep -v '^[[:space:]]*#' "$here/Config/azure-client-id.txt" | tr -d '[:space:]')
+fi
+[[ "$client_id" =~ ^[0-9A-Fa-f-]*$ ]] || { echo "Config/azure-client-id.txt: 클라이언트 ID 형식이 아닙니다"; exit 1; }
+[[ -n "$client_id" ]] || echo "warning: Azure 클라이언트 ID가 없습니다 (Config/azure-client-id.txt). 사용자가 직접 넣어야 로그인할 수 있습니다."
+sed -e "s/__BUILD__/$(date +%Y%m%d%H%M)/" -e "s/__AZURE_CLIENT_ID__/$client_id/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
 # The icon: Icon/AppIcon.icon -> Resources/Assets.car + AppIcon.icns, rebuilt when it changed.
 if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   car="$here/Resources/Assets.car"

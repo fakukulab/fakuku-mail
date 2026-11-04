@@ -3,6 +3,7 @@
 <plist version="1.0"><dict>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleLocalizations</key><array><string>en</string><string>ko</string></array>
+<key>FAKUKUAzureClientID</key><string>__AZURE_CLIENT_ID__</string>
 <key>CFBundleIdentifier</key><string>com.fakukulab.fakukumail</string>
 <key>CFBundleName</key><string>FAKUKU Mail</string>
 <key>CFBundleDisplayName</key><string>FAKUKU Mail</string>

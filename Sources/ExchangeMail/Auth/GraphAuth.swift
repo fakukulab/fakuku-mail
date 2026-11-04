@@ -15,12 +15,17 @@ final class GraphAuth: NSObject {
         var expiresAt: Date
         var email: String
         var name: String?
+        /// 로그인할 때 쓴 앱 등록 번호와 테넌트. 토큰을 갱신할 때 같은 값을 쓴다 (예전 토큰에는 없다).
+        var clientID: String? = nil
+        var tenant: String? = nil
     }
 
     private(set) var email: String?
     private(set) var displayName: String?
     private(set) var isSigningIn = false
     var lastError: String?
+    /// 회사 관리자의 승인이 필요하다는 오류였다 (로그인 화면에 관리자 승인 링크를 보인다)
+    private(set) var needsAdminConsent = false
 
     @ObservationIgnored private var tokens: TokenSet?
     /// ASWebAuthenticationSession은 끝날 때까지 강하게 잡아 둬야 한다.
@@ -49,20 +54,35 @@ final class GraphAuth: NSObject {
 
     var isSignedIn: Bool { isDemo || email != nil }
 
-    var clientID: String {
+    /// 앱에 들어 있는 Azure 앱 등록 번호 (멀티 테넌트, build.sh가 Config/azure-client-id.txt에서 넣는다).
+    /// 사용자는 이 번호를 몰라도 된다. 설정 > 계정 > 고급에 다른 번호를 넣으면 그것을 쓴다.
+    static var bundledClientID: String {
+        let value = (Bundle.main.object(forInfoDictionaryKey: "FAKUKUAzureClientID") as? String ?? "")
+            .trimmingCharacters(in: .whitespaces)
+        return value.hasPrefix("__") ? "" : value
+    }
+
+    /// 직접 넣은 번호 (고급). 비어 있으면 앱의 번호.
+    var clientIDOverride: String {
         (UserDefaults.standard.string(forKey: "azureClientID") ?? "").trimmingCharacters(in: .whitespaces)
     }
-    var tenant: String { UserDefaults.standard.string(forKey: "azureTenant") ?? "" }
+    var clientID: String { clientIDOverride.isEmpty ? Self.bundledClientID : clientIDOverride }
+    /// 비어 있으면 common: 어느 회사 계정(과 개인 Microsoft 계정)으로든 로그인한다.
+    var tenant: String { (UserDefaults.standard.string(forKey: "azureTenant") ?? "").trimmingCharacters(in: .whitespaces) }
+    /// 회사 관리자에게 보낼 승인 링크
+    var adminConsentURL: URL? { OAuth.adminConsentURL(tenant: tenant, clientID: clientID, redirectURI: redirectURI) }
     private var bundleID: String { Bundle.main.bundleIdentifier ?? "com.fakukulab.fakukumail" }
     var redirectURI: String { OAuth.redirectURI(bundleID: bundleID) }
 
     // MARK: 로그인
 
-    func signIn() async {
+    /// `email`을 주면 Microsoft 로그인 창에 그 주소를 채운다 (비밀번호와 다중 인증은 그 창에서).
+    func signIn(email: String? = nil) async {
         guard !isDemo, !isSigningIn else { return }
         lastError = nil
+        needsAdminConsent = false
         guard !clientID.isEmpty else {
-            lastError = L("Azure 앱(클라이언트) ID를 먼저 입력하세요.")
+            lastError = L("이 빌드에는 Azure 앱 등록 번호가 없습니다. 설정 > 계정 > 고급에 클라이언트 ID를 넣거나, Config/azure-client-id.txt를 채워 다시 빌드하세요.")
             return
         }
         isSigningIn = true
@@ -71,7 +91,7 @@ final class GraphAuth: NSObject {
         let verifier = OAuth.randomVerifier()
         let state = OAuth.randomState()
         guard let url = OAuth.authorizeURL(tenant: tenant, clientID: clientID, redirectURI: redirectURI,
-                                           challenge: OAuth.challenge(for: verifier), state: state) else {
+                                           challenge: OAuth.challenge(for: verifier), state: state, loginHint: email) else {
             lastError = L("로그인 주소를 만들 수 없습니다. 테넌트 값을 확인하세요.")
             return
         }
@@ -85,6 +105,7 @@ final class GraphAuth: NSObject {
             // 사용자가 창을 닫음
         } catch {
             lastError = error.localizedDescription
+            needsAdminConsent = OAuth.needsAdminConsent(error.localizedDescription)
         }
     }
 
@@ -139,10 +160,11 @@ final class GraphAuth: NSObject {
     }
 
     private func refreshed(_ current: TokenSet) async throws -> TokenSet {
+        // 로그인할 때의 번호·테넌트로 갱신한다 (그 뒤에 설정을 바꿔도 로그인이 풀리지 않게).
         let r = try await tokenRequest([
             "grant_type": "refresh_token", "refresh_token": current.refreshToken,
-            "client_id": clientID, "scope": OAuth.scopes,
-        ])
+            "client_id": current.clientID ?? clientID, "scope": OAuth.scopes,
+        ], tenant: current.tenant ?? tenant)
         var t = current
         t.accessToken = r.access_token
         t.refreshToken = r.refresh_token ?? current.refreshToken
@@ -155,7 +177,7 @@ final class GraphAuth: NSObject {
         let r = try await tokenRequest([
             "grant_type": "authorization_code", "code": code, "client_id": clientID,
             "redirect_uri": redirectURI, "code_verifier": verifier, "scope": OAuth.scopes,
-        ])
+        ], tenant: tenant)
         // 이메일은 /me로 확인한다.
         guard let meURL = URL(string: "https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName,displayName") else { return }
         var req = URLRequest(url: meURL)
@@ -164,7 +186,8 @@ final class GraphAuth: NSObject {
         let me = try JSONDecoder().decode(GraphMe.self, from: data)
         store(TokenSet(accessToken: r.access_token, refreshToken: r.refresh_token ?? "",
                        expiresAt: Date().addingTimeInterval(TimeInterval(r.expires_in)),
-                       email: me.mail ?? me.userPrincipalName ?? "", name: me.displayName))
+                       email: me.mail ?? me.userPrincipalName ?? "", name: me.displayName,
+                       clientID: clientID, tenant: tenant))
     }
 
     private func store(_ t: TokenSet) {
@@ -180,7 +203,7 @@ final class GraphAuth: NSObject {
         let displayName: String?
     }
 
-    private func tokenRequest(_ form: [String: String]) async throws -> TokenResponse {
+    private func tokenRequest(_ form: [String: String], tenant: String) async throws -> TokenResponse {
         guard let url = URL(string: "\(OAuth.authority(tenant: tenant))/token") else { throw AuthError.signedOut }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"

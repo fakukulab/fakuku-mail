@@ -37,9 +37,11 @@ public enum OAuth {
         Data(SHA256.hash(data: Data(verifier.utf8))).base64URLEncoded
     }
 
+    /// `loginHint`(이메일)를 주면 Microsoft 로그인 창에 그 주소가 채워져 비밀번호부터 묻는다.
     public static func authorizeURL(tenant: String, clientID: String, redirectURI: String,
-                                    challenge: String, state: String) -> URL? {
+                                    challenge: String, state: String, loginHint: String? = nil) -> URL? {
         var c = URLComponents(string: "\(authority(tenant: tenant))/authorize")
+        let hint = loginHint?.trimmingCharacters(in: .whitespaces) ?? ""
         c?.queryItems = [
             URLQueryItem(name: "client_id", value: clientID),
             URLQueryItem(name: "response_type", value: "code"),
@@ -49,9 +51,29 @@ public enum OAuth {
             URLQueryItem(name: "code_challenge", value: challenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "state", value: state),
-            URLQueryItem(name: "prompt", value: "select_account"),
+        ] + (hint.contains("@")
+            ? [URLQueryItem(name: "login_hint", value: hint)]
+            : [URLQueryItem(name: "prompt", value: "select_account")])
+        return c?.url
+    }
+
+    /// 회사 관리자가 이 앱을 회사 전체에 승인하는 주소 (한 번 승인하면 직원들은 바로 로그인한다).
+    public static func adminConsentURL(tenant: String, clientID: String, redirectURI: String) -> URL? {
+        let t = tenant.trimmingCharacters(in: .whitespaces)
+        var c = URLComponents(string: "https://login.microsoftonline.com/\(t.isEmpty || t == "common" ? "organizations" : t)/v2.0/adminconsent")
+        c?.queryItems = [
+            URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "scope", value: "https://graph.microsoft.com/.default"),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
         ]
         return c?.url
+    }
+
+    /// 로그인 오류가 "회사 관리자의 승인이 필요하다"는 뜻인가 (AADSTS65001, 90094, 90095 등)
+    public static func needsAdminConsent(_ message: String) -> Bool {
+        let m = message.lowercased()
+        return ["aadsts65001", "aadsts90094", "aadsts90095", "aadsts90099", "admin approval", "admin consent",
+                "관리자 승인", "관리자의 승인"].contains { m.contains($0) }  // l10n: data (서버 오류 글과 비교)
     }
 
     /// 리디렉션 URL에서 code를 꺼낸다. state가 다르거나 error가 있으면 오류 문구를 돌려준다.
