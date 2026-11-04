@@ -33,6 +33,18 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     const ed=document.getElementById('editor');
     function post(user){window.webkit.messageHandlers.change.postMessage({html:ed.innerHTML,user:user})}
     ed.addEventListener('input',()=>post(true));
+    // 탭 키: 본문에 탭 간격을 넣는다 (다음 입력 칸인 받는 사람으로 넘어가지 않게).
+    // 목록 안이면 탭은 한 단계 들여쓰기, ⇧탭은 내어쓰기. 목록 밖의 ⇧탭은 그대로 둔다(제목 칸으로 돌아가기).
+    ed.addEventListener('keydown',e=>{
+      if(e.key!=='Tab'||e.metaKey||e.ctrlKey||e.altKey||e.isComposing) return;
+      const s=window.getSelection();let n=s.rangeCount?s.getRangeAt(0).startContainer:null;let inList=false;
+      while(n&&n!==ed){if(n.nodeName==='LI'){inList=true;break}n=n.parentNode}
+      if(inList){e.preventDefault();document.execCommand('styleWithCSS',false,false);
+        document.execCommand(e.shiftKey?'outdent':'indent');post(true);return}
+      if(e.shiftKey) return;
+      e.preventDefault();
+      // WebKit은 탭 글자를 white-space:pre 꼬리표(Apple-tab-span)로 감싸 넣는다: 받는 쪽에서도 탭 간격으로 보인다.
+      document.execCommand('insertText',false,'\t');post(true)});
     function setHTML(h){ed.innerHTML=h;post(false)}
     function cmd(c,v){document.execCommand('styleWithCSS',false,true);document.execCommand(c,false,v);post(true)}
     function fontSize(px){
