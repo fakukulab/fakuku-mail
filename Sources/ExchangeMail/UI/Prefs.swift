@@ -1,4 +1,5 @@
 import AppKit
+import ExchangeMailKit
 import SwiftUI
 
 /// 설정 값의 키와 기본값 (설정 > 작성·보기·서체 및 색상). 뷰는 같은 키로 @AppStorage를 쓰고,
