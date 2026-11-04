@@ -1,6 +1,6 @@
 # FAKUKU Mail 서비스 약관 
 
-> 웹 게시본: site/terms.html → https://fakukulab.github.io/fakuku-mail/terms.html (둘을 함께 고친다)
+> 웹 게시본: site/terms.html → https://mail.fakukulab.com/terms.html (둘을 함께 고친다)
 
 시행일: 2026년 11월 4일 · 운영: FAKUKU Lab
 

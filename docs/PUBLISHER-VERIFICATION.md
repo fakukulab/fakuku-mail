@@ -11,7 +11,7 @@ IT 관리자의 승인이 필요하다. 확인을 받으면 동의 화면에 회
 ## 0. 준비물
 
 - [ ] **법인(사업자)**: Microsoft 파트너 프로그램은 회사로 가입한다 (개인은 가입할 수 없다).
-- [ ] **회사 도메인**: 예 `fakukulab.com`. 그 도메인의 메일 주소(예 `admin@fakukulab.com`)와 DNS를 고칠 수 있어야 한다.
+- [ ] **회사 도메인**: `fakukulab.com`. 그 도메인의 메일 주소(예 `admin@fakukulab.com`)와 DNS를 고칠 수 있어야 한다.
 - [ ] **Microsoft Entra ID 테넌트**: 앱이 등록된 곳. 그 테넌트에서 **애플리케이션 관리자** 이상의 역할,
       로그인 계정에 **다중 인증(MFA)**이 켜져 있어야 한다.
 
@@ -26,17 +26,17 @@ IT 관리자의 승인이 필요하다. 확인을 받으면 동의 화면에 회
 ## 2. 앱에 게시자 도메인 정하기
 
 - [ ] portal.azure.com → 앱 등록 → FAKUKU Mail → **브랜딩 및 속성(Branding & properties)**
-- [ ] **게시자 도메인(Publisher domain)**을 회사 도메인으로. 방법은 둘 중 하나:
-  - 테넌트에 회사 도메인을 사용자 지정 도메인으로 추가하고 DNS TXT로 확인 (Entra ID → 사용자 지정 도메인 이름), 또는
+- [ ] **게시자 도메인(Publisher domain)**을 `fakukulab.com`으로. 방법은 둘 중 하나:
+  - (권장) 테넌트에 `fakukulab.com`을 사용자 지정 도메인으로 추가하고 DNS TXT로 확인 (Entra ID → 사용자 지정 도메인 이름), 또는
   - 화면이 주는 `microsoft-identity-association.json` 파일을 `https://<도메인>/.well-known/` 에 올려 확인
 - [ ] 조건: 파트너 프로그램 가입 때 확인한 메일 주소의 도메인과 게시자 도메인이 같아야 한다.
 
 ## 3. 브랜딩 채우기 (동의 화면에 보인다, 신뢰에 중요)
 
 - [ ] 로고 (Icon/AppIcon.icon을 PNG로: `tools/icon_review.sh`로 만든 그림에서 잘라 쓴다)
-- [ ] 홈페이지: https://fakukulab.github.io/fakuku-mail/
-- [ ] **개인정보 처리방침 URL**: https://fakukulab.github.io/fakuku-mail/privacy.html
-- [ ] **서비스 약관 URL**: https://fakukulab.github.io/fakuku-mail/terms.html
+- [ ] 홈페이지: https://mail.fakukulab.com/
+- [ ] **개인정보 처리방침 URL**: https://mail.fakukulab.com/privacy.html
+- [ ] **서비스 약관 URL**: https://mail.fakukulab.com/terms.html
       (site/ 폴더, .github/workflows/pages.yml이 올린다. 처음 한 번 Settings → Pages → Source = GitHub Actions)
 
 ## 4. 게시자 확인 실행

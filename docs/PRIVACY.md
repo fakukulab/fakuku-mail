@@ -1,6 +1,6 @@
 # FAKUKU Mail 개인정보 처리방침 
 
-> 웹 게시본: site/privacy.html → https://fakukulab.github.io/fakuku-mail/privacy.html (둘을 함께 고친다)
+> 웹 게시본: site/privacy.html → https://mail.fakukulab.com/privacy.html (둘을 함께 고친다)
 
 시행일: 2026년 11월 4일 · 운영: FAKUKU Lab · 문의: https://github.com/fakukulab/fakuku-mail/issues
 

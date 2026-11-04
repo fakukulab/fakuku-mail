@@ -1,6 +1,7 @@
 # site/ 폴더(소개, 개인정보 처리방침, 서비스 약관)를 GitHub Pages에 올린다.
-# 처음 한 번: 저장소 Settings → Pages → Build and deployment → Source를 "GitHub Actions"로.
-# 주소: https://fakukulab.github.io/fakuku-mail/  (privacy.html, terms.html)
+# 처음 한 번: 저장소 Settings → Pages → Build and deployment → Source를 "GitHub Actions"로,
+#   Custom domain에 mail.fakukulab.com (DNS: mail CNAME fakukulab.github.io), Enforce HTTPS.
+# 주소: https://mail.fakukulab.com/  (privacy.html, terms.html)
 name: Pages
 
 on:
