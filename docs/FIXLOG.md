@@ -157,3 +157,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: 모든 Graph 요청이 `RequestGate`(동시 4개)를 지난다. 429·503이면 Retry-After만큼(없으면 2·4·8초) 쉬고 세 번까지 조용히 다시 보낸다.
   막힌 뒤 2분 동안 미리 받기를 쉬고(`GraphThrottle`), 미리 받기는 한 통씩 차례로, 관문이 바쁘면 기다린다.
 - 규칙: 새 기능이 Graph 요청을 늘리면 동시에 몇 개가 나가는지 본다. 급하지 않은 요청은 `GraphThrottle.isCalm`과 `gate.isBusy`를 본다.
+
+## 2026-11-04 Siri 명령이 모두 아무 말 없이 사라짐
+- 원인(가장 유력): 한국어·영어 지원(S-054)에서 개발 언어를 en으로 바꿨다. 코드의 Siri 문구는 개발 언어(영어) 문구로 읽히고,
+  한국어 Siri는 ko.lproj/AppShortcuts.strings에서 문구를 찾는데 그 파일이 없었다 → 한국어 Siri에 등록된 명령이 없었다.
+- 고침: ko.lproj/AppShortcuts.strings (문구 그대로). tools/l10n.py가 코드의 Siri 문구가 en·ko 표에 모두 있는지 본다.
+- 확인이 안 되면: 단축어 앱에서 FAKUKU Mail 동작을 직접 실행해 오류 글을 본다.

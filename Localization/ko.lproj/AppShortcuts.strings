@@ -1,0 +1,21 @@
+/* 한국어 Siri 문구. 앱의 기본(개발) 언어가 영어라서, 한국어 Siri는 이 파일에서 문구를 찾는다.
+   없으면 한국어 Siri에 명령이 하나도 등록되지 않는다. 키는 Intents/MailIntents.swift의 문구 그대로. */
+"${applicationName}에서 읽지 않은 메일 몇 통이야" = "${applicationName}에서 읽지 않은 메일 몇 통이야";
+"${applicationName} 읽지 않은 메일" = "${applicationName} 읽지 않은 메일";
+"${applicationName} 안 읽은 메일 몇 개야" = "${applicationName} 안 읽은 메일 몇 개야";
+"${applicationName} 새 메일 가져와" = "${applicationName} 새 메일 가져와";
+"${applicationName}에서 메일 확인해" = "${applicationName}에서 메일 확인해";
+"${applicationName} VIP 메일 보여 줘" = "${applicationName} VIP 메일 보여 줘";
+"${applicationName}에서 VIP 메일" = "${applicationName}에서 VIP 메일";
+"${applicationName} 읽지 않은 메일 보여 줘" = "${applicationName} 읽지 않은 메일 보여 줘";
+"${applicationName}로 메일 써 줘" = "${applicationName}로 메일 써 줘";
+"${applicationName}에서 새 메일" = "${applicationName}에서 새 메일";
+"${applicationName}에서 메일 검색" = "${applicationName}에서 메일 검색";
+"${applicationName} 최근 메일 읽어 줘" = "${applicationName} 최근 메일 읽어 줘";
+"${applicationName}에서 최근 메일 뭐야" = "${applicationName}에서 최근 메일 뭐야";
+"${applicationName} 읽지 않은 메일 읽어 줘" = "${applicationName} 읽지 않은 메일 읽어 줘";
+"${applicationName}에서 안 읽은 메일 읽어 줘" = "${applicationName}에서 안 읽은 메일 읽어 줘";
+"${applicationName} 이 메일에 깃발 달아 줘" = "${applicationName} 이 메일에 깃발 달아 줘";
+"${applicationName}에서 깃발 달아 줘" = "${applicationName}에서 깃발 달아 줘";
+"${applicationName} 이 메일에 답장해 줘" = "${applicationName} 이 메일에 답장해 줘";
+"${applicationName}에서 답장 써 줘" = "${applicationName}에서 답장 써 줘";

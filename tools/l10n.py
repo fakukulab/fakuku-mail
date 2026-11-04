@@ -125,6 +125,16 @@ def check():
                     else:
                         unwrapped.append(f'{rel}:{line_no}: {x.text()[:70]}')
             visit(scan(src))
+    # Siri 문구: 코드의 "\(.applicationName)…" 문구가 en·ko AppShortcuts.strings에 모두 있어야 한다.
+    # 개발 언어가 영어라서 ko 표가 없으면 한국어 Siri에 명령이 하나도 등록되지 않는다.
+    intents = open(os.path.join(ROOT, 'Sources/ExchangeMail/Intents/MailIntents.swift'), encoding='utf-8').read()
+    phrases = [p.replace('\\(.applicationName)', '${applicationName}')
+               for p in re.findall(r'^\s*"(\\\(\.applicationName\)[^"]*)",\s*$', intents, flags=re.M)]
+    for lang in ('en', 'ko'):
+        path = os.path.join(ROOT, f'Localization/{lang}.lproj/AppShortcuts.strings')
+        table = strings_table(path) if os.path.exists(path) else {}
+        for p in phrases:
+            if p not in table: missing.append(f'Siri 문구 ({lang}.lproj/AppShortcuts.strings): {p}')
     for u in unwrapped: print('NOT WRAPPED (L(...)로 감싸거나 // l10n: data):', u)
     for m in missing: print('NO ENGLISH (Localization/en.lproj/Localizable.strings에 추가):', m)
     print('PASS l10n' if not (unwrapped or missing) else f'FAIL l10n: {len(unwrapped)} not wrapped, {len(missing)} without English')
