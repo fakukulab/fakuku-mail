@@ -1081,6 +1081,21 @@ enum SelfTest {
                   SwipeAction.leftButtons(left: .flag, right: .read, more: false) == [.flag]
                   && SwipeAction.leftButtons(left: .none, right: .read, more: true).isEmpty)
 
+            // S-057 Siri: 최근 메일 읽기, 지금 메일에 깃발 (실제 인텐트 실행)
+            IntentModel.current = model
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(0.5))
+            check("S-057 Siri '최근 메일 읽어 줘'가 오류 없이 답한다", (try? await ReadLatestMailIntent().perform()) != nil)
+            check("S-057 Siri '읽지 않은 메일 읽어 줘'가 오류 없이 답한다", (try? await ReadUnreadMailIntent().perform()) != nil)
+            if let target = model.messages.first(where: { !$0.isFlagged }) {
+                await open(target.id)
+                _ = try? await FlagCurrentMailIntent().perform()
+                check("S-057 Siri '이 메일에 깃발 달아 줘'가 지금 메일에 깃발을 단다",
+                      model.messages.first { $0.id == target.id }?.isFlagged == true)
+                _ = await model.setFlag(id: target.id, flagged: false)
+            }
+            model.selectedMessageID = nil
+
             // Exchange 한도: 동시에 나가는 요청 수를 묶는다 (넘으면 기다렸다가 차례로)
             let gate = RequestGate(limit: 2)
             await gate.acquire()

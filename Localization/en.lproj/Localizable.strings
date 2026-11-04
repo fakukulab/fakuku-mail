@@ -863,3 +863,29 @@
 "다른 동작 단추도 함께 보이기" = "Also show buttons for other actions";
 "메일 목록의 줄을 트랙패드 두 손가락(또는 Magic Mouse 한 손가락)으로 좌우로 쓸 때 하는 일입니다. " = "What happens when you swipe a message in the list left or right with two fingers on a trackpad (or one finger on a Magic Mouse). ";
 "끝까지 쓸면 고른 동작을 바로 합니다. 지우기와 보관은 ⌘Z로 되돌릴 수 있습니다." = "A full swipe does the chosen action right away. Delete and Archive can be undone with ⌘Z.";
+
+/* S-057 Siri */
+"최근 메일 읽기" = "Read Latest Mail";
+"받은 편지함의 가장 최근 메일의 보낸 사람, 제목, 앞부분을 읽어 줍니다." = "Reads the sender, subject, and beginning of the latest message in your Inbox.";
+"받은 편지함에 메일이 없습니다." = "There’s no mail in your Inbox.";
+"읽지 않은 메일 읽기" = "Read Unread Mail";
+"받은 편지함의 읽지 않은 메일을 다섯 통까지 보낸 사람과 제목으로 읽어 줍니다." = "Reads the sender and subject of up to five unread messages in your Inbox.";
+"지금 열려 있는 메일이 없습니다. FAKUKU Mail에서 메일을 고른 뒤 다시 말해 주세요." = "No message is open. Select a message in FAKUKU Mail and try again.";
+"이 메일에 깃발 달기" = "Flag This Message";
+"FAKUKU Mail에서 지금 보고 있는 메일에 깃발을 답니다." = "Flags the message you’re viewing in FAKUKU Mail.";
+"이미 깃발이 달려 있습니다." = "It’s already flagged.";
+"깃발을 달지 못했습니다." = "Couldn’t flag the message.";
+"'%@'에 깃발을 달았습니다." = "Flagged “%@”.";
+"이 메일에 답장" = "Reply to This Message";
+"FAKUKU Mail에서 지금 보고 있는 메일의 답장 창을 엽니다." = "Opens a reply to the message you’re viewing in FAKUKU Mail.";
+"답장 창을 열었습니다." = "Opened a reply.";
+"이 메일 보관" = "Archive This Message";
+"FAKUKU Mail에서 지금 보고 있는 메일을 보관 폴더로 옮깁니다." = "Moves the message you’re viewing in FAKUKU Mail to Archive.";
+"'%@'을(를) 보관했습니다." = "Archived “%@”.";
+"이 메일에 깃발" = "Flag This Message";
+"보낸 사람 없음" = "no sender";
+"%@님이 보낸 메일입니다. 제목은 %@입니다." = "From %@. Subject: %@.";
+"읽지 않은 메일이 없습니다." = "You have no unread mail.";
+"읽지 않은 메일 %@통." = "%@ unread messages.";
+"%@. %@, %@." = "%@. %@, %@.";
+"외 %@통." = "And %@ more.";

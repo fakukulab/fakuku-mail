@@ -138,6 +138,105 @@ struct SearchMailIntent: @preconcurrency AppIntent {
     }
 }
 
+// MARK: S-057 메일 읽어 주기, 지금 메일 다루기
+
+/// 최근 메일 읽어 주기 (받은 편지함의 가장 최근 메일)
+nonisolated struct ReadLatestMailIntent: AppIntent {
+    static let title: LocalizedStringResource = "최근 메일 읽기"
+    static let description = IntentDescription("받은 편지함의 가장 최근 메일의 보낸 사람, 제목, 앞부분을 읽어 줍니다.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        let model = try await IntentModel.ready()
+        let inbox = model.folders.first { $0.kind == "inbox" }?.id ?? "inbox"
+        guard let m = try await model.service.messages(folderID: inbox, search: nil).messages.first else {
+            return .result(value: "", dialog: "받은 편지함에 메일이 없습니다.")
+        }
+        let text = MailSpeech.latest(m)
+        return .result(value: text, dialog: spoken(text))
+    }
+}
+
+/// 읽지 않은 메일 읽어 주기 (받은 편지함, 다섯 통까지)
+nonisolated struct ReadUnreadMailIntent: AppIntent {
+    static let title: LocalizedStringResource = "읽지 않은 메일 읽기"
+    static let description = IntentDescription("받은 편지함의 읽지 않은 메일을 다섯 통까지 보낸 사람과 제목으로 읽어 줍니다.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        let model = try await IntentModel.ready()
+        await model.loadFolders()
+        let inbox = model.folders.first { $0.kind == "inbox" }
+        var unread = MailFilter()
+        unread.unread = true
+        let page = try await model.service.messages(folderID: inbox?.id ?? "inbox", search: nil, filter: unread, oldestFirst: false)
+        let list = page.messages.filter(\.isUnread)
+        let text = MailSpeech.unreadSummary(list, total: max(inbox?.unreadItemCount ?? 0, list.count))
+        return .result(value: text, dialog: spoken(text))
+    }
+}
+
+/// 앱이 만든 글을 Siri 대답으로 (번역 표에 없는 "%@" 키라 글이 그대로 나온다)
+func spoken(_ text: String) -> IntentDialog { "\(text)" }
+
+/// 지금 보고 있는 메일 (메인 창 본문). 없으면 Siri가 알려 준다.
+enum IntentCurrentMail {
+    @MainActor
+    static func message(_ model: AppModel) -> MailMessage? {
+        guard let m = model.detail, model.selectedMessageID != nil else { return nil }
+        return m
+    }
+
+    static let missing: IntentDialog = "지금 열려 있는 메일이 없습니다. FAKUKU Mail에서 메일을 고른 뒤 다시 말해 주세요."
+}
+
+/// 이 메일에 깃발 달기
+nonisolated struct FlagCurrentMailIntent: AppIntent {
+    static let title: LocalizedStringResource = "이 메일에 깃발 달기"
+    static let description = IntentDescription("FAKUKU Mail에서 지금 보고 있는 메일에 깃발을 답니다.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let model = try await IntentModel.ready()
+        guard let m = IntentCurrentMail.message(model) else { return .result(dialog: IntentCurrentMail.missing) }
+        if m.isFlagged { return .result(dialog: "이미 깃발이 달려 있습니다.") }
+        guard await model.setFlag(id: m.id, flagged: true) else { return .result(dialog: "깃발을 달지 못했습니다.") }
+        return .result(dialog: spoken(L("'\(m.title)'에 깃발을 달았습니다.")))
+    }
+}
+
+/// 이 메일에 답장 (작성 창을 연다)
+nonisolated struct ReplyCurrentMailIntent: AppIntent {
+    static let title: LocalizedStringResource = "이 메일에 답장"
+    static let description = IntentDescription("FAKUKU Mail에서 지금 보고 있는 메일의 답장 창을 엽니다.")
+    static let openAppWhenRun = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let model = try await IntentModel.ready()
+        guard IntentCurrentMail.message(model) != nil, let draft = model.draft(.reply) else {
+            return .result(dialog: IntentCurrentMail.missing)
+        }
+        model.pendingCompose = draft
+        return .result(dialog: "답장 창을 열었습니다.")
+    }
+}
+
+/// 이 메일 보관 (단축어 앱에서 쓴다. Siri 문구는 앱당 10개까지라 넣지 않았다)
+nonisolated struct ArchiveCurrentMailIntent: AppIntent {
+    static let title: LocalizedStringResource = "이 메일 보관"
+    static let description = IntentDescription("FAKUKU Mail에서 지금 보고 있는 메일을 보관 폴더로 옮깁니다.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let model = try await IntentModel.ready()
+        guard let m = IntentCurrentMail.message(model) else { return .result(dialog: IntentCurrentMail.missing) }
+        model.selection = [m.id]
+        await model.archiveSelected()
+        return .result(dialog: spoken(L("'\(m.title)'을(를) 보관했습니다.")))
+    }
+}
+
 /// Siri에 말로 부르는 문구. 문구마다 앱 이름이 들어가야 한다 (Info.plist의 INAlternativeAppNames로 "파쿠쿠 메일"도 된다).
 nonisolated struct FakukuShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
@@ -164,5 +263,22 @@ nonisolated struct FakukuShortcuts: AppShortcutsProvider {
         AppShortcut(intent: SearchMailIntent(), phrases: [
             "\(.applicationName)에서 메일 검색",
         ], shortTitle: "메일 검색", systemImageName: "magnifyingglass")
+        // S-057 (앱당 문구 묶음은 10개까지)
+        AppShortcut(intent: ReadLatestMailIntent(), phrases: [
+            "\(.applicationName) 최근 메일 읽어 줘",
+            "\(.applicationName)에서 최근 메일 뭐야",
+        ], shortTitle: "최근 메일 읽기", systemImageName: "envelope.badge")
+        AppShortcut(intent: ReadUnreadMailIntent(), phrases: [
+            "\(.applicationName) 읽지 않은 메일 읽어 줘",
+            "\(.applicationName)에서 안 읽은 메일 읽어 줘",
+        ], shortTitle: "읽지 않은 메일 읽기", systemImageName: "text.bubble")
+        AppShortcut(intent: FlagCurrentMailIntent(), phrases: [
+            "\(.applicationName) 이 메일에 깃발 달아 줘",
+            "\(.applicationName)에서 깃발 달아 줘",
+        ], shortTitle: "이 메일에 깃발", systemImageName: "flag")
+        AppShortcut(intent: ReplyCurrentMailIntent(), phrases: [
+            "\(.applicationName) 이 메일에 답장해 줘",
+            "\(.applicationName)에서 답장 써 줘",
+        ], shortTitle: "이 메일에 답장", systemImageName: "arrowshape.turn.up.left")
     }
 }

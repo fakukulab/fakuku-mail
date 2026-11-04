@@ -10,3 +10,11 @@
 "${applicationName}로 메일 써 줘" = "Write an email with ${applicationName}";
 "${applicationName}에서 새 메일" = "New email in ${applicationName}";
 "${applicationName}에서 메일 검색" = "Search mail in ${applicationName}";
+"${applicationName} 최근 메일 읽어 줘" = "Read my latest email in ${applicationName}";
+"${applicationName}에서 최근 메일 뭐야" = "What’s my latest email in ${applicationName}";
+"${applicationName} 읽지 않은 메일 읽어 줘" = "Read my unread mail in ${applicationName}";
+"${applicationName}에서 안 읽은 메일 읽어 줘" = "Read unread emails in ${applicationName}";
+"${applicationName} 이 메일에 깃발 달아 줘" = "Flag this email in ${applicationName}";
+"${applicationName}에서 깃발 달아 줘" = "Flag it in ${applicationName}";
+"${applicationName} 이 메일에 답장해 줘" = "Reply to this email in ${applicationName}";
+"${applicationName}에서 답장 써 줘" = "Write a reply in ${applicationName}";

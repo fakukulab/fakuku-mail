@@ -966,3 +966,27 @@ func calendarEntryAllDay() throws {
     #expect(cal.component(.day, from: entry.end) == 6)   // 이틀짜리: 6일 끝까지
     #expect(CalendarEntry(event: MailEvent(id: "y", subject: "a", start: nil, end: nil)) == nil)
 }
+
+// S-057 Siri가 읽어 주는 글
+
+@Test("Siri: 최근 메일은 보낸 사람, 제목, 본문 앞부분")
+func speechLatest() {
+    let m = MailMessage(id: "1", subject: "견적 요청", from: Recipient(name: "김 대리", address: "kim@ex.com"),
+                        receivedDateTime: Date(), bodyPreview: "안녕하세요,\n  견적을   부탁드립니다." + String(repeating: "가", count: 300))
+    let text = MailSpeech.latest(m)
+    #expect(text.hasPrefix("김 대리님이 보낸 메일입니다. 제목은 견적 요청입니다. 안녕하세요, 견적을 부탁드립니다."))
+    #expect(text.hasSuffix("…") && text.count < 260)
+}
+
+@Test("Siri: 읽지 않은 메일 요약은 다섯 통까지, 나머지는 '외 N통'")
+func speechUnread() {
+    let list = (1...7).map { i in
+        MailMessage(id: "\(i)", subject: "제목\(i)", from: Recipient(name: "사람\(i)", address: "p\(i)@ex.com"),
+                    receivedDateTime: Date())
+    }
+    let text = MailSpeech.unreadSummary(list, total: 9)
+    #expect(text.hasPrefix("읽지 않은 메일 9통. 1. 사람1, 제목1."))
+    #expect(text.contains("5. 사람5, 제목5.") && !text.contains("사람6"))
+    #expect(text.hasSuffix("외 4통."))
+    #expect(MailSpeech.unreadSummary([], total: 0) == "읽지 않은 메일이 없습니다.")
+}
