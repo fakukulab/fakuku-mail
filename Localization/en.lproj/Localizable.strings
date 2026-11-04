@@ -905,3 +905,10 @@
 "고급" = "Advanced";
 "비우면 앱 기본값" = "Leave empty to use the app’s default";
 "회사가 자체 Azure 앱 등록을 쓰는 경우에만 넣습니다. 방법은 README의 \"Azure 앱 등록\"을 보세요." = "Only needed if your organization uses its own Azure app registration. See “Azure app registration” in the README.";
+"고급:" = "Advanced:";
+"고급 설정 보기…" = "Show Advanced Settings…";
+"고급 설정 숨기기" = "Hide Advanced Settings";
+"직접 넣은 앱 등록 값을 쓰고 있습니다." = "Using app registration values you entered.";
+"회사가 자체 Azure 앱 등록을 쓰는 경우에만 넣습니다. 비워 두면 FAKUKU Mail의 앱 등록을 씁니다. " = "Only needed if your organization uses its own Azure app registration. Leave empty to use FAKUKU Mail’s registration. ";
+"바꾼 값은 다음 로그인부터 쓰입니다." = "Changes take effect at the next sign-in.";
+"기본값으로 되돌리기" = "Restore Defaults";
