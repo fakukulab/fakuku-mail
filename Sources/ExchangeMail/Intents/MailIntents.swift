@@ -1,6 +1,7 @@
 import AppIntents
 import ExchangeMailKit
 import Foundation
+import SwiftUI
 
 // Siri 음성 명령과 단축어 (App Intents). "시리야, 파쿠쿠 메일에서 읽지 않은 메일 몇 통이야?"
 // 명령이 Siri·단축어에 보이려면 앱 안에 Metadata.appintents가 있어야 한다: build.sh가 tools/make_intents.sh로 만든다.
@@ -146,14 +147,15 @@ nonisolated struct ReadLatestMailIntent: AppIntent {
     static let description = IntentDescription("받은 편지함의 가장 최근 메일의 보낸 사람, 제목, 앞부분을 읽어 줍니다.")
 
     @MainActor
-    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog & ShowsSnippetView {
         let model = try await IntentModel.ready()
         let inbox = model.folders.first { $0.kind == "inbox" }?.id ?? "inbox"
         guard let m = try await model.service.messages(folderID: inbox, search: nil).messages.first else {
-            return .result(value: "", dialog: "받은 편지함에 메일이 없습니다.")
+            return .result(value: "", dialog: "받은 편지함에 메일이 없습니다.", view: MailSnippet(heading: L("받은 편지함에 메일이 없습니다."), rows: []))
         }
         let text = MailSpeech.latest(m)
-        return .result(value: text, dialog: spoken(text))
+        // 말로 읽는 것과 함께 카드로도 보인다: 카드가 있으면 Siri 창이 바로 닫히지 않는다.
+        return .result(value: text, dialog: spoken(text), view: MailSnippet(heading: L("최근 메일"), rows: [.init(m)]))
     }
 }
 
@@ -163,7 +165,7 @@ nonisolated struct ReadUnreadMailIntent: AppIntent {
     static let description = IntentDescription("받은 편지함의 읽지 않은 메일을 다섯 통까지 보낸 사람과 제목으로 읽어 줍니다.")
 
     @MainActor
-    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog & ShowsSnippetView {
         let model = try await IntentModel.ready()
         await model.loadFolders()
         let inbox = model.folders.first { $0.kind == "inbox" }
@@ -171,8 +173,64 @@ nonisolated struct ReadUnreadMailIntent: AppIntent {
         unread.unread = true
         let page = try await model.service.messages(folderID: inbox?.id ?? "inbox", search: nil, filter: unread, oldestFirst: false)
         let list = page.messages.filter(\.isUnread)
-        let text = MailSpeech.unreadSummary(list, total: max(inbox?.unreadItemCount ?? 0, list.count))
-        return .result(value: text, dialog: spoken(text))
+        let total = max(inbox?.unreadItemCount ?? 0, list.count)
+        let text = MailSpeech.unreadSummary(list, total: total)
+        let heading = total == 0 ? L("읽지 않은 메일이 없습니다.") : L("읽지 않은 메일 \(total)통")
+        return .result(value: text, dialog: spoken(text),
+                       view: MailSnippet(heading: heading, rows: list.prefix(5).map { MailSnippet.Row($0) }))
+    }
+}
+
+/// Siri 창에 보이는 메일 카드 (보낸 사람, 제목, 앞부분). Siri가 그리므로 고정된 값만 쓴다.
+struct MailSnippet: View {
+    struct Row: Identifiable {
+        let id: String
+        let sender: String
+        let subject: String
+        let preview: String
+        let unread: Bool
+
+        init(_ m: MailMessage) {
+            id = m.id
+            sender = MailSpeech.sender(m)
+            subject = m.title
+            let text = (m.bodyPreview ?? "").split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            preview = text.count > MailSpeech.previewLimit ? String(text.prefix(MailSpeech.previewLimit)) + "…" : text
+            unread = m.isUnread
+        }
+    }
+
+    let heading: String
+    var symbol = "envelope"
+    let rows: [Row]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            Label(heading, systemImage: symbol)
+                .font(.headline)
+            ForEach(rows) { r in
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                    Circle()
+                        .fill(r.unread ? Color.accentColor : Color.clear)
+                        .frame(width: 8, height: 8)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.sender)
+                            .fontWeight(.semibold)
+                            .lineLimit(1)
+                        Text(r.subject)
+                            .lineLimit(1)
+                        if !r.preview.isEmpty && rows.count == 1 {
+                            Text(r.preview)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(4)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -196,12 +254,19 @@ nonisolated struct FlagCurrentMailIntent: AppIntent {
     static let description = IntentDescription("FAKUKU Mail에서 지금 보고 있는 메일에 깃발을 답니다.")
 
     @MainActor
-    func perform() async throws -> some IntentResult & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let model = try await IntentModel.ready()
-        guard let m = IntentCurrentMail.message(model) else { return .result(dialog: IntentCurrentMail.missing) }
-        if m.isFlagged { return .result(dialog: "이미 깃발이 달려 있습니다.") }
-        guard await model.setFlag(id: m.id, flagged: true) else { return .result(dialog: "깃발을 달지 못했습니다.") }
-        return .result(dialog: spoken(L("'\(m.title)'에 깃발을 달았습니다.")))
+        guard let m = IntentCurrentMail.message(model) else {
+            return .result(dialog: IntentCurrentMail.missing, view: MailSnippet(heading: L("열려 있는 메일이 없습니다"), rows: []))
+        }
+        if m.isFlagged {
+            return .result(dialog: "이미 깃발이 달려 있습니다.", view: MailSnippet(heading: L("이미 깃발이 달려 있습니다."), rows: [.init(m)]))
+        }
+        guard await model.setFlag(id: m.id, flagged: true) else {
+            return .result(dialog: "깃발을 달지 못했습니다.", view: MailSnippet(heading: L("깃발을 달지 못했습니다."), rows: [.init(m)]))
+        }
+        return .result(dialog: spoken(L("'\(m.title)'에 깃발을 달았습니다.")),
+                       view: MailSnippet(heading: L("깃발을 달았습니다"), symbol: "flag.fill", rows: [.init(m)]))
     }
 }
 
