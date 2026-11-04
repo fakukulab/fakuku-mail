@@ -60,7 +60,10 @@ tools/demo.sh        # 로그인 없이 예시 메일로 앱 둘러보기
 그 번호를 `Config/azure-client-id.txt`에 넣어 빌드합니다 (번호는 비밀이 아닙니다).
 
 1. portal.azure.com → Microsoft Entra ID → 앱 등록 → 새 등록
-2. 이름: FAKUKU Mail. **지원 계정 유형: "모든 조직 디렉터리의 계정 및 개인 Microsoft 계정"** (다른 회사 사람도 로그인)
+2. 이름: FAKUKU Mail. **지원 계정 유형: "모든 조직 디렉터리의 계정 (다중 테넌트)"** (다른 회사 사람도 로그인).
+   개인 Microsoft 계정은 넣지 않는다: Exchange Online 메일용이고, 넣으면 매니페스트의 토큰 버전 오류로 저장이 막히기 쉽다.
+   나중에 바꿀 때: 앱 → 관리 → 인증 → (아래쪽 또는 "설정" 탭) 지원되는 계정 유형, 또는 매니페스트의
+   `"signInAudience": "AzureADMultipleOrgs"`
 3. 플랫폼 추가 → **모바일 및 데스크톱 애플리케이션** → 사용자 지정 리디렉션 URI: `msauth.com.fakukulab.fakukumail://auth`
 4. API 사용 권한(위임, Microsoft Graph): `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `offline_access`,
    `Calendars.ReadWrite`(회의 초대 답하기), `MailboxSettings.ReadWrite`(규칙, 자동 응답)
