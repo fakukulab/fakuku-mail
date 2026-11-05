@@ -385,5 +385,9 @@ private struct MacCalendarSettings: View {
         calendarAccess = MacCalendar.shared.hasAccess
         status = MacCalendar.shared.statusText
         calendars = MacCalendar.shared.writableCalendars().map { (id: $0.calendarIdentifier, title: "\($0.title) — \($0.source.title)") }
+        // 고른 캘린더가 목록에 없으면(지워졌거나, 이제 빼는 Exchange 캘린더) 기본 캘린더로: 고르기 칸이 비어 보이지 않게
+        if !calendarTarget.isEmpty, !calendars.isEmpty, !calendars.contains(where: { $0.id == calendarTarget }) {
+            calendarTarget = ""
+        }
     }
 }
