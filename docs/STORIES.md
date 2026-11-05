@@ -656,9 +656,9 @@ Acceptance:
 - [ ] 계정 빼기(−)는 그 계정의 앱 암호와 이 Mac의 캐시를 지운다
 
 ### S-062 iCloud·Gmail 보내기 (2단계)
-Status: in progress (코드, 맥에서 확인 전)
-- [ ] SMTP(iCloud STARTTLS 587, Gmail TLS 465, AUTH PLAIN)로 보낸다. 숨은 참조 머리글은 빼고 보낸다
-- [ ] iCloud는 보낸 편지함에 사본(IMAP APPEND), Gmail은 서버가 알아서
+Status: in progress (iCloud 보내기·보낸 편지함 사본 맥에서 확인 2026-11-05)
+- [x] SMTP(iCloud STARTTLS 587, Gmail TLS 465, AUTH PLAIN)로 보낸다. 숨은 참조 머리글은 빼고 보낸다
+- [x] iCloud는 보낸 편지함에 사본(IMAP APPEND), Gmail은 서버가 알아서. 보낸 편지함을 보고 있으면 바로 보인다
 - [ ] 큰 첨부도 메일 하나로 (Graph처럼 나눠 올리지 않는다)
 - [ ] 초안 저장(임시 보관함에 APPEND, 예전 초안은 지운다)
 - [ ] 대화 묶기(References), 새 메일 즉시 알림(IDLE)
