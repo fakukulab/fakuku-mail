@@ -108,8 +108,10 @@ actor IMAPConnection {
     }
 
     /// 고른 폴더의 메일 수 (SELECT의 EXISTS)
+    /// 이미 고른 폴더면 NOOP로 새로 세고, 아니면 SELECT만 한다 (서버에 한 번만 묻는다)
     func exists(in path: String) async throws -> Int {
-        _ = try await run(select: path, "NOOP")
+        let alreadySelected = selected == path && task != nil
+        _ = try await run(select: path, alreadySelected ? [.text("NOOP")] : [])
         return selectedExists
     }
 
@@ -120,6 +122,7 @@ actor IMAPConnection {
             selected = path
             selectedExists = reply.untagged.first { $0.count >= 2 && $0[1].text?.uppercased() == "EXISTS" }?[0].int ?? 0
         }
+        guard !parts.isEmpty else { return IMAPReply(untagged: [], text: "") }
         let reply = try await send(parts)
         // 고른 폴더의 수가 바뀌면(새 메일, 지우기) 따라간다
         if path != nil, let n = reply.untagged.last(where: { $0.count >= 2 && $0[1].text?.uppercased() == "EXISTS" })?[0].int {

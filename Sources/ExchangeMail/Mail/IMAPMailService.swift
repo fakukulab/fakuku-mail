@@ -9,7 +9,13 @@ import Foundation
 final class IMAPMailService: MailService {
     let accountID: String
     let config: IMAPAccountConfig
-    private let connection: IMAPConnection
+    /// 연결 여러 개 (M24 속도): 미리 받기·폴더 세기가 도는 동안에도 클릭한 메일과 지우기는 놀고 있는 연결로 바로 간다.
+    private let pool: [IMAPConnection]
+    /// 연결마다 지금 맡은 명령 수 (가장 한가한 연결을 고른다)
+    private var load: [Int]
+    private static let poolSize = 3
+    /// 목록에서 본 메일의 Message-ID (옮긴 뒤 새 UID를 찾는 데 쓴다. 서버에 다시 묻지 않게)
+    private var headerMemo: [String: String] = [:]
     /// 폴더 경로 → 종류 (inbox, sentitems …). folders()가 채운다.
     private var kinds: [String: String] = [:]
     /// 지운 메일을 옮길 휴지통 경로
@@ -25,8 +31,34 @@ final class IMAPMailService: MailService {
     init(accountID: String, config: IMAPAccountConfig, password: String) {
         self.accountID = accountID
         self.config = config
-        connection = IMAPConnection(host: config.imapHost, port: config.imapPort,
-                                    username: config.username, password: password)
+        pool = (0..<Self.poolSize).map { _ in
+            IMAPConnection(host: config.imapHost, port: config.imapPort, username: config.username, password: password)
+        }
+        load = Array(repeating: 0, count: Self.poolSize)
+    }
+
+    // MARK: 연결 고르기
+
+    private func leastBusy() -> Int {
+        load.indices.min { load[$0] < load[$1] } ?? 0
+    }
+
+    private func run(select path: String? = nil, _ parts: [IMAPPart]) async throws -> IMAPReply {
+        let i = leastBusy()
+        load[i] += 1
+        defer { load[i] -= 1 }
+        return try await pool[i].run(select: path, parts)
+    }
+
+    private func run(select path: String? = nil, _ command: String) async throws -> IMAPReply {
+        try await run(select: path, [.text(command)])
+    }
+
+    private func exists(in path: String) async throws -> Int {
+        let i = leastBusy()
+        load[i] += 1
+        defer { load[i] -= 1 }
+        return try await pool[i].exists(in: path)
     }
 
     /// 계정 추가 때: 연결해서 로그인되는지 본다
@@ -36,7 +68,9 @@ final class IMAPMailService: MailService {
         await c.logout()
     }
 
-    func close() async { await connection.logout() }
+    func close() async {
+        for c in pool { await c.logout() }
+    }
 
     // MARK: id
 
@@ -61,7 +95,7 @@ final class IMAPMailService: MailService {
     // MARK: 폴더
 
     func folders() async throws -> [MailFolder] {
-        let reply = try await connection.run("LIST \"\" \"*\"")
+        let reply = try await run("LIST \"\" \"*\"")
         var out: [MailFolder] = []
         var newKinds: [String: String] = [:]
         for values in reply.untagged {
@@ -80,13 +114,18 @@ final class IMAPMailService: MailService {
             out.append(folder)
         }
         kinds = newKinds
-        // 읽지 않은 수와 전체 수 (폴더마다 STATUS 한 번)
-        for i in out.indices {
-            guard let p = IMAP.parseID(out[i].id)?.path,
-                  let status = try? await connection.run([.text("STATUS "), .text(IMAP.quote(IMAP.encodeFolderName(p))),
-                                                          .text(" (MESSAGES UNSEEN)")]),
-                  let line = status.untagged.first(where: { $0.first?.text?.uppercased() == "STATUS" }),
-                  let items = line.last?.items else { continue }
+        // 읽지 않은 수와 전체 수: 폴더마다 STATUS 한 번, 연결 여러 개로 나눠 동시에
+        let paths = out.map { IMAP.parseID($0.id)?.path }
+        let counts = await withTaskGroup(of: (Int, [IMAPValue]?).self) { group in
+            for (i, path) in paths.enumerated() {
+                guard let p = path else { continue }
+                group.addTask { @MainActor in (i, await self.status(of: p)) }
+            }
+            var result: [Int: [IMAPValue]] = [:]
+            for await (i, items) in group { if let items { result[i] = items } }
+            return result
+        }
+        for (i, items) in counts {
             var k = 0
             while k + 1 < items.count {
                 switch items[k].text?.uppercased() {
@@ -100,11 +139,17 @@ final class IMAPMailService: MailService {
         return out
     }
 
+    private func status(of path: String) async -> [IMAPValue]? {
+        guard let status = try? await run([.text("STATUS " + IMAP.quote(IMAP.encodeFolderName(path)) + " (MESSAGES UNSEEN)")]),
+              let line = status.untagged.first(where: { $0.first?.text?.uppercased() == "STATUS" }) else { return nil }
+        return line.last?.items
+    }
+
     func createFolder(name: String, parentID: String?) async throws -> MailFolder {
         var parent: String?
         if let parentID { parent = try await folderPath(parentID) }
         let path = parent.map { "\($0)/\(name)" } ?? name
-        _ = try await connection.run("CREATE " + IMAP.quote(IMAP.encodeFolderName(path)))
+        _ = try await run("CREATE " + IMAP.quote(IMAP.encodeFolderName(path)))
         var f = MailFolder(id: IMAP.folderID(account: accountID, path: path), displayName: name)
         f.parentFolderId = parentID
         return f
@@ -113,13 +158,13 @@ final class IMAPMailService: MailService {
     func renameFolder(id: String, name: String) async throws {
         let old = try await folderPath(id)
         let parent = old.contains("/") ? String(old[..<old.lastIndex(of: "/")!]) + "/" : ""
-        _ = try await connection.run("RENAME " + IMAP.quote(IMAP.encodeFolderName(old)) + " "
+        _ = try await run("RENAME " + IMAP.quote(IMAP.encodeFolderName(old)) + " "
                                      + IMAP.quote(IMAP.encodeFolderName(parent + name)))
     }
 
     func deleteFolder(id: String) async throws {
         let path = try await folderPath(id)
-        _ = try await connection.run("DELETE " + IMAP.quote(IMAP.encodeFolderName(path)))
+        _ = try await run("DELETE " + IMAP.quote(IMAP.encodeFolderName(path)))
     }
 
     // MARK: 목록
@@ -136,7 +181,7 @@ final class IMAPMailService: MailService {
             return MessagePage(messages: try await fetch(path: path, uids: Array(uids.suffix(Self.pageSize))),
                                nextLink: nil, serverFiltered: false)
         }
-        let count = try await connection.exists(in: path)
+        let count = try await exists(in: path)
         return try await page(folderID: folderID, path: path, top: count)
     }
 
@@ -152,21 +197,24 @@ final class IMAPMailService: MailService {
     private func page(folderID: String, path: String, top: Int) async throws -> MessagePage {
         guard top > 0 else { return MessagePage(messages: [], nextLink: nil, serverFiltered: false) }
         let low = max(1, top - Self.pageSize + 1)
-        let reply = try await connection.run(select: path, "FETCH \(low):\(top) (\(IMAP.summaryItems))")
+        let reply = try await run(select: path, "FETCH \(low):\(top) (\(IMAP.summaryItems))")
         let list = summaries(reply, path: path)
         return MessagePage(messages: list, nextLink: pageLink(folderID: folderID, below: low - 1), serverFiltered: false)
     }
 
     private func summaries(_ reply: IMAPReply, path: String) -> [MailMessage] {
-        reply.untagged.compactMap { IMAP.fetchItems($0) }
+        let list = reply.untagged.compactMap { IMAP.fetchItems($0) }
             .compactMap { IMAP.summary($0, account: accountID, path: path) }
             .sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+        if headerMemo.count > 5000 { headerMemo = [:] }
+        for m in list { if let h = m.internetMessageId, !h.isEmpty { headerMemo[m.id] = h } }
+        return list
     }
 
     private func fetch(path: String, uids: [Int]) async throws -> [MailMessage] {
         guard !uids.isEmpty else { return [] }
         let uidList = uids.map(String.init).joined(separator: ",")
-        return summaries(try await connection.run(select: path, "UID FETCH \(uidList) (\(IMAP.summaryItems))"), path: path)
+        return summaries(try await run(select: path, "UID FETCH \(uidList) (\(IMAP.summaryItems))"), path: path)
     }
 
     // MARK: 검색
@@ -176,7 +224,7 @@ final class IMAPMailService: MailService {
     }
 
     private func searchUIDs(path: String, criteria: [IMAPPart]) async throws -> [Int] {
-        let reply = try await connection.run(select: path, [.text("UID SEARCH ")] + criteria)
+        let reply = try await run(select: path, [.text("UID SEARCH ")] + criteria)
         return reply.untagged.filter { $0.first?.text?.uppercased() == "SEARCH" }
             .flatMap { $0.dropFirst().compactMap(\.int) }.sorted()
     }
@@ -184,7 +232,7 @@ final class IMAPMailService: MailService {
     /// 여러 폴더에서 찾는다 (휴지통·정크 제외). 최근 순 50통.
     private func searchFolders(_ criteria: [IMAPPart]) async throws -> MessagePage {
         if kinds.isEmpty { _ = try await folders() }
-        let reply = try await connection.run("LIST \"\" \"*\"")
+        let reply = try await run("LIST \"\" \"*\"")
         let paths = reply.untagged.compactMap(IMAP.listEntry)
             .filter { !$0.flags.contains("\\noselect") && !["deleteditems", "junkemail", "allmail"].contains(IMAP.kind(of: $0) ?? "") }
             .map { IMAP.decodeFolderName($0.path) }
@@ -217,7 +265,7 @@ final class IMAPMailService: MailService {
 
     func message(id: String) async throws -> MailMessage {
         let (path, uid) = try parts(id)
-        let reply = try await connection.run(select: path, "UID FETCH \(uid) (\(IMAP.summaryItems) BODY.PEEK[])")
+        let reply = try await run(select: path, "UID FETCH \(uid) (\(IMAP.summaryItems) BODY.PEEK[])")
         guard let items = reply.untagged.compactMap(IMAP.fetchItems).first(where: { $0["UID"]?.int == uid }),
               let base = IMAP.summary(items, account: accountID, path: path) else { throw Self.notFound }
         let (message, files) = IMAP.detail(base, mime: IMAP.bodySection(items) ?? Data())
@@ -239,7 +287,7 @@ final class IMAPMailService: MailService {
 
     func mimeContent(id: String) async throws -> Data {
         let (path, uid) = try parts(id)
-        let reply = try await connection.run(select: path, "UID FETCH \(uid) (UID BODY.PEEK[])")
+        let reply = try await run(select: path, "UID FETCH \(uid) (UID BODY.PEEK[])")
         guard let items = reply.untagged.compactMap(IMAP.fetchItems).first(where: { $0["UID"]?.int == uid }),
               let data = IMAP.bodySection(items) else { throw Self.notFound }
         return data
@@ -252,7 +300,7 @@ final class IMAPMailService: MailService {
 
     private func store(_ id: String, _ change: String) async throws {
         let (path, uid) = try parts(id)
-        _ = try await connection.run(select: path, "UID STORE \(uid) \(change)")
+        _ = try await run(select: path, "UID STORE \(uid) \(change)")
     }
 
     func setRead(id: String, read: Bool) async throws {
@@ -273,31 +321,34 @@ final class IMAPMailService: MailService {
         if target == path {
             // 휴지통 안에서 지우기: 아주 지운다
             if kinds[path] == "deleteditems" {
-                _ = try await connection.run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
-                _ = try? await connection.run(select: path, "UID EXPUNGE \(uid)")
+                _ = try await run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
+                _ = try? await run(select: path, "UID EXPUNGE \(uid)")
             }
             return id
         }
         // 옮긴 뒤 새 UID를 찾으려고 Message-ID를 먼저 읽는다 (서버의 COPYUID는 없거나 믿기 어려울 때가 있다)
-        let header = await headerMessageID(path: path, uid: uid)
+        var header = headerMemo[id]
+        if header == nil { header = await headerMessageID(path: path, uid: uid) }
         let reply: IMAPReply
         do {
-            reply = try await connection.run(select: path, "UID MOVE \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
+            reply = try await run(select: path, "UID MOVE \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
         } catch IMAPError.server {
             // MOVE가 없는 서버: 복사하고 지운다
-            reply = try await connection.run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
-            _ = try await connection.run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
-            _ = try? await connection.run(select: path, "UID EXPUNGE \(uid)")
+            reply = try await run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
+            _ = try await run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
+            _ = try? await run(select: path, "UID EXPUNGE \(uid)")
         }
         if let header, let found = await findUID(path: target, messageID: header) {
-            return IMAP.messageID(account: accountID, path: target, uid: found)
+            let newID = IMAP.messageID(account: accountID, path: target, uid: found)
+            headerMemo[newID] = header
+            return newID
         }
         return newID(reply, target: target) ?? IMAP.folderID(account: accountID, path: target)
     }
 
     /// 메일의 Message-ID 머리글
     private func headerMessageID(path: String, uid: Int) async -> String? {
-        guard let reply = try? await connection.run(select: path, "UID FETCH \(uid) (UID ENVELOPE)"),
+        guard let reply = try? await run(select: path, "UID FETCH \(uid) (UID ENVELOPE)"),
               let items = reply.untagged.compactMap(IMAP.fetchItems).first(where: { $0["UID"]?.int == uid }),
               let id = items["ENVELOPE"].flatMap(IMAP.envelope)?.messageID, !id.isEmpty else { return nil }
         return id
@@ -324,7 +375,7 @@ final class IMAPMailService: MailService {
     func copy(id: String, to destination: String) async throws {
         let (path, uid) = try parts(id)
         let target = try await folderPath(destination)
-        _ = try await connection.run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
+        _ = try await run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
     }
 
     /// 휴지통이 아니면 휴지통으로, 휴지통 안이면 아주 지운다.
@@ -335,8 +386,8 @@ final class IMAPMailService: MailService {
             _ = try await move(id: id, to: IMAP.folderID(account: accountID, path: trash))
             return
         }
-        _ = try await connection.run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
-        _ = try? await connection.run(select: path, "UID EXPUNGE \(uid)")
+        _ = try await run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
+        _ = try? await run(select: path, "UID EXPUNGE \(uid)")
     }
 
     // MARK: 2단계 (보내기, 초안)
