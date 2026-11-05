@@ -893,7 +893,8 @@ enum SelfTest {
                 check("M17 우선 순위를 높음으로", model.messages.first { $0.id == m.id }?.importance == "high")
                 await model.setImportanceSelected("normal")
                 model.toggleMuteSelected()
-                check("M17 알림 비활성화", model.selectionIsMuted)
+                check("M17 알림 비활성화", model.selectionIsMuted,
+                      "selected=\(model.selectedIDs) conv=\(model.messages.first { $0.id == m.id }?.conversationId ?? "nil") muted=\(model.mutedConversations.count)")
                 model.toggleMuteSelected()
                 check("M17 알림 활성화", !model.selectionIsMuted)
                 let archiveBefore = (try? await model.service.messages(folderID: "archive", search: nil))?.messages.count ?? 0
@@ -1132,7 +1133,10 @@ enum SelfTest {
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.5))
             if let victim = model.messages.last {
-                // 서버(데모)에서만 지운다: 앱의 목록에는 아직 있다 (미리 받은 기억도 지운다)
+                // 서버(데모)에서만 지운다: 앱의 목록에는 아직 있다 (미리 받은 기억도 지운다).
+                // 앞서 돌던 미리 받기가 그 사이 이 메일을 다시 기억에 넣지 않게 먼저 멈춘다.
+                model.prefetchTask?.cancel()
+                try? await Task.sleep(for: .seconds(0.3))
                 model.detailCache.remove(victim.id)
                 try? await model.service.deleteMessage(id: victim.id)
                 model.errorMessage = nil
@@ -1140,7 +1144,7 @@ enum SelfTest {
                 try? await Task.sleep(for: .seconds(0.6))
                 check("없는 메일을 열면 오류 창 대신 목록에서 빼고 '찾을 수 없음'을 보인다",
                       model.errorMessage == nil && model.missingMessageNotice && !model.messages.contains { $0.id == victim.id },
-                      model.errorMessage ?? "")
+                      "error=\(model.errorMessage ?? "nil") notice=\(model.missingMessageNotice) inList=\(model.messages.contains { $0.id == victim.id }) shown=\(model.displayedMessageID ?? "nil") detail=\(model.detail?.id ?? "nil")")
             }
 
             // Exchange 한도: 동시에 나가는 요청 수를 묶는다 (넘으면 기다렸다가 차례로)
