@@ -21,8 +21,8 @@ final class AppModel {
     /// 새 메일 알림과 Dock 배지 (S-024)
     @ObservationIgnored let notifier: any MailNotifier
     var notificationPermission = NotifyPermission.notAsked
-    @ObservationIgnored var tracker = NewMailTracker()
-    @ObservationIgnored var trackerLoaded = false
+    /// 계정마다 새 메일 기준 (주소 → 기준). AppModel+Notifications
+    @ObservationIgnored var trackers: [String: NewMailTracker] = [:]
     /// 알림을 눌러 열 메일. 받은 편지함 목록이 오면 고른다.
     @ObservationIgnored var pendingOpenID: String?
     let isDemo: Bool
@@ -368,8 +368,7 @@ final class AppModel {
             folders = []; messages = []; detail = nil; accountFolders = [:]
             detailCache.removeAll(); threadCache = [:]
             // 로그아웃: 배지를 지우고, 다음 계정은 새 기준으로 시작한다.
-            tracker = NewMailTracker()
-            trackerLoaded = false
+            trackers = [:]
             updateBadge()
             updateMenu()
             return

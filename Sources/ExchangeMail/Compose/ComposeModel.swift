@@ -21,6 +21,8 @@ final class ComposeModel {
     var files: [URL] = []
     var forwarded: [FileAttachment] = []
     var signatureID: UUID?
+    /// 보낼 계정 (M23). 작성 창의 보낸 사람 메뉴에서 바꾼다.
+    var accountID: String?
     var fixEnabled = true
 
     private(set) var sending = false
@@ -55,11 +57,14 @@ final class ComposeModel {
     /// 초안 값으로 칸을 채우고 기본 서명을 넣는다. 전달이면 원본 첨부를 가져온다.
     func setUp(app: AppModel, fixDefault: Bool) async {
         guard !didSetUp else { return }
+        // 보낼 계정: 초안이 정한 계정, 다시 연 초안은 그 초안의 계정, 아니면 지금 계정
+        accountID = draft.fromAccountID ?? draft.draftMessageID.flatMap { app.router.accountID(forMessage: $0) }
+            ?? app.accounts.active?.id
         to = draft.to
         cc = draft.cc
         bcc = draft.bcc
         // 설정 > 작성 > 자동으로 나를 참조·숨은 참조에 포함 (다시 연 초안은 그대로)
-        if draft.draftMessageID == nil, let me = app.auth.email, !me.isEmpty {
+        if draft.draftMessageID == nil, let me = account(app)?.email, !me.isEmpty {
             let mode = Prefs.string(Prefs.autoIncludeMe, "none")
             func adding(_ field: String) -> String {
                 field.lowercased().contains(me.lowercased()) ? field : (field.isEmpty ? me : field + ", " + me)
@@ -75,7 +80,7 @@ final class ComposeModel {
             editor.setHTML(body)
             signatureID = Self.signatureID(in: body, app: app)
         } else {
-            let sig = app.signatures.defaultSignature(kind: draft.kind, account: app.auth.email)
+            let sig = app.signatures.defaultSignature(kind: draft.kind, account: account(app)?.email)
             signatureID = sig?.id
             editor.setHTML("<div><br></div>" + SignatureComposer.block(for: sig) + draft.quoteHTML)
         }
@@ -137,6 +142,32 @@ final class ComposeModel {
     func removeForwarded(_ a: FileAttachment) { forwarded.removeAll { $0.id == a.id } }
 
     /// 서명 메뉴를 바꾸면 본문의 서명 블록을 바꾼다.
+    /// 보낼 계정 (고른 것이 없거나 사라졌으면 지금 계정)
+    func account(_ app: AppModel) -> MailAccount? {
+        app.accounts.accounts.first { $0.id == accountID } ?? app.accounts.active
+    }
+
+    /// 보내기·초안을 맡을 메일 서비스: 보낼 계정의 것
+    func service(_ app: AppModel) -> any MailService {
+        account(app)?.service ?? app.service
+    }
+
+    /// 보낸 사람 메뉴에서 계정을 바꿨을 때: 그 계정의 기본 서명으로, 이미 저장한 초안은 원래 계정에서 지운다
+    /// (다음 저장 때 새 계정의 임시 보관함에 저장된다).
+    func accountChanged(app: AppModel, from old: String?) async {
+        guard didSetUp, old != accountID else { return }
+        if let id = savedDraftID, let previous = app.accounts.accounts.first(where: { $0.id == old }) {
+            try? await previous.service.deleteMessage(id: id)
+            savedDraftID = nil
+            savedFingerprint = ""
+        }
+        if draft.bodyHTML == nil {
+            let sig = app.signatures.defaultSignature(kind: draft.kind, account: account(app)?.email)
+            signatureID = sig?.id
+            signatureChanged(app: app)
+        }
+    }
+
     func signatureChanged(app: AppModel) {
         guard didSetUp, signatureID != appliedSignatureID else { return }
         appliedSignatureID = signatureID
@@ -154,7 +185,7 @@ final class ComposeModel {
 
     func input(app: AppModel) -> ComposeSender.Input {
         ComposeSender.Input(
-            from: MailAddress(name: app.auth.displayName, address: app.auth.email ?? ""),
+            from: MailAddress(name: account(app)?.auth.displayName, address: account(app)?.email ?? app.auth.email ?? ""),
             to: to, cc: cc, bcc: bcc, subject: subject, bodyHTML: editor.html,
             files: files,
             extraAttachments: forwarded.compactMap { a in
@@ -176,7 +207,7 @@ final class ComposeModel {
                 if !go { return false }
             }
             if plan.uploads.isEmpty {
-                try await app.service.sendMIME(plan.mime)
+                try await service(app).sendMIME(plan.mime)
             } else {
                 try await sendLarge(plan, app: app)
             }
@@ -192,9 +223,9 @@ final class ComposeModel {
     private func afterSending(app: AppModel) async {
         finished = true
         let sentTo = [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
-        app.addressBook.noteSent(sentTo, me: app.auth.email)
+        app.addressBook.noteSent(sentTo, me: account(app)?.email)
         if let id = savedDraftID {
-            try? await app.service.deleteMessage(id: id)
+            try? await service(app).deleteMessage(id: id)
             savedDraftID = nil
             await app.draftsChanged()
         }
@@ -236,13 +267,13 @@ final class ComposeModel {
         defer { sending = false }
         do {
             let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false)
-            let id = try await app.service.saveDraft(plan.mime, preview: preview, replacing: nil)
+            let id = try await service(app).saveDraft(plan.mime, preview: preview, replacing: nil)
             do {
                 if !plan.uploads.isEmpty { try await upload(plan.uploads, to: id, app: app) }
-                try await app.service.scheduleDraft(id: id, at: date)
-                try await app.service.sendDraft(id: id)
+                try await service(app).scheduleDraft(id: id, at: date)
+                try await service(app).sendDraft(id: id)
             } catch {
-                try? await app.service.deleteMessage(id: id)
+                try? await service(app).deleteMessage(id: id)
                 throw error
             }
             await afterSending(app: app)
@@ -276,7 +307,7 @@ final class ComposeModel {
         let draftInput = input(app: app)
         do {
             let plan = try ComposeSender.prepare(draftInput, options: .off, forDraft: true)
-            let newID = try await app.service.saveDraft(plan.mime, preview: preview, replacing: savedDraftID)
+            let newID = try await service(app).saveDraft(plan.mime, preview: preview, replacing: savedDraftID)
             savedDraftID = newID
             if !plan.uploads.isEmpty { try await upload(plan.uploads, to: newID, app: app) }
             savedFingerprint = snapshot
@@ -294,7 +325,7 @@ final class ComposeModel {
     func discard(app: AppModel) async {
         finished = true
         if let id = savedDraftID {
-            try? await app.service.deleteMessage(id: id)
+            try? await service(app).deleteMessage(id: id)
             savedDraftID = nil
             await app.draftsChanged()
         }
@@ -325,14 +356,14 @@ final class ComposeModel {
     /// 4MB를 넘는 메일: 작은 부분으로 초안을 만들고, 큰 첨부를 올린 뒤, 그 초안을 보낸다.
     /// 중간에 실패하면 만든 초안을 지워 임시 보관함에 반쪽짜리가 남지 않게 한다.
     private func sendLarge(_ plan: GraphMailPlan, app: AppModel) async throws {
-        let id = try await app.service.saveDraft(plan.mime, preview: preview, replacing: nil)
+        let id = try await service(app).saveDraft(plan.mime, preview: preview, replacing: nil)
         do {
             try await upload(plan.uploads, to: id, app: app)
             uploadStatus = L("보내는 중")
-            try await app.service.sendDraft(id: id)
+            try await service(app).sendDraft(id: id)
             uploadStatus = nil
         } catch {
-            try? await app.service.deleteMessage(id: id)
+            try? await service(app).deleteMessage(id: id)
             throw error
         }
     }
@@ -345,7 +376,7 @@ final class ComposeModel {
         for (index, attachment) in list.enumerated() {
             uploadStatus = L("큰 첨부 올리는 중 \(index + 1)/\(list.count)")
             uploadFraction = Double(index) / Double(list.count)
-            try await app.service.uploadAttachment(attachment, toMessage: id) { [weak self] part in
+            try await service(app).uploadAttachment(attachment, toMessage: id) { [weak self] part in
                 self?.uploadFraction = (Double(index) + part) / Double(list.count)
             }
         }

@@ -46,6 +46,9 @@ final class AccountRouter: MailService {
         return try activeService()
     }
 
+    /// 계정 서비스에서 직접 받은 메일의 주인을 적어 둔다 (새 메일 확인처럼 안내자를 거치지 않은 목록)
+    func noteOwner(_ messages: [MailMessage], account: String) { note(messages, account: account) }
+
     private func note(_ messages: [MailMessage], account: String?) {
         guard let account else { return }
         for m in messages { messageOwner[m.id] = account }

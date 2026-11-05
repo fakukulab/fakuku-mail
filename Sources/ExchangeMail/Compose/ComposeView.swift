@@ -172,9 +172,23 @@ struct ComposeView: View {
             }
             rule
             row(L("보낸 사람:")) {
-                Text(fromLine)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                // 계정이 둘 이상이면 보낼 계정을 고른다 (M23). 답장·전달은 원래 메일의 계정이 기본.
+                if model.accounts.accounts.count > 1 {
+                    Picker(L("보낸 사람"), selection: $compose.accountID) {
+                        ForEach(model.accounts.accounts) { account in
+                            Text(Self.fromLine(account)).tag(String?.some(account.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .onChange(of: compose.accountID) { old, _ in
+                        Task { await compose.accountChanged(app: model, from: old) }
+                    }
+                } else {
+                    Text(fromLine)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
                 Spacer(minLength: Space.lg)
                 Text(L("서명:"))
                     .foregroundStyle(.secondary)
@@ -191,6 +205,12 @@ struct ComposeView: View {
             }
         }
         .textFieldStyle(.plain)
+    }
+
+    /// 계정 하나의 "이름 – 주소"
+    static func fromLine(_ account: MailAccount) -> String {
+        guard let name = account.auth.displayName, !name.isEmpty else { return account.email }
+        return "\(name) – \(account.email)"
     }
 
     /// 보낸 사람: "이름 – 주소"

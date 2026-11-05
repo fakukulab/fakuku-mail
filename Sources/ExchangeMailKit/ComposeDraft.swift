@@ -23,6 +23,8 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
     public var attachMessageFrom: String?
     /// 붙일 .eml 파일 이름 (확장자 없이)
     public var attachMessageName: String?
+    /// 보낼 계정 (M23). nil이면 지금 계정. 답장·전달은 원래 메일의 계정.
+    public var fromAccountID: String?
 
     public init(kind: ComposeKind = .new, to: String = "", subject: String = "") {
         self.kind = kind

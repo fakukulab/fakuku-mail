@@ -19,7 +19,11 @@ extension AppModel {
         let html = body?.isHTML == true
             ? body?.content ?? ""
             : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
-        var d = ReplyBuilder.draft(kind: kind, message: m, bodyHTML: html, myAddress: auth.email)
+        // 답장·전달은 원래 메일의 계정에서 보낸다 (M23)
+        let owner = router.accountID(forMessage: m.id)
+        let me = accounts.accounts.first { $0.id == owner }?.auth.email ?? auth.email
+        var d = ReplyBuilder.draft(kind: kind, message: m, bodyHTML: html, myAddress: me)
+        d.fromAccountID = owner
         // 설정 > 작성 > "원본 메시지의 텍스트를 인용"을 끄면 답장에 원문을 넣지 않는다 (전달은 늘 넣는다).
         if kind != .forward && !Prefs.bool(Prefs.quoteOriginal, true) { d.quoteHTML = "" }
         return d
