@@ -210,6 +210,13 @@ final class AccountRouter: MailService {
     func deleteMessage(id: String) async throws { try await forMessage(id).deleteMessage(id: id) }
 
     func conversation(id: String) async throws -> [MailMessage] {
+        // iCloud·Gmail의 대화 id에는 계정이 들어 있다 (Exchange에 묻지 않는다)
+        if let owner = IMAP.parseConversationID(id)?.account {
+            guard let s = service(forAccount: owner) else { return [] }
+            let list = try await s.conversation(id: id)
+            note(list, account: owner)
+            return list
+        }
         // 대화 id만으로는 계정을 모른다: 지금 계정에 묻고, 없으면 다른 계정에도 묻는다.
         var tried = Set<String>()
         for account in [store.active].compactMap({ $0 }) + store.accounts where tried.insert(account.id).inserted {

@@ -288,19 +288,23 @@ final class IMAPMailService: MailService {
     }
 
     /// 여러 폴더에서 찾는다 (휴지통·정크 제외). 최근 순 50통.
-    private func searchFolders(_ criteria: [IMAPPart]) async throws -> MessagePage {
+    private func searchFolders(_ criteria: [IMAPPart], limit: Int = 50) async throws -> MessagePage {
         if kinds.isEmpty { _ = try await folders() }
         let reply = try await run("LIST \"\" \"*\"")
         let paths = reply.untagged.compactMap(IMAP.listEntry)
             .filter { !$0.flags.contains("\\noselect") && !["deleteditems", "junkemail", "allmail"].contains(IMAP.kind(of: $0) ?? "") }
             .map { IMAP.decodeFolderName($0.path) }
-        var all: [MailMessage] = []
-        for path in paths {
-            guard let uids = try? await searchUIDs(path: path, criteria: criteria), !uids.isEmpty else { continue }
-            all += (try? await fetch(path: path, uids: Array(uids.suffix(Self.pageSize)))) ?? []
+        // 폴더마다 동시에 찾는다 (연결 여러 개가 나눠 맡는다)
+        let tasks = paths.map { path in
+            Task { () -> [MailMessage] in
+                guard let uids = try? await self.searchUIDs(path: path, criteria: criteria), !uids.isEmpty else { return [] }
+                return (try? await self.fetch(path: path, uids: Array(uids.suffix(limit)))) ?? []
+            }
         }
+        var all: [MailMessage] = []
+        for task in tasks { all += await task.value }
         all.sort { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
-        return MessagePage(messages: Array(all.prefix(Self.pageSize)), nextLink: nil, serverFiltered: false)
+        return MessagePage(messages: Array(all.prefix(limit)), nextLink: nil, serverFiltered: false)
     }
 
     func searchAll(_ text: String) async throws -> MessagePage { try await searchFolders(textCriteria(text)) }
@@ -351,8 +355,17 @@ final class IMAPMailService: MailService {
         return data
     }
 
-    /// 대화 묶기는 2단계 (IMAP에는 대화 id가 없다: References로 묶는다)
-    func conversation(id: String) async throws -> [MailMessage] { [] }
+    /// 대화의 모든 메일 (휴지통·정크 밖의 모든 폴더): 첫 메일 자체, 그리고 References·In-Reply-To에 첫 메일이 있는 메일.
+    /// 대화 id는 목록에서 정한다 (`IMAP.threadRoot`).
+    func conversation(id: String) async throws -> [MailMessage] {
+        guard let conv = IMAP.parseConversationID(id), conv.account == accountID else { return [] }
+        let root = conv.root
+        let criteria: [IMAPPart] = [.text("OR OR HEADER Message-ID "), .literalOrQuoted(root),
+                                    .text(" HEADER References "), .literalOrQuoted(root),
+                                    .text(" HEADER In-Reply-To "), .literalOrQuoted(root)]
+        // 같은 대화로 묶인 것만 (References 가운데쯤에 그 id가 있는 다른 대화의 메일은 뺀다)
+        return try await searchFolders(criteria, limit: 200).messages.filter { $0.conversationId == id }
+    }
 
     // MARK: 표시
 

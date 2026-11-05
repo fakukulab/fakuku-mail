@@ -214,7 +214,45 @@ public enum IMAP {
 
     /// FETCH 결과의 본문 덩어리 (BODY[] 또는 BODY[…])
     public static func bodySection(_ items: [String: IMAPValue]) -> Data? {
-        items.first { $0.key.hasPrefix("BODY[") }?.value.data
+        // 원본 전체(BODY[])를 먼저: 같은 FETCH에 머리글 몇 줄(BODY[HEADER.FIELDS …])이 함께 올 수 있다
+        (items["BODY[]"] ?? items.first { $0.key.hasPrefix("BODY[") && !$0.key.hasPrefix("BODY[HEADER.FIELDS") }?.value)?.data
+    }
+
+    /// FETCH 결과의 머리글 몇 줄 (BODY[HEADER.FIELDS (…)])
+    public static func headerFields(_ items: [String: IMAPValue]) -> Data? {
+        items.first { $0.key.hasPrefix("BODY[HEADER.FIELDS") }?.value.data
+    }
+
+    // MARK: 대화 (IMAP에는 대화 번호가 없다)
+
+    /// 대화의 첫 메일 Message-ID: References의 첫 번째, 없으면 In-Reply-To, 그것도 없으면 자기 Message-ID.
+    /// 답장은 References에 대화의 첫 메일부터 적으므로 같은 대화의 메일은 같은 값이 된다.
+    public static func threadRoot(references: String?, inReplyTo: String?, messageID: String?) -> String? {
+        func ids(_ s: String?) -> [String] {
+            guard let s else { return [] }
+            var out: [String] = []
+            var rest = Substring(s)
+            while let open = rest.firstIndex(of: "<"), let close = rest[open...].firstIndex(of: ">") {
+                out.append(String(rest[open...close]))
+                rest = rest[rest.index(after: close)...]
+            }
+            return out
+        }
+        let root = ids(references).first ?? ids(inReplyTo).first ?? ids(messageID).first
+        return root?.lowercased()
+    }
+
+    /// 앱의 대화 id: "imapconv:<계정>:<첫 메일 Message-ID>"
+    public static func conversationID(account: String, root: String) -> String {
+        "imapconv:\(account):\(root)"
+    }
+
+    /// 대화 id → (계정, 첫 메일 Message-ID)
+    public static func parseConversationID(_ id: String) -> (account: String, root: String)? {
+        guard id.hasPrefix("imapconv:") else { return nil }
+        let body = id.dropFirst(9)
+        guard let colon = body.firstIndex(of: ":") else { return nil }
+        return (String(body[..<colon]), String(body[body.index(after: colon)...]))
     }
 
     /// "17-Jul-1996 02:44:25 -0700"
@@ -398,7 +436,7 @@ public enum IMAP {
 
 extension IMAP {
     /// 목록에 쓰는 FETCH 항목 (본문 없이)
-    public static let summaryItems = "UID FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODYSTRUCTURE"
+    public static let summaryItems = "UID FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (REFERENCES IN-REPLY-TO)]"
 
     /// FETCH 결과 → 목록의 메일 (본문 없음)
     public static func summary(_ items: [String: IMAPValue], account: String, path: String) -> MailMessage? {
@@ -416,6 +454,12 @@ extension IMAP {
                             isRead: marks.contains("\\seen"),
                             hasAttachments: hasAttachment(items["BODYSTRUCTURE"]))
         m.parentFolderId = folderID(account: account, path: path)
+        // 대화 묶기: References·In-Reply-To로 대화의 첫 메일을 찾는다
+        let head = headerFields(items).map { MailArchive.Part(MailArchive.latin1($0)) }
+        if let root = threadRoot(references: head?.header("references"), inReplyTo: head?.header("in-reply-to"),
+                                 messageID: env?.messageID) {
+            m.conversationId = conversationID(account: account, root: root)
+        }
         m.flag = marks.contains("\\flagged") ? .flagged : .notFlagged
         return m
     }

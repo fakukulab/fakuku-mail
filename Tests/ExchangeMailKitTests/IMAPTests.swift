@@ -105,3 +105,20 @@ private func data(_ s: String) -> Data { Data(s.utf8) }
     guard case .complete(let end) = IMAP.scan(full, from: 0) else { Issue.record("incomplete"); return }
     #expect(IMAP.scan(full, from: end) == .complete(end: full.count))
 }
+
+@Test func imapThreadsByReferences() throws {
+    #expect(IMAP.threadRoot(references: "<A@x> <b@x>", inReplyTo: "<b@x>", messageID: "<c@x>") == "<a@x>")
+    #expect(IMAP.threadRoot(references: nil, inReplyTo: "<b@x>", messageID: "<c@x>") == "<b@x>")
+    #expect(IMAP.threadRoot(references: nil, inReplyTo: nil, messageID: "<c@x>") == "<c@x>")
+    let id = IMAP.conversationID(account: "acc", root: "<a@x>")
+    let parsed = try #require(IMAP.parseConversationID(id))
+    #expect(parsed.account == "acc" && parsed.root == "<a@x>")
+
+    // 목록 FETCH의 머리글 몇 줄로 대화 id를 정한다
+    let raw = "* 1 FETCH (UID 9 ENVELOPE (NIL \"Re: Hi\" NIL NIL NIL NIL NIL NIL \"<a@x>\" \"<c@x>\") "
+        + "BODY[HEADER.FIELDS (REFERENCES IN-REPLY-TO)] {41}\r\nReferences: <a@x>\r\nIn-Reply-To: <a@x>\r\n\r\n)\r\n"
+    guard case .untagged(let values) = IMAP.parse(data(raw)) else { Issue.record("not untagged"); return }
+    let items = try #require(IMAP.fetchItems(values))
+    #expect(IMAP.summary(items, account: "acc", path: "INBOX")?.conversationId == id)
+    #expect(IMAP.bodySection(items) == nil)
+}
