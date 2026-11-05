@@ -99,6 +99,18 @@ public struct AddressBook: Codable, Equatable, Sendable {
         return last
     }
 
+    /// 받는 사람 칸을 끝난 항목(쉼표·세미콜론 앞)과 지금 쓰는 글자로 나눈다 (작성 창의 주소 토큰)
+    public static func pieces(_ text: String) -> (tokens: [String], pending: String) {
+        guard let sep = lastSeparator(text) else { return ([], text.trimmingCharacters(in: .whitespaces)) }
+        return (AddressParser.split(String(text[..<sep])),
+                String(text[text.index(after: sep)...]).trimmingCharacters(in: .whitespaces))
+    }
+
+    /// `pieces`를 다시 칸 글자로
+    public static func join(tokens: [String], pending: String) -> String {
+        tokens.isEmpty ? pending : tokens.joined(separator: ", ") + ", " + pending
+    }
+
     static func lastToken(_ text: String) -> String {
         let start = lastSeparator(text).map { text.index(after: $0) } ?? text.startIndex
         return text[start...].trimmingCharacters(in: .whitespaces)

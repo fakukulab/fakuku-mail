@@ -67,7 +67,7 @@ public enum AddressParser {
         return tokens.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
     }
 
-    static func parseOne(_ token: String) -> MailAddress? {
+    public static func parseOne(_ token: String) -> MailAddress? {
         if let open = token.lastIndex(of: "<"), let close = token.lastIndex(of: ">"), open < close {
             let address = token[token.index(after: open)..<close].trimmingCharacters(in: .whitespaces)
             var name = token[..<open].trimmingCharacters(in: .whitespaces)

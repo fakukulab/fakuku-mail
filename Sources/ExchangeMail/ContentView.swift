@@ -116,11 +116,24 @@ struct MailSplitView: View {
 struct FolderSidebar: View {
     @Environment(AppModel.self) private var model
     @Environment(\.undoManager) private var undoManager
+    /// 접어 둔 구역 (줄마다 하나: "smart", "vip", "local", "account.<id>"). 맥 Mail처럼 구역 이름에 마우스를 올리면 ⌄·›가 보인다.
+    @AppStorage("sidebar.collapsed") private var collapsedRaw = ""
+
+    private var collapsed: Set<String> { Set(collapsedRaw.split(separator: "\n").map(String.init)) }
+
+    private func expanded(_ key: String) -> Binding<Bool> {
+        Binding(get: { !collapsed.contains(key) },
+                set: { open in
+                    var set = collapsed
+                    if open { set.remove(key) } else { set.insert(key) }
+                    collapsedRaw = set.sorted().joined(separator: "\n")
+                })
+    }
 
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedFolderID) {
-            Section(L("스마트 메일상자")) {
+            Section(isExpanded: expanded("smart")) {
                 // 계정이 둘 이상이면 모든 계정의 받은 편지함을 한곳에 (M23)
                 if model.showsAllInboxes {
                     Label(L("모든 받은 편지함"), systemImage: "tray.2")
@@ -153,10 +166,12 @@ struct FolderSidebar: View {
                             }
                         }
                 }
+            } header: {
+                SidebarSectionHeader(title: L("스마트 메일상자"), isExpanded: expanded("smart").wrappedValue)
             }
             // VIP (S-045): 사람마다 이름과 아이콘
             if !model.mailboxes.vips.isEmpty {
-                Section("VIP") {
+                Section(isExpanded: expanded("vip")) {
                     Label(L("모든 VIP"), systemImage: "star")
                         .tag(VirtualMailbox.allVIPsID)
                     ForEach(model.mailboxes.vips) { vip in
@@ -168,11 +183,13 @@ struct FolderSidebar: View {
                                 Button(L("VIP에서 빼기")) { model.removeVIP(address: vip.address) }
                             }
                     }
+                } header: {
+                    SidebarSectionHeader(title: "VIP", isExpanded: expanded("vip").wrappedValue)  // l10n: data
                 }
             }
             // 계정마다 구역 (M23). 계정이 하나면 예전과 같다.
             ForEach(model.accounts.accounts) { account in
-            Section(model.accounts.title(for: account)) {
+            Section(isExpanded: expanded("account.\(account.id)")) {
                 ForEach(model.accountFolders[account.id] ?? []) { folder in
                     FolderRow(folder: folder)
                         .tag(folder.id)
@@ -183,11 +200,16 @@ struct FolderSidebar: View {
                         }
                         .contextMenu { folderMenu(folder) }
                 }
+            } header: {
+                SidebarSectionHeader(title: model.accounts.title(for: account),
+                                     isExpanded: expanded("account.\(account.id)").wrappedValue,
+                                     unread: inboxUnread(account),
+                                     newFolder: { newFolder(parent: nil, account: account) })
             }
             }
             // 나의 Mac에 (S-055): 가져온 메일상자. 서버와 상관없이 이 Mac에 저장되어 있다.
             if !model.localBoxes.boxes.isEmpty {
-                Section(L("나의 Mac에")) {
+                Section(isExpanded: expanded("local")) {
                     ForEach(model.localBoxes.boxes) { box in
                         Label(box.name, systemImage: "tray.full")
                             .tag(box.sidebarID)
@@ -202,6 +224,8 @@ struct FolderSidebar: View {
                                 Button(L("메일상자 지우기…"), role: .destructive) { model.removeLocal(box) }
                             }
                     }
+                } header: {
+                    SidebarSectionHeader(title: L("나의 Mac에"), isExpanded: expanded("local").wrappedValue)
                 }
             }
         }
@@ -236,6 +260,17 @@ struct FolderSidebar: View {
         .disabled(!folder.isEditable)
     }
 
+    /// 계정 구역을 접었을 때 보이는 수: 그 계정 받은 편지함의 읽지 않은 메일
+    private func inboxUnread(_ account: MailAccount) -> Int {
+        model.accountFolders[account.id]?.first { $0.kind == "inbox" }?.unreadItemCount ?? 0
+    }
+
+    /// 구역 이름 옆 새 폴더 단추: 그 계정의 맨 위에 만든다
+    private func newFolder(parent: MailFolder?, account: MailAccount) {
+        model.activateAccount(account.id)
+        newFolder(parent: parent)
+    }
+
     private func newFolder(parent: MailFolder?) {
         let message = parent.map { L("\"\($0.displayName)\" 안에 만듭니다.") } ?? ""
         if let name = TextPrompt.ask(L("새 폴더"), message: message, confirm: L("만들기")) {
@@ -252,5 +287,40 @@ struct FolderRow: View {
         Label(folder.displayName, systemImage: folder.symbol)
             .padding(.leading, CGFloat(folder.depth ?? 0) * Space.lg)
             .badge(folder.unreadItemCount ?? 0)
+    }
+}
+
+/// 사이드바 구역 이름 (맥 Mail): 접혀 있으면 읽지 않은 수, 마우스를 올리면 새 폴더 단추.
+/// 펼치기·접기(⌄ ›)는 시스템이 마우스를 올렸을 때 보여 준다.
+struct SidebarSectionHeader: View {
+    let title: String
+    let isExpanded: Bool
+    var unread = 0
+    var newFolder: (() -> Void)?
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            Text(title)
+                .lineLimit(1)
+            Spacer(minLength: Space.sm)
+            if !isExpanded && unread > 0 {
+                Text(unread, format: .number)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            if let newFolder {
+                Button(action: newFolder) {
+                    Image(systemName: "folder.badge.plus")
+                }
+                .buttonStyle(.borderless)
+                .help(L("새 폴더…"))
+                .accessibilityLabel(L("새 폴더…"))
+                .opacity(hovering ? 1 : 0)
+                .allowsHitTesting(hovering)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
     }
 }

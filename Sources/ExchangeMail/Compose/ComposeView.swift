@@ -33,7 +33,7 @@ struct ComposeView: View {
     @AppStorage("send.undoDelay") private var undoDelay = 10
     @FocusState private var focus: Field?
 
-    private enum Field { case to, cc, bcc, subject }
+    private enum Field { case to, cc, bcc, replyTo, subject }
 
     init(draft: ComposeDraft) {
         _compose = State(initialValue: ComposeModel(draft: draft))
@@ -135,31 +135,25 @@ struct ComposeView: View {
         @Bindable var compose = compose
         return VStack(spacing: 0) {
             row(L("받는 사람:")) {
-                TextField(L("받는 사람"), text: $compose.to, prompt: Text(""))
-                    .focused($focus, equals: .to)
-                    .addressSuggestions(for: compose.to, from: model.addressBook)
+                RecipientField(title: L("받는 사람"), text: $compose.to, book: model.addressBook, focus: $focus, focusValue: .to)
             }
             rule
             if fieldCc || !compose.cc.isEmpty {
                 row(L("참조:")) {
-                    TextField(L("참조"), text: $compose.cc, prompt: Text(""))
-                        .focused($focus, equals: .cc)
-                        .addressSuggestions(for: compose.cc, from: model.addressBook)
+                    RecipientField(title: L("참조"), text: $compose.cc, book: model.addressBook, focus: $focus, focusValue: .cc)
                 }
                 rule
             }
             if fieldBcc || !compose.bcc.isEmpty {
                 row(L("숨은 참조:")) {
-                    TextField(L("숨은 참조"), text: $compose.bcc, prompt: Text(""))
-                        .focused($focus, equals: .bcc)
-                        .addressSuggestions(for: compose.bcc, from: model.addressBook)
+                    RecipientField(title: L("숨은 참조"), text: $compose.bcc, book: model.addressBook, focus: $focus, focusValue: .bcc)
                 }
                 rule
             }
             if fieldReplyTo || !compose.replyTo.isEmpty {
                 row(L("답장 받을 사람:")) {
-                    TextField(L("답장 받을 사람"), text: $compose.replyTo, prompt: Text(""))
-                        .addressSuggestions(for: compose.replyTo, from: model.addressBook)
+                    RecipientField(title: L("답장 받을 사람"), text: $compose.replyTo, book: model.addressBook,
+                                   focus: $focus, focusValue: .replyTo)
                 }
                 rule
             }
