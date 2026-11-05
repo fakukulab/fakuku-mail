@@ -66,8 +66,13 @@ final class AppModel {
     var selection: Set<String> = [] {
         didSet {
             guard selection != oldValue else { return }
-            let single = selection.count == 1 ? selection.first : nil
-            if selectedMessageID != single { selectedMessageID = single }
+            // 목록 표가 선택을 바꾸는 도중(줄이 사라져 선택이 풀릴 때 등)에 불린다. 본문·대화를 바꾸는 일은
+            // 다음 차례에 한다: 표의 delegate 안에서 바꾸면 "reentrant operation in its NSTableView delegate" 경고가 났다.
+            Task { @MainActor in
+                // 그 사이 선택이 또 바뀌었을 수 있으니 지금 선택으로 맞춘다 (여러 줄이면 본문을 비운다)
+                let now = self.selection.count == 1 ? self.selection.first : nil
+                if self.selectedMessageID != now { self.selectedMessageID = now }
+            }
             updateMenu()
         }
     }
@@ -504,7 +509,10 @@ final class AppModel {
             nextLink = page.nextLink
             if let pending = pendingOpenID, messages.contains(where: { $0.id == pending }) {
                 pendingOpenID = nil
-                selectedMessageID = pending
+                // 목록 줄이 바뀐 다음 차례에 고른다 (줄을 채우면서 바로 고르면 표가 재진입 경고를 냈다)
+                Task { @MainActor in
+                    if self.messages.contains(where: { $0.id == pending }) { self.selectedMessageID = pending }
+                }
             } else if !(keepSelection && messages.contains { $0.id == selectedMessageID }) {
                 selectedMessageID = nil
             }

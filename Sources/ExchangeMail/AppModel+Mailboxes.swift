@@ -103,7 +103,9 @@ extension AppModel {
         if selectedFolderID == box.id {
             Task { await loadMessages(keepSelection: true) }
         } else {
-            selectedFolderID = box.id
+            // 사이드바에 줄이 생긴 다음 차례에 고른다: 줄을 넣으면서 바로 고르면 표가 재진입 경고를 냈다
+            let id = box.id
+            Task { @MainActor in self.selectedFolderID = id }
         }
     }
 

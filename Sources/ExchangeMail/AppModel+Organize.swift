@@ -12,7 +12,8 @@ extension AppModel {
         let rows: [String]
         if selection.count > 1 {
             rows = navigationOrder.filter { selection.contains($0) }
-        } else if let id = selectedMessageID {
+        } else if let id = selection.first ?? selectedMessageID {
+            // 한 줄: 목록 선택이 먼저다 (selectedMessageID는 다음 차례에 따라온다)
             rows = [id]
         } else {
             rows = []

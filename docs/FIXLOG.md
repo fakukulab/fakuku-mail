@@ -238,3 +238,7 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: 메일이 실제로 있는 폴더(parentFolderId)의 수를 `folders`와 `accountFolders` 모두에서 바로 고친다 (`adjustUnread`).
 - 다시 (같은 날): 사이드바만 고쳐서는 경고가 그대로였다. 표가 선택을 바꾸는 도중 앱이 `MenuState`(ObservableObject)를 바로
   발행해 메뉴·창이 그 자리에서 다시 계산됐다. `MenuState.update`가 다음 차례에 한 번만 발행한다.
+- 다시 (같은 날, 셀프 테스트의 경고 위치로 찾음): 표의 줄을 바꾸는 것과 그 표의 선택을 바꾸는 것이 같은 차례에 일어났다.
+  (1) 스마트 메일상자 저장: 사이드바에 줄을 넣으며 바로 고름 (2) 알림으로 열기: 목록을 채우며 바로 고름
+  (3) 폴더 바꾸기: 골라진 줄이 사라져 표가 선택을 풀 때, 그 알림(selection didSet) 안에서 본문·대화를 비움.
+  셋 다 선택·본문 바꾸기를 다음 차례(Task)로. 한 줄 선택일 때 동작할 메일은 목록 선택(selection)을 먼저 본다.
