@@ -12,8 +12,6 @@ extension AppModel {
         switch selectedVirtual {
         case .flagged: L("깃발 표시")
         case .flagColor(let c): L("\(c.label) 깃발")
-        case .allInboxes:
-            return try await router.allInboxes(inboxIDs: inboxIDs)
         case .allVIPs: "VIP"
         case .allInboxes: L("모든 받은 편지함")
         case .vip(let address): mailboxes.vip(address: address)?.title ?? address
@@ -32,6 +30,9 @@ extension AppModel {
             return MessagePage(messages: page.messages.filter { flagColor(for: $0) == color }, nextLink: nil, serverFiltered: false)
         case .vip(let address):
             return try await service.messages(fromSender: address)
+        case .allInboxes:
+            // 모든 받은 편지함 (M23): 계정마다 받은 편지함 첫 쪽을 합친다
+            return try await router.allInboxes(inboxIDs: inboxIDs)
         case .allVIPs:
             var all: [MailMessage] = []
             for vip in mailboxes.vips {
