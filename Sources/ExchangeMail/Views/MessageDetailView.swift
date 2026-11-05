@@ -273,8 +273,8 @@ struct SenderAvatar: View {
     }
 }
 
-/// 머리글의 주소 하나 (맥 Mail처럼): 보낸 사람은 굵은 이름 + ⌄, 받는 사람·참조는 흐린 이름.
-/// 마우스를 올리면 강조색 바탕으로 바뀌고, 누르면 주소 메뉴를 연다.
+/// 머리글의 주소 하나 (맥 Mail처럼): 보낸 사람은 굵은 이름, 받는 사람·참조는 흐린 이름.
+/// 마우스를 올리면 강조색 바탕과 ⌄가 보이고(올리지 않으면 ⌄는 없다), 누르면 주소 메뉴를 연다.
 struct AddressToken: View {
     let recipient: Recipient
     var prominent = false
@@ -294,7 +294,7 @@ struct AddressToken: View {
                 HStack(spacing: 2) {
                     Text(name)
                         .font(prominent ? .headline : .callout)
-                    if prominent {
+                    if hovering {
                         Image(systemName: "chevron.down")
                             .font(.caption2.weight(.semibold))
                             .accessibilityHidden(true)
@@ -351,16 +351,6 @@ struct AddressToken: View {
             model.searchScope = .all
             model.searchText = recipient.emailAddress.name?.isEmpty == false ? (recipient.emailAddress.name ?? address) : address
             Task { await model.loadMessages() }
-        }
-        Divider()
-        // 이 보낸 사람을 어떻게 다룰지
-        Menu(L("발신자 분류")) {
-            if model.mailboxes.vip(address: address) == nil {
-                Button(L("VIP로 지정…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
-            } else {
-                Button(L("VIP 이름·아이콘 변경…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
-            }
-            Button(L("발신자 차단")) { Task { await model.block(address: address) } }
         }
     }
 }
