@@ -664,12 +664,15 @@ final class AppModel {
 
     func setRead(id: String, _ read: Bool) async {
         do {
+            // 바꾸기 전 상태와 메일이 실제로 있는 폴더 (목록, 대화, 본문 가운데 아는 곳에서)
+            let known = messages.first { $0.id == id } ?? thread.first { $0.id == id } ?? (detail?.id == id ? detail : nil)
+            let wasRead = known?.isRead
             try await service.setRead(id: id, read: read)
-            if let i = messages.firstIndex(where: { $0.id == id }), messages[i].isRead != read {
-                messages[i].isRead = read
-                if let f = folders.firstIndex(where: { $0.id == selectedFolderID }) {
-                    folders[f].unreadItemCount = max(0, (folders[f].unreadItemCount ?? 0) + (read ? -1 : 1))
-                }
+            if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].isRead = read }
+            if let wasRead, wasRead != read {
+                // 사이드바 숫자와 Dock 배지는 계정별 폴더(accountFolders)를 본다: 거기와 지금 계정 폴더를 함께 고친다.
+                // 고른 사이드바 항목이 아니라 메일의 폴더다 (모든 받은 편지함·깃발 표시·스마트 메일상자에서 읽어도 줄게).
+                adjustUnread(folderID: known?.parentFolderId ?? selectedFolderID, by: read ? -1 : 1)
             }
             if detail?.id == id { detail?.isRead = read }
             if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].isRead = read }
@@ -680,6 +683,19 @@ final class AppModel {
             updateMenu()
         } catch {
             report(error)
+        }
+    }
+
+    /// 폴더의 읽지 않은 수를 바로 고친다 (서버 숫자는 다음 새로 고침에 다시 받는다)
+    func adjustUnread(folderID: String?, by delta: Int) {
+        guard let folderID else { return }
+        if let f = folders.firstIndex(where: { $0.id == folderID }) {
+            folders[f].unreadItemCount = max(0, (folders[f].unreadItemCount ?? 0) + delta)
+        }
+        for (account, list) in accountFolders {
+            if let f = list.firstIndex(where: { $0.id == folderID }) {
+                accountFolders[account]?[f].unreadItemCount = max(0, (list[f].unreadItemCount ?? 0) + delta)
+            }
         }
     }
 

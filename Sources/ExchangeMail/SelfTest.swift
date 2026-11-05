@@ -61,6 +61,11 @@ enum SelfTest {
             check("S-004 안 읽은 메일을 열면 읽음이 된다",
                   model.messages.first { $0.id == "m1" }?.isRead == true
                       && (model.selectedFolder?.unreadItemCount ?? 0) == unreadBefore - 1)
+            // 사이드바 숫자와 Dock 배지가 보는 계정별 폴더도 바로 줄어든다 (다음 새로 고침을 기다리지 않는다)
+            let sidebarInbox = model.accountFolders.values.flatMap { $0 }.first { $0.kind == "inbox" }?.unreadItemCount
+            check("읽으면 사이드바·Dock의 읽지 않은 수도 바로 준다",
+                  sidebarInbox == model.selectedFolder?.unreadItemCount,
+                  "sidebar=\(sidebarInbox.map(String.init) ?? "nil") list=\((model.selectedFolder?.unreadItemCount).map(String.init) ?? "nil")")
             check("S-005 인라인 그림은 첨부 목록에 없다",
                   model.listedAttachments.map(\.name) == ["2024년 3분기 장비 견적서.pdf"])
 

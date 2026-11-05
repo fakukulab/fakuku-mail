@@ -230,3 +230,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   MenuState)를 바로 바꿨다. 스마트 메일상자 지우기는 골라진 줄을 먼저 없애 표가 선택을 바꾸는 중에 또 선택을 바꿨다.
 - 고침: didSet은 검색어만 바로 지우고 나머지(계정 바꾸기, 메뉴, 목록 불러오기)는 다음 차례(Task)에. 골라진 스마트 메일상자는
   받은 편지함을 먼저 고르고 다음 차례에 지운다. (macOS가 이 경고를 앞으로 assert로 바꾼다고 예고했다)
+
+## 2026-11-05 메일을 모두 읽었는데 사이드바·Dock의 읽지 않은 수 "1"이 한동안 남음
+- 원인: 읽음으로 바꿀 때 지금 계정 폴더(`folders`)의, 그것도 고른 사이드바 항목의 수만 줄였다. M23 뒤로 사이드바 숫자와
+  Dock 배지는 계정별 폴더(`accountFolders`)를 보므로 다음 새로 고침(기본 2분)까지 그대로였다. 모든 받은 편지함·깃발 표시·
+  스마트 메일상자에서 읽으면 아무 수도 줄지 않았다.
+- 고침: 메일이 실제로 있는 폴더(parentFolderId)의 수를 `folders`와 `accountFolders` 모두에서 바로 고친다 (`adjustUnread`).
