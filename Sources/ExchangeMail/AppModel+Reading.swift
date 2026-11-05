@@ -46,13 +46,23 @@ extension AppModel {
     }
 
     /// 첨부 칩을 Finder로 끌 때 (S-035): NFC 이름의 파일을 넘긴다.
-    func dragProvider(for attachment: FileAttachment) -> NSItemProvider {
-        // 내용이 아직 없으면 받아 두기 시작한다 (다음 끌기부터 파일이 나간다).
-        if attachment.data == nil { Task { _ = await loadedAttachment(attachment) } }
-        guard let url = previewFile(for: attachment), let provider = NSItemProvider(contentsOf: url) else {
-            return NSItemProvider()
-        }
+    func dragProvider(for attachment: FileAttachment, messageID: String? = nil) -> NSItemProvider {
+        // 파일 주소를 놓는 순간에 만든다: 내용이 아직 없으면(큰 첨부, 처음 끌기) 그때 서버에서 받아 임시 파일로 쓴다.
+        // 작성 창에 놓으면 첨부가 되고(새 메시지, 답장), Finder·데스크톱에 놓으면 파일로 저장된다.
+        let provider = NSItemProvider()
         provider.suggestedName = FilenameEncoder.normalize(attachment.name)
+        let messageID = messageID ?? detail?.id
+        provider.registerObject(ofClass: NSURL.self, visibility: .all) { [weak self] completion in
+            Task { @MainActor in
+                guard let self, let full = await self.loadedAttachment(attachment, messageID: messageID),
+                      let url = self.previewFile(for: full) else {
+                    completion(nil, CocoaError(.fileReadUnknown))
+                    return
+                }
+                completion(url as NSURL, nil)
+            }
+            return nil
+        }
         return provider
     }
 

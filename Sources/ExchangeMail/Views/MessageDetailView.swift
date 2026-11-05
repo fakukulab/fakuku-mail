@@ -203,14 +203,15 @@ struct MessageHeader: View {
                 }
             }
             if !attachments.isEmpty {
-                // Outlook처럼 파일 종류 아이콘·이름·크기 카드. 누르면 훑어보기, ⌄ 메뉴, Finder로 끌어 저장 (S-032, S-035)
+                // Outlook처럼 파일 종류 아이콘·이름·크기 카드. 누르면 훑어보기, ⌄ 메뉴,
+                // 끌어서 Finder에 저장하거나 작성 창(새 메시지·답장)에 놓아 첨부 (S-032, S-035)
                 AttachmentStrip {
                     ForEach(attachments) { a in
                         AttachmentCard(name: FilenameEncoder.normalize(a.name), size: a.size,
                                        preview: { preview(a) },
                                        open: { Task { await model.openAttachment(a, messageID: message.id) } },
                                        save: { Task { await model.save(attachment: a, messageID: message.id) } })
-                            .onDrag { model.dragProvider(for: a) }
+                            .onDrag { model.dragProvider(for: a, messageID: message.id) }
                     }
                 }
                 if attachments.count > 1 {

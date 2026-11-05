@@ -132,6 +132,7 @@ struct ArchivedMailView: View {
                             AttachmentCard(name: file.name, size: file.data.count,
                                            open: { ArchivedFiles.open(file) },
                                            save: { ArchivedFiles.save(file) })
+                                .onDrag { ArchivedFiles.dragProvider(file) }
                         }
                     }
                 }
@@ -184,12 +185,24 @@ enum ArchivedPageCache {
 /// 보관한 메일의 첨부 열기·저장
 enum ArchivedFiles {
     static func open(_ file: ArchivedAttachment) {
+        guard let target = tempFile(file) else { return }
+        NSWorkspace.shared.open(target)
+    }
+
+    /// 임시 폴더에 파일로 쓴다 (열기, 끌기)
+    static func tempFile(_ file: ArchivedAttachment) -> URL? {
         let dir = FileManager.default.temporaryDirectory
             .appending(path: "FAKUKUMail-archive/\(UUID().uuidString)", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let target = dir.appending(path: FilenameEncoder.normalize(safeName(file.name)))
-        guard (try? file.data.write(to: target)) != nil else { return }
-        NSWorkspace.shared.open(target)
+        return (try? file.data.write(to: target)) != nil ? target : nil
+    }
+
+    /// 끌기: Finder에 저장하거나 작성 창에 첨부
+    static func dragProvider(_ file: ArchivedAttachment) -> NSItemProvider {
+        guard let url = tempFile(file), let provider = NSItemProvider(contentsOf: url) else { return NSItemProvider() }
+        provider.suggestedName = FilenameEncoder.normalize(safeName(file.name))
+        return provider
     }
 
     static func save(_ file: ArchivedAttachment) {

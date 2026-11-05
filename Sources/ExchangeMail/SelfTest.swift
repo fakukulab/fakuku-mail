@@ -616,6 +616,18 @@ enum SelfTest {
             let provider = model.dragProvider(for: dragged)
             check("S-035 첨부를 끌면 NFC 이름의 파일을 넘긴다",
                   provider.suggestedName == "보고서.pdf" && !provider.registeredTypeIdentifiers.isEmpty)
+            // 놓는 쪽(작성 창)이 파일 주소를 받아 첨부한다
+            let droppedURL: URL? = await withCheckedContinuation { c in
+                _ = provider.loadObject(ofClass: NSURL.self) { object, _ in
+                    c.resume(returning: (object as? NSURL).map { $0 as URL })
+                }
+            }
+            let dropTarget = ComposeModel(draft: ComposeDraft())
+            if let droppedURL { dropTarget.addFiles([droppedURL]) }
+            check("받은 메일의 첨부를 끌어 작성 창에 놓으면 첨부가 된다",
+                  droppedURL.map { FileManager.default.fileExists(atPath: $0.path) } == true
+                      && dropTarget.files.first?.lastPathComponent == "보고서.pdf",
+                  droppedURL?.path ?? "nil")
 
             let undoable = ComposeModel(draft: ComposeDraft())
             await undoable.setUp(app: model, fixDefault: true)
