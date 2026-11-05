@@ -715,9 +715,10 @@ enum SelfTest {
                       && readBack?.externalAudience == "contactsOnly")
 
             // M14: 별도 창 (S-043). 창이 쓰는 리더와 모델 동작을 그대로 부른다.
+            // 본문과 대화가 있는 보통 메일로 (S-024가 만든 시험용 새 메일은 본문이 없다)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.5))
-            if let first = model.messages.first(where: { !$0.isMeetingRequest }) {
+            if let first = model.messages.first(where: { !$0.isMeetingRequest && $0.conversationId != nil }) {
                 await open(first.id)
                 check("S-043 받은 메일은 메시지 창으로 연다", model.openTarget() == .message(model.displayedMessageID ?? ""))
                 let reader = MessageReader(messageID: first.id)
@@ -876,10 +877,10 @@ enum SelfTest {
                 model.merge.removeGroup(group.id)
             }
 
-            // M17: 맥 Mail 메뉴
+            // M17: 맥 Mail 메뉴 (대화 알림을 끄려면 대화가 있는 메일이어야 한다)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))
-            if let m = model.messages.first(where: { !$0.isMeetingRequest }) {
+            if let m = model.messages.first(where: { !$0.isMeetingRequest && $0.conversationId != nil }) {
                 await open(m.id)
                 let again = model.sendAgainDraft()
                 check("M17 다시 보내기는 원본을 지우지 않는 새 메일", again != nil && again?.draftMessageID == nil

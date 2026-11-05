@@ -612,19 +612,20 @@ final class AppModel {
             }
         } catch let error as GraphError where error.status == 404 {
             // 목록에는 있지만 서버에는 없다: 다른 기기·Outlook·규칙이 옮겼거나(옮기면 id가 바뀐다) 지웠다.
-            forgetMissing(id)
+            // 기다리는 사이 목록 새로 고침이 먼저 그 메일을 빼고 선택을 풀었어도, 방금 연 메일이니 알린다.
+            forgetMissing(id, opened: true)
         } catch {
             report(error)
         }
     }
 
     /// 서버에서 사라진 메일을 목록과 기억에서 빼고, 목록을 조용히 새로 고친다 (오류 창을 띄우지 않는다).
-    func forgetMissing(_ id: String) {
+    func forgetMissing(_ id: String, opened: Bool = false) {
         detailCache.remove(id)
         threadCache = [:]
         messages.removeAll { $0.id == id }
         selection.remove(id)
-        if displayedMessageID == id {
+        if displayedMessageID == id || (opened && displayedMessageID == nil) {
             shownMessageID = nil
             if selectedMessageID == id { selectedMessageID = nil }
             detail = nil; detailBody = nil; detailAttachments = []
