@@ -199,8 +199,11 @@ public enum VirtualMailbox: Equatable, Sendable {
     case allVIPs
     case vip(address: String)
     case smart(id: String)
+    /// 모든 계정의 받은 편지함을 합친 상자 (M23)
+    case allInboxes
 
     public static let allVIPsID = "__vip"
+    public static let allInboxesID = "__allInboxes"
     public static let flagColorPrefix = "__flag:"
     public static func id(for color: FlagColor) -> String { flagColorPrefix + color.rawValue }
     public static let vipPrefix = "vip:"
@@ -212,6 +215,7 @@ public enum VirtualMailbox: Equatable, Sendable {
             self = .flagColor(c)
         }
         else if id == Self.allVIPsID { self = .allVIPs }
+        else if id == Self.allInboxesID { self = .allInboxes }
         else if id.hasPrefix(Self.vipPrefix) { self = .vip(address: String(id.dropFirst(Self.vipPrefix.count))) }
         else if id.hasPrefix(Self.smartPrefix) { self = .smart(id: id) }
         else { return nil }

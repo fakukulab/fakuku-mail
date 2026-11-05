@@ -12,7 +12,10 @@ extension AppModel {
         switch selectedVirtual {
         case .flagged: L("깃발 표시")
         case .flagColor(let c): L("\(c.label) 깃발")
+        case .allInboxes:
+            return try await router.allInboxes(inboxIDs: inboxIDs)
         case .allVIPs: "VIP"
+        case .allInboxes: L("모든 받은 편지함")
         case .vip(let address): mailboxes.vip(address: address)?.title ?? address
         case .smart(let id): mailboxes.smart.first { $0.id == id }?.name ?? L("스마트 메일상자")
         case nil: selectedLocalBox?.name ?? selectedFolder?.displayName ?? L("메일")

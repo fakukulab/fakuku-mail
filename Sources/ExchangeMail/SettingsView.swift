@@ -223,23 +223,45 @@ struct AccountSettings: View {
 
     var body: some View {
         Section {
-            LabeledContent("Microsoft Exchange:") {
-                VStack(alignment: .leading, spacing: Space.sm) {
+            // 계정 여러 개 (M23): 계정마다 이름·주소·로그아웃, 아래에 계정 추가
+            LabeledContent(L("계정:")) {
+                VStack(alignment: .leading, spacing: Space.md) {
                     if model.isDemo {
                         Text(model.auth.email ?? "")
                         SettingsNote(L("데모 모드: 예시 메일로 돌며 서버에 연결하지 않습니다."))
-                    } else if let email = model.auth.email {
-                        if let name = model.auth.displayName { Text(name) }
-                        Text(email).foregroundStyle(.secondary)
-                        Button(L("로그아웃"), role: .destructive) { model.signOut() }
                     } else {
-                        Text(L("로그인하지 않음")).foregroundStyle(.secondary)
-                        Button(L("Microsoft로 로그인")) { Task { await model.auth.signIn() } }
-                            .disabled(model.auth.clientID.isEmpty)
-                    }
-                    if let error = model.auth.lastError {
-                        Label(error, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                        ForEach(model.accounts.accounts) { account in
+                            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                                Label {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(account.auth.displayName ?? account.email)
+                                        Text(account.email).foregroundStyle(.secondary)
+                                    }
+                                } icon: {
+                                    Image(systemName: "envelope.badge.person.crop")
+                                        .foregroundStyle(.tint)
+                                }
+                                Text("Microsoft Exchange")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Button(L("로그아웃…"), role: .destructive) {
+                                    if TextPrompt.confirm(L("\(account.email) 계정에서 로그아웃할까요?"),
+                                                          message: L("이 Mac에 저장한 그 계정의 메일을 지웁니다. 서버의 메일은 그대로입니다."),
+                                                          action: L("로그아웃")) {
+                                        model.signOut(accountID: account.id)
+                                    }
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                        Button(L("계정 추가…")) { Task { await model.addAccount() } }
+                            .disabled(model.accounts.pending.isSigningIn || model.accounts.pending.clientID.isEmpty)
+                        if let error = model.accounts.pending.lastError {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.red)
+                        }
+                        SettingsNote(L("Microsoft 365(Exchange) 계정을 여러 개 쓸 수 있습니다. 계정이 둘 이상이면 사이드바에 \"모든 받은 편지함\"이 생깁니다. ")
+                                     + L("Gmail과 iCloud 메일은 다음 단계에서 추가됩니다."))
                     }
                 }
             }

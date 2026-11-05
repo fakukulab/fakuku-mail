@@ -101,6 +101,6 @@ struct SignInView: View {
         guard hasClientID, !model.auth.isSigningIn else { return }
         copied = false
         let address = email.trimmingCharacters(in: .whitespaces)
-        Task { await model.auth.signIn(email: address.isEmpty ? nil : address) }
+        Task { await model.addAccount(email: address.isEmpty ? nil : address) }
     }
 }

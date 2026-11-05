@@ -144,11 +144,13 @@ extension AppModel {
 
     /// 사이드바 순서: 깃발 표시, 스마트 메일상자, VIP, 서버 폴더
     var sidebarOrder: [String] {
-        var ids = [FolderOrder.flaggedID] + mailboxes.smart.map(\.id)
+        var ids = (showsAllInboxes ? [VirtualMailbox.allInboxesID] : []) + [FolderOrder.flaggedID] + mailboxes.smart.map(\.id)
         if !mailboxes.vips.isEmpty {
             ids += [VirtualMailbox.allVIPsID] + mailboxes.vips.map { VirtualMailbox.id(forVIP: $0.address) }
         }
-        return ids + folders.map(\.id) + localBoxes.boxes.map(\.sidebarID)
+        // 계정마다의 폴더 (사이드바 차례)
+        let accountFolderIDs = accounts.accounts.flatMap { accountFolders[$0.id]?.map(\.id) ?? [] }
+        return ids + (accountFolderIDs.isEmpty ? folders.map(\.id) : accountFolderIDs) + localBoxes.boxes.map(\.sidebarID)
     }
 
     /// 이전·다음 메일상자 (⌃⌘[, ⌃⌘])

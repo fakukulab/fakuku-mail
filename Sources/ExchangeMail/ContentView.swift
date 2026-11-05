@@ -121,6 +121,11 @@ struct FolderSidebar: View {
         @Bindable var model = model
         List(selection: $model.selectedFolderID) {
             Section(L("스마트 메일상자")) {
+                // 계정이 둘 이상이면 모든 계정의 받은 편지함을 한곳에 (M23)
+                if model.showsAllInboxes {
+                    Label(L("모든 받은 편지함"), systemImage: "tray.2")
+                        .tag(VirtualMailbox.allInboxesID)
+                }
                 Label(L("깃발 표시"), systemImage: "flag")
                     .tag(FolderOrder.flaggedID)
                 // 색별 깃발 (쓰는 색만)
@@ -165,8 +170,10 @@ struct FolderSidebar: View {
                     }
                 }
             }
-            Section(model.auth.email ?? L("메일상자")) {
-                ForEach(model.folders) { folder in
+            // 계정마다 구역 (M23). 계정이 하나면 예전과 같다.
+            ForEach(model.accounts.accounts) { account in
+            Section(account.email.isEmpty ? L("메일상자") : account.email) {
+                ForEach(model.accountFolders[account.id] ?? []) { folder in
                     FolderRow(folder: folder)
                         .tag(folder.id)
                         // 메일 줄을 끌어다 놓으면 이 폴더로 옮긴다 (S-028).
@@ -176,6 +183,7 @@ struct FolderSidebar: View {
                         }
                         .contextMenu { folderMenu(folder) }
                 }
+            }
             }
             // 나의 Mac에 (S-055): 가져온 메일상자. 서버와 상관없이 이 Mac에 저장되어 있다.
             if !model.localBoxes.boxes.isEmpty {

@@ -10,7 +10,12 @@ enum SearchScope: Hashable {
 /// App-wide state that menus, toolbars, and views share.
 @Observable
 final class AppModel {
-    let auth: GraphAuth
+    /// 계정들 (M23). 계정마다 로그인과 메일 서비스가 따로 있다.
+    let accounts: AccountStore
+    /// 계정에 요청을 나눠 주는 안내자. `service`와 같은 것.
+    @ObservationIgnored let router: AccountRouter
+    /// 지금 계정의 로그인 (계정이 없으면 새 계정용 로그인). 이름·주소를 읽는 곳이 많아 예전 이름을 그대로 쓴다.
+    var auth: GraphAuth { accounts.active?.auth ?? accounts.pending }
     let signatures: SignatureStore
     let addressBook: AddressBookStore
     /// 새 메일 알림과 Dock 배지 (S-024)
@@ -26,10 +31,17 @@ final class AppModel {
     @ObservationIgnored let pageScroller = PageScroller()
 
     // 폴더
+    /// 지금 계정의 폴더 (받은 편지함 찾기, 이동 대상, 폴더 꼬리표)
     var folders: [MailFolder] = []
+    /// 계정마다의 폴더 (사이드바)
+    var accountFolders: [String: [MailFolder]] = [:]
     var selectedFolderID: String? {
         didSet {
             guard selectedFolderID != oldValue else { return }
+            // 다른 계정의 폴더를 고르면 그 계정이 지금 계정이 된다 (M23)
+            if let id = selectedFolderID, !VirtualMailbox.isVirtual(id), LocalMailbox.id(fromSidebar: id) == nil {
+                activateAccount(router.accountID(forFolder: id))
+            }
             searchText = ""
             threadCounts = [:]
             updateMenu()
@@ -253,33 +265,35 @@ final class AppModel {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
     }
 
-    init(auth: GraphAuth, signatures: SignatureStore, addressBook: AddressBookStore, service: any MailService,
+    init(accounts: AccountStore, signatures: SignatureStore, addressBook: AddressBookStore,
          notifier: any MailNotifier, isDemo: Bool) {
         self.addressBook = addressBook
         self.notifier = notifier
-        self.auth = auth
+        self.accounts = accounts
+        let router = AccountRouter(store: accounts)
+        self.router = router
         self.signatures = signatures
-        self.service = service
+        self.service = router
         self.isDemo = isDemo
     }
 
     static func make() -> AppModel {
         let signatures = SignatureStore(url: Store.directory.appending(path: "signatures.json"))
         let addressBook = AddressBookStore(url: Store.directory.appending(path: "recipients.json"))
-        let auth = GraphAuth(demoEmail: Store.isDemo ? DemoMailService.myAddress : nil)
-        let remote: any MailService
-        if Store.isDemo {
-            if signatures.signatures.isEmpty { DemoMailService.seedSignatures(into: signatures) }
-            remote = DemoMailService()
-        } else {
-            remote = GraphMailService(auth: auth)
+        if Store.isDemo, signatures.signatures.isEmpty { DemoMailService.seedSignatures(into: signatures) }
+        // 계정마다 메일 서비스: Graph(데모면 예시 사서함) + 오프라인 캐시(S-026, 계정 주소별 폴더).
+        let box = ModelBox()
+        let makeService: (GraphAuth) -> CachedMailService = { auth in
+            let remote: any MailService = Store.isDemo ? DemoMailService() : GraphMailService(auth: auth)
+            let cached = CachedMailService(remote: remote, base: Store.directory.appending(path: "cache", directoryHint: .isDirectory),
+                                           account: { auth.email }, enabled: { AppModel.cacheEnabled })
+            cached.onOfflineChange = { offline in box.model?.isOffline = offline }
+            return cached
         }
-        // 오프라인 캐시를 끼운다 (S-026). 데모도 같은 경로를 써서 셀프 테스트가 오프라인을 흉내 낸다.
-        let cached = CachedMailService(remote: remote, base: Store.directory.appending(path: "cache", directoryHint: .isDirectory),
-                                       account: { auth.email }, enabled: { AppModel.cacheEnabled })
-        let model = AppModel(auth: auth, signatures: signatures, addressBook: addressBook, service: cached,
+        let accounts = AccountStore(demoEmail: Store.isDemo ? DemoMailService.myAddress : nil, makeService: makeService)
+        let model = AppModel(accounts: accounts, signatures: signatures, addressBook: addressBook,
                              notifier: Store.isDemo ? RecordingNotifier() : SystemNotifier.shared, isDemo: Store.isDemo)
-        cached.onOfflineChange = { [weak model] offline in model?.isOffline = offline }
+        box.model = model
         return model
     }
 
@@ -288,7 +302,8 @@ final class AppModel {
     /// 네트워크가 없어 저장된 메일을 보여 주는 중
     var isOffline = false
     static var cacheEnabled: Bool { UserDefaults.standard.object(forKey: "cache.enabled") as? Bool ?? true }
-    var cachedService: CachedMailService? { service as? CachedMailService }
+    /// 지금 계정의 메일 서비스 (오프라인 캐시)
+    var cachedService: CachedMailService? { accounts.active?.service }
     /// 데모 사서함 (스냅숏, 셀프 테스트)
     var demoService: DemoMailService? { (cachedService?.remote ?? service) as? DemoMailService }
 
@@ -297,13 +312,31 @@ final class AppModel {
         if await cachedService?.retry() == true { await refresh() }
     }
 
-    /// 로그아웃: 이 계정의 저장된 메일을 지운 뒤 나간다.
+    /// 로그아웃: 지금 계정을 뺀다 (이 Mac에 저장한 그 계정의 메일도 지운다).
     func signOut() {
-        cachedService?.clearCache()
-        auth.signOut()
+        guard let id = accounts.active?.id else { return }
+        signOut(accountID: id)
     }
 
-    var isSignedIn: Bool { auth.isSignedIn }
+    /// 계정 하나를 뺀다. 다른 계정이 남아 있으면 그 계정으로 다시 불러온다.
+    func signOut(accountID id: String) {
+        accounts.remove(id)
+        accountFolders[id] = nil
+        if accounts.accounts.isEmpty { return }
+        selectedFolderID = nil
+        Task { await reloadAll() }
+    }
+
+    /// 계정 추가 (로그인 화면, 설정 > 계정): Microsoft 로그인 창으로 로그인해 계정을 더하고 그 계정의 폴더를 불러온다.
+    func addAccount(email: String? = nil) async {
+        guard let account = await accounts.addAccount(email: email) else { return }
+        if accounts.accounts.count > 1 {
+            await loadFolders()
+            selectedFolderID = accountFolders[account.id]?.first { $0.kind == "inbox" }?.id ?? selectedFolderID
+        }
+    }
+
+    var isSignedIn: Bool { isDemo || !accounts.accounts.isEmpty }
     var showsMail: Bool { isSignedIn && !previewSignIn }
 
     var selectedFolder: MailFolder? { folders.first { $0.id == selectedFolderID } }
@@ -332,7 +365,7 @@ final class AppModel {
     /// 폴더와 목록을 처음부터 불러온다 (로그인 직후).
     func reloadAll() async {
         guard isSignedIn else {
-            folders = []; messages = []; detail = nil
+            folders = []; messages = []; detail = nil; accountFolders = [:]
             detailCache.removeAll(); threadCache = [:]
             // 로그아웃: 배지를 지우고, 다음 계정은 새 기준으로 시작한다.
             tracker = NewMailTracker()
@@ -360,15 +393,38 @@ final class AppModel {
         await loadMessages(keepSelection: true)
     }
 
+    /// 계정마다 폴더를 불러온다 (사이드바는 계정별 구역). `folders`는 지금 계정의 것.
     func loadFolders() async {
-        // 처음에는 저장된 폴더를 먼저 보여 준다 (S-026).
-        if folders.isEmpty, let saved = cachedService?.cache?.folders() { folders = FolderOrder.tree(saved) }
-        do {
-            folders = FolderOrder.tree(try await service.folders())
-            updateBadge()
-            updateMenu()
-        } catch {
-            report(error)
+        for account in accounts.accounts {
+            // 처음에는 저장된 폴더를 먼저 보여 준다 (S-026).
+            if accountFolders[account.id] == nil, let saved = account.service.cache?.folders() {
+                accountFolders[account.id] = FolderOrder.tree(saved)
+            }
+            do {
+                accountFolders[account.id] = FolderOrder.tree(try await router.folders(of: account))
+            } catch {
+                report(error)
+            }
+        }
+        folders = accounts.active.flatMap { accountFolders[$0.id] } ?? []
+        updateBadge()
+        updateMenu()
+    }
+
+    /// 이 폴더·메일의 계정을 지금 계정으로 (보내기·답장·회의 응답이 그 계정으로 가게)
+    func activateAccount(_ id: String?) {
+        guard let id, id != accounts.activeID, accounts.accounts.contains(where: { $0.id == id }) else { return }
+        accounts.activeID = id
+        folders = accountFolders[id] ?? folders
+    }
+
+    /// 계정이 둘 이상이면 사이드바 맨 위에 "모든 받은 편지함"
+    var showsAllInboxes: Bool { accounts.accounts.count > 1 }
+
+    /// 계정마다 받은 편지함 폴더
+    var inboxIDs: [(account: String, folder: String)] {
+        accounts.accounts.compactMap { a in
+            accountFolders[a.id]?.first { $0.kind == "inbox" }.map { (a.id, $0.id) }
         }
     }
 
@@ -483,6 +539,8 @@ final class AppModel {
             updateMenu()
             return
         }
+        // 이 메일의 계정이 지금 계정이 된다: 답장·회의 응답이 그 계정으로 간다 (모든 받은 편지함, M23)
+        activateAccount(router.accountID(forMessage: id))
         // 한 번 열었거나 미리 받은 메일: 서버를 기다리지 않고 바로 보인다.
         if let hit = detailCache.get(id) {
             let m = withCurrentState(hit.message)
@@ -847,4 +905,9 @@ final class AppModel {
             isMeeting: detail?.event != nil,
             localSelected: selectedLocalBox != nil))
     }
+}
+
+/// make()에서 계정 서비스를 만들 때 아직 없는 모델을 가리키는 칸 (오프라인 막대)
+final class ModelBox {
+    weak var model: AppModel?
 }

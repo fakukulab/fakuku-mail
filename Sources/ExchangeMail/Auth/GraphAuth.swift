@@ -33,10 +33,13 @@ final class GraphAuth: NSObject {
     /// 동시에 여러 요청이 토큰을 갱신하지 않도록 하나만 돌린다.
     @ObservationIgnored private var refreshTask: Task<TokenSet, Error>?
     @ObservationIgnored private let isDemo: Bool
-    private let keychainAccount = "primary"
+    /// 계정마다 다른 키체인 항목 (M23). 처음 계정(예전 버전에서 로그인한 계정)은 "primary".
+    let accountKey: String
+    private var keychainAccount: String { accountKey }
 
     /// `demoEmail`이 있으면 데모 모드: 로그인한 것으로 보고 네트워크를 쓰지 않는다.
-    init(demoEmail: String? = nil) {
+    init(accountKey: String = "primary", demoEmail: String? = nil) {
+        self.accountKey = accountKey
         isDemo = demoEmail != nil
         super.init()
         if let demoEmail {
