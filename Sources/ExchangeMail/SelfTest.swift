@@ -851,7 +851,10 @@ enum SelfTest {
                 let sent = demo.sent.dropFirst(sentBefore).map { String(decoding: $0, as: UTF8.self) }
                 check("M18 그룹의 사람마다 한 통씩 (겹친 주소는 한 번)", sender.status == .finished && sent.count == 2)
                 check("M18 받는 사람 칸에는 그 사람만", sent.allSatisfy { $0.components(separatedBy: "@ex.com").count == 2 })
-                check("M18 자리표시자가 사람마다 채워진다", sent.contains { $0.contains("에이") } && sent.contains { $0.contains("비") })
+                // 본문은 base64로 나가므로 MIME을 풀어서 본다
+                let bodies = demo.sent.dropFirst(sentBefore).map { MailArchive.parse($0).html ?? "" }
+                check("M18 자리표시자가 사람마다 채워진다", bodies.contains { $0.contains("에이") } && bodies.contains { $0.contains("비") },
+                      bodies.map { String($0.prefix(80)) }.joined(separator: " | "))
                 check("M18 구독 취소 헤더", sent.allSatisfy { $0.contains("List-Unsubscribe:") })
                 sender.clear()
                 model.merge.removeTemplate(filled.id)
