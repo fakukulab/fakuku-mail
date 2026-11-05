@@ -13,6 +13,8 @@ nonisolated enum IMAPError: Error, LocalizedError {
     case closed
     /// 이 계정 종류에서는 아직 할 수 없다
     case unsupported
+    /// 서버에 그 종류의 폴더가 없다 (예: 보관 폴더가 없는 계정)
+    case missingFolder(String)
 
     var errorDescription: String? {
         switch self {
@@ -20,6 +22,18 @@ nonisolated enum IMAPError: Error, LocalizedError {
         case .login(let text): L("로그인하지 못했습니다. 이메일 주소와 앱 암호를 확인하세요. (\(text))")
         case .closed: L("메일 서버와의 연결이 끊겼습니다.")
         case .unsupported: L("이 계정에서는 아직 할 수 없는 기능입니다.")
+        case .missingFolder(let kind): L("이 계정의 메일 서버에 \(IMAPError.folderName(kind)) 폴더가 없습니다.")
+        }
+    }
+
+    static func folderName(_ kind: String) -> String {
+        switch kind {
+        case "deleteditems": L("휴지통")
+        case "archive": L("보관")
+        case "junkemail": L("정크 메일")
+        case "sentitems": L("보낸 편지함")
+        case "drafts": L("임시 보관함")
+        default: kind
         }
     }
 }

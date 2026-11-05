@@ -45,9 +45,17 @@ final class IMAPMailService: MailService {
         return (p.path, uid)
     }
 
-    private func folderPath(_ id: String) throws -> String {
-        guard let p = IMAP.parseID(id), p.account == accountID else { throw IMAPError.server("folder") }
-        return p.path
+    /// 폴더 id → 서버 경로. 앱은 Graph처럼 잘 알려진 이름("deleteditems", "archive" …)으로도 부른다:
+    /// 그때는 서버가 알려 준 그 종류의 폴더 (iCloud "Deleted Messages", Gmail "[Gmail]/Trash").
+    private func folderPath(_ id: String) async throws -> String {
+        if let p = IMAP.parseID(id) {
+            guard p.account == accountID else { throw IMAPError.server(L("다른 계정의 폴더입니다.")) }
+            return p.path
+        }
+        if id.lowercased() == "inbox" { return "INBOX" }  // l10n: data
+        if kinds.isEmpty { _ = try await folders() }
+        if let path = kinds.first(where: { $0.value == id.lowercased() })?.key { return path }
+        throw IMAPError.missingFolder(id)
     }
 
     // MARK: 폴더
@@ -93,7 +101,8 @@ final class IMAPMailService: MailService {
     }
 
     func createFolder(name: String, parentID: String?) async throws -> MailFolder {
-        let parent = try parentID.map(folderPath)
+        var parent: String?
+        if let parentID { parent = try await folderPath(parentID) }
         let path = parent.map { "\($0)/\(name)" } ?? name
         _ = try await connection.run("CREATE " + IMAP.quote(IMAP.encodeFolderName(path)))
         var f = MailFolder(id: IMAP.folderID(account: accountID, path: path), displayName: name)
@@ -102,14 +111,14 @@ final class IMAPMailService: MailService {
     }
 
     func renameFolder(id: String, name: String) async throws {
-        let old = try folderPath(id)
+        let old = try await folderPath(id)
         let parent = old.contains("/") ? String(old[..<old.lastIndex(of: "/")!]) + "/" : ""
         _ = try await connection.run("RENAME " + IMAP.quote(IMAP.encodeFolderName(old)) + " "
                                      + IMAP.quote(IMAP.encodeFolderName(parent + name)))
     }
 
     func deleteFolder(id: String) async throws {
-        let path = try folderPath(id)
+        let path = try await folderPath(id)
         _ = try await connection.run("DELETE " + IMAP.quote(IMAP.encodeFolderName(path)))
     }
 
@@ -121,7 +130,7 @@ final class IMAPMailService: MailService {
     }
 
     func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage {
-        let path = try folderPath(folderID)
+        let path = try await folderPath(folderID)
         if let search, !search.trimmingCharacters(in: .whitespaces).isEmpty {
             let uids = try await searchUIDs(path: path, criteria: textCriteria(search))
             return MessagePage(messages: try await fetch(path: path, uids: Array(uids.suffix(Self.pageSize))),
@@ -136,7 +145,7 @@ final class IMAPMailService: MailService {
             throw IMAPError.server("page")
         }
         let folderID = String(link[link.index(link.startIndex, offsetBy: 10)..<bar])
-        return try await page(folderID: folderID, path: try folderPath(folderID), top: top)
+        return try await page(folderID: folderID, path: try await folderPath(folderID), top: top)
     }
 
     /// 순번 top부터 아래로 50통 (최근 메일이 위)
@@ -260,7 +269,15 @@ final class IMAPMailService: MailService {
 
     func move(id: String, to destination: String) async throws -> String {
         let (path, uid) = try parts(id)
-        let target = try folderPath(destination)
+        let target = try await folderPath(destination)
+        if target == path {
+            // 휴지통 안에서 지우기: 아주 지운다
+            if kinds[path] == "deleteditems" {
+                _ = try await connection.run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
+                _ = try? await connection.run(select: path, "UID EXPUNGE \(uid)")
+            }
+            return id
+        }
         let reply: IMAPReply
         do {
             reply = try await connection.run(select: path, "UID MOVE \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
@@ -289,7 +306,7 @@ final class IMAPMailService: MailService {
 
     func copy(id: String, to destination: String) async throws {
         let (path, uid) = try parts(id)
-        let target = try folderPath(destination)
+        let target = try await folderPath(destination)
         _ = try await connection.run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
     }
 

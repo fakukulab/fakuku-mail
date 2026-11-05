@@ -982,3 +982,7 @@
 "로그인하지 못했습니다. 이메일 주소와 앱 암호를 확인하세요. (%@)" = "Couldn’t sign in. Check the email address and app-specific password. (%@)";
 "메일 서버와의 연결이 끊겼습니다." = "The connection to the mail server was lost.";
 "이 계정에서는 아직 할 수 없는 기능입니다." = "This isn’t available for this account yet.";
+"이 계정의 메일 서버에 %@ 폴더가 없습니다." = "This account’s mail server has no %@ mailbox.";
+"휴지통" = "Trash";
+"임시 보관함" = "Drafts";
+"다른 계정의 폴더입니다." = "That mailbox belongs to another account.";
