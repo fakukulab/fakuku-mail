@@ -108,7 +108,13 @@ extension AppModel {
     }
 
     func removeSmart(id: String) {
-        mailboxes.removeSmart(id: id)
-        if selectedFolderID == id { selectedFolderID = "inbox" }
+        // 골라져 있는 상자면 받은 편지함을 먼저 고르고 다음 차례에 지운다: 골라진 줄을 먼저 없애면 사이드바 표가
+        // 선택을 바꾸는 도중에 앱이 또 선택을 바꿔 재진입 경고가 났다.
+        guard selectedFolderID == id else {
+            mailboxes.removeSmart(id: id)
+            return
+        }
+        selectedFolderID = folders.first { $0.kind == "inbox" }?.id ?? "inbox"
+        Task { @MainActor in self.mailboxes.removeSmart(id: id) }
     }
 }

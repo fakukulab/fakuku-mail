@@ -224,3 +224,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   Finder로 끄는 것과 Finder에서 끌어오는 것은 그대로 파일 주소로 오간다.
 - 함께 고침: 첨부 임시 파일 폴더를 id 앞 64글자로 나눴는데 Exchange 첨부 id는 앞부분이 메일함 전체에서 같다 → 다른 메일의
   같은 이름 첨부가 같은 파일을 덮어썼다. id 전체의 해시로 나눈다 (`AttachmentDrag.folderName`).
+
+## 2026-11-05 "WARNING: Application performed a reentrant operation in its NSTableView delegate"
+- 원인: 사이드바 표가 선택을 바꾸는 도중(SwiftUI 바인딩 → selectedFolderID didSet)에 표·메뉴가 읽는 상태(지금 계정, 폴더,
+  MenuState)를 바로 바꿨다. 스마트 메일상자 지우기는 골라진 줄을 먼저 없애 표가 선택을 바꾸는 중에 또 선택을 바꿨다.
+- 고침: didSet은 검색어만 바로 지우고 나머지(계정 바꾸기, 메뉴, 목록 불러오기)는 다음 차례(Task)에. 골라진 스마트 메일상자는
+  받은 편지함을 먼저 고르고 다음 차례에 지운다. (macOS가 이 경고를 앞으로 assert로 바꾼다고 예고했다)

@@ -38,14 +38,20 @@ final class AppModel {
     var selectedFolderID: String? {
         didSet {
             guard selectedFolderID != oldValue else { return }
-            // 다른 계정의 폴더를 고르면 그 계정이 지금 계정이 된다 (M23)
-            if let id = selectedFolderID, !VirtualMailbox.isVirtual(id), LocalMailbox.id(fromSidebar: id) == nil {
-                activateAccount(router.accountID(forFolder: id))
-            }
             searchText = ""
-            threadCounts = [:]
-            updateMenu()
-            Task { await loadMessages() }
+            // 사이드바 표가 선택을 바꾸는 도중에 불린다: 표·메뉴가 읽는 상태(지금 계정, 폴더, 메뉴)를 여기서 바로 바꾸면
+            // 표가 일을 마치기 전에 다시 그려져 "reentrant operation in its NSTableView delegate" 경고가 났다. 다음 차례에 바꾼다.
+            let id = selectedFolderID
+            Task { @MainActor in
+                guard self.selectedFolderID == id else { return }
+                // 다른 계정의 폴더를 고르면 그 계정이 지금 계정이 된다 (M23)
+                if let id, !VirtualMailbox.isVirtual(id), LocalMailbox.id(fromSidebar: id) == nil {
+                    self.activateAccount(self.router.accountID(forFolder: id))
+                }
+                self.threadCounts = [:]
+                self.updateMenu()
+                await self.loadMessages()
+            }
         }
     }
 

@@ -823,6 +823,7 @@ enum SelfTest {
                   !model.messages.isEmpty && model.messages.allSatisfy { $0.parentFolderId == "sentitems" })
             model.removeSmart(id: sentBox.id)
             model.removeSmart(id: unreadAttach.id)
+            try? await Task.sleep(for: .seconds(0.3))
             check("S-046 지우면 사이드바에서 빠지고 받은 편지함으로 돌아간다",
                   model.mailboxes.smart.isEmpty && model.selectedFolderID == "inbox")
 
