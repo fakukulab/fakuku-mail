@@ -38,7 +38,14 @@ enum Snapshot {
                                         IOPMAssertionLevel(kIOPMAssertionLevelOn), "Snapshots" as CFString, &awake)
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try? await Task.sleep(for: .seconds(1.5))
-            let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+            // 메인 창은 이름표("main", Window(id: "main"))로 찾는다. 지난 실행에서 복원된 작성 창 같은 다른 창이
+            // 먼저 떠 있으면 그 창을 받은 편지함으로 잘못 찍었다. 찍기 전에 다른 창은 닫는다.
+            let main = NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("main") == true && !$0.isSheet }
+                ?? NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+            for window in NSApp.windows where window !== main && window.canBecomeMain && !window.isSheet {
+                window.close()
+            }
+            main?.makeKeyAndOrderFront(nil)
 
             for mode in ["light", "dark"] {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
