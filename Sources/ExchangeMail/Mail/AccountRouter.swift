@@ -104,10 +104,27 @@ final class AccountRouter: MailService {
 
     func categories() async throws -> [String] { try await activeService().categories() }
 
+    /// 모든 계정에 묻는 질문. 계정 서비스를 클로저에 넘기면 Swift 6가 경합 위험으로 막으므로 질문을 값으로 넘긴다.
+    private enum Query {
+        case flagged
+        case search(String)
+        case sender(String)
+        case collect(filter: String?)
+    }
+
+    private func ask(_ query: Query, _ s: any MailService) async throws -> MessagePage {
+        switch query {
+        case .flagged: try await s.flaggedMessages()
+        case .search(let text): try await s.searchAll(text)
+        case .sender(let address): try await s.messages(fromSender: address)
+        case .collect(let filter): try await s.collectMessages(folderID: nil, filter: filter)
+        }
+    }
+
     /// 모든 계정에 같은 것을 묻고 최근 순으로 합친다. 계정이 하나면 그 결과를 그대로 (다음 쪽 포함).
-    private func everyAccount(_ ask: (any MailService) async throws -> MessagePage) async throws -> MessagePage {
+    private func everyAccount(_ query: Query) async throws -> MessagePage {
         if store.accounts.count <= 1 {
-            let page = try await ask(try activeService())
+            let page = try await ask(query, try activeService())
             note(page.messages, account: store.active?.id)
             if let link = page.nextLink { nextOwner[link] = store.active?.id }
             return page
@@ -116,7 +133,7 @@ final class AccountRouter: MailService {
         var lastError: Error?
         for account in store.accounts {
             do {
-                let page = try await ask(account.service)
+                let page = try await ask(query, account.service)
                 note(page.messages, account: account.id)
                 all += page.messages
             } catch {
@@ -128,11 +145,9 @@ final class AccountRouter: MailService {
         return MessagePage(messages: all, nextLink: nil, serverFiltered: false)
     }
 
-    func flaggedMessages() async throws -> MessagePage { try await everyAccount { try await $0.flaggedMessages() } }
-    func searchAll(_ text: String) async throws -> MessagePage { try await everyAccount { try await $0.searchAll(text) } }
-    func messages(fromSender address: String) async throws -> MessagePage {
-        try await everyAccount { try await $0.messages(fromSender: address) }
-    }
+    func flaggedMessages() async throws -> MessagePage { try await everyAccount(.flagged) }
+    func searchAll(_ text: String) async throws -> MessagePage { try await everyAccount(.search(text)) }
+    func messages(fromSender address: String) async throws -> MessagePage { try await everyAccount(.sender(address)) }
 
     func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
         if let folderID {
@@ -140,7 +155,7 @@ final class AccountRouter: MailService {
             note(page.messages, account: folderOwner[folderID])
             return page
         }
-        return try await everyAccount { try await $0.collectMessages(folderID: nil, filter: filter) }
+        return try await everyAccount(.collect(filter: filter))
     }
 
     /// 모든 받은 편지함: 계정마다 받은 편지함 첫 쪽을 합친다.
