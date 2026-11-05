@@ -212,3 +212,10 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   첨부 카드의 파일 주소를 꺼내지 못했다(Finder 파일은 받음). `.onDrop(of: [.fileURL])` + `loadObject(ofClass: URL.self)`로
   직접 꺼낸다 (`ComposeView.receiveFiles`). 끄는 쪽은 파일 주소(NSURL)와 파일 내용을 둘 다 바로 내준다 (`fileDragProvider`).
   셀프 테스트가 같은 receiveFiles 길로 첨부까지 확인한다.
+
+## 2026-11-05 셀프 테스트 M17·S-055·없는 메일 실패 + "reentrant operation in its NSTableView delegate"
+- 원인(가장 유력): 사이드바 구역 머리글의 `overlayScrollers()`가 사이드바 표가 줄을 그리는 도중(updateNSView)에 NSScrollView의
+  막대 모양을 바꿨다 → AppKit 재진입 경고, 사이드바 선택이 흔들려 폴더·메일 선택이 풀렸다.
+- 고침: 사이드바는 이미 `.scrollIndicators(.never)`이므로 그 고리를 뗐다.
+- 첨부 끌기: 내용이 없으면 놓을 때 메인 스레드 밖에서 Graph에 바로 받는다(`AttachmentDrag.lazyProvider`, 미리 만든 요청과 토큰).
+  끌기·놓기마다 "FAKUKU drag/drop:" 로그를 남긴다.

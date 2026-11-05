@@ -344,8 +344,5 @@ struct SidebarSectionHeader: View {
         .foregroundStyle(.secondary)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        // 스크롤 막대는 겹쳐 그린다: 구역을 펼쳐 목록이 길어질 때 막대가 생기면(시스템 설정 "항상")
-        // 그 폭만큼 이 단추들이 왼쪽으로 밀렸다
-        .overlayScrollers()
     }
 }

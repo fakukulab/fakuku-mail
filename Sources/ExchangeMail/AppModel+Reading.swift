@@ -52,12 +52,30 @@ extension AppModel {
     func dragProvider(for attachment: FileAttachment, messageID: String? = nil) -> NSItemProvider {
         // 카드가 가진 것보다 본문 목록에 이미 받아 둔 내용이 있으면 그것을
         let current = detailAttachments.first { $0.id == attachment.id && $0.data != nil } ?? attachment
-        guard current.data != nil, let url = previewFile(for: current) else {
-            warmAttachment(attachment, messageID: messageID)
-            noticeMessage = L("\(attachment.name)을(를) 받는 중입니다. 잠시 뒤 다시 끌어 주세요.")
-            return NSItemProvider()
+        let name = FilenameEncoder.normalize(attachment.name)
+        if current.data != nil, let url = previewFile(for: current) {
+            NSLog("FAKUKU drag: %@ 받아 둔 파일 %@", name, url.path)  // l10n: data
+            return Self.fileDragProvider(url, name: name)
         }
-        return Self.fileDragProvider(url, name: FilenameEncoder.normalize(attachment.name))
+        // 아직 받지 않았다: 놓을 때 메인 스레드 밖에서 서버에서 바로 받는다 (메인 스레드를 쓰면 놓는 쪽과 서로 기다려 멈춘다)
+        let mid = messageID ?? detail?.id ?? ""
+        if let request = directAttachmentRequest(messageID: mid, attachmentID: attachment.id) {
+            NSLog("FAKUKU drag: %@ 놓을 때 받기", name)  // l10n: data
+            warmAttachment(attachment, messageID: messageID)
+            return AttachmentDrag.lazyProvider(request, name: name, folder: attachment.id)
+        }
+        NSLog("FAKUKU drag: %@ 내용 없음, 요청도 만들 수 없음", name)  // l10n: data
+        warmAttachment(attachment, messageID: messageID)
+        noticeMessage = L("\(attachment.name)을(를) 받는 중입니다. 잠시 뒤 다시 끌어 주세요.")
+        return NSItemProvider()
+    }
+
+    /// 그 메일 계정의 Graph 첨부 요청 (Exchange만, 토큰이 남아 있을 때)
+    func directAttachmentRequest(messageID: String, attachmentID: String) -> URLRequest? {
+        guard let account = router.accountID(forMessage: messageID),
+              let cached = router.service(forAccount: account) as? CachedMailService,
+              let graph = cached.remote as? GraphMailService else { return nil }
+        return graph.attachmentRequest(messageID: messageID, attachmentID: attachmentID)
     }
 
     /// 이미 있는 파일을 끌기로 넘긴다: 파일 주소(작성 창의 첨부 받기, Finder 복사)와 파일 내용(다른 앱) 둘 다.
@@ -161,5 +179,43 @@ final class MailPrinter: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         done?()
         done = nil
+    }
+}
+
+/// 끌기 공급자 (메인 액터 밖): 놓는 쪽은 메인 스레드를 멈추고 기다리므로, 여기 일은 메인 스레드를 쓰지 않는다.
+nonisolated enum AttachmentDrag {
+    /// 놓을 때 서버에서 받아 임시 파일로 쓰고 그 파일을 넘긴다 (파일 주소와 파일 내용 둘 다)
+    static func lazyProvider(_ request: URLRequest, name: String, folder: String) -> NSItemProvider {
+        let provider = NSItemProvider()
+        provider.suggestedName = name
+        let dir = FileManager.default.temporaryDirectory
+            .appending(path: "FAKUKUMail-preview", directoryHint: .isDirectory)
+            .appending(path: String(folder.replacingOccurrences(of: "/", with: "_").prefix(64)), directoryHint: .isDirectory)
+        let target = dir.appending(path: name)
+        let fetch: @Sendable () async throws -> URL = {
+            if FileManager.default.fileExists(atPath: target.path) { return target }
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try data.write(to: target, options: .atomic)
+            return target
+        }
+        provider.registerObject(ofClass: NSURL.self, visibility: .all) { completion in
+            Task.detached {
+                do { completion(try await fetch() as NSURL, nil) } catch {
+                    NSLog("FAKUKU drag: 받기 실패 %@", error.localizedDescription)  // l10n: data
+                    completion(nil, error)
+                }
+            }
+            return nil
+        }
+        let type = UTType(filenameExtension: (name as NSString).pathExtension) ?? .data
+        provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
+            Task.detached {
+                do { completion(try await fetch(), false, nil) } catch { completion(nil, false, error) }
+            }
+            return nil
+        }
+        return provider
     }
 }

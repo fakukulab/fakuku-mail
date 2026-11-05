@@ -267,6 +267,16 @@ final class GraphMailService: MailService {
         return m
     }
 
+    /// 첨부 내용 요청을 미리 만든다 (토큰이 남아 있을 때만). 메인 스레드 밖에서 그대로 보낼 수 있다 (첨부 끌기).
+    func attachmentRequest(messageID: String, attachmentID: String) -> URLRequest? {
+        guard let token = auth.cachedAccessToken,
+              let url = URL(string: base + "/me/messages/\(GraphPath.segment(messageID))/attachments/\(GraphPath.segment(attachmentID))/$value")
+        else { return nil }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return req
+    }
+
     func attachmentContent(messageID: String, attachmentID: String) async throws -> Data {
         try await request("GET", "/me/messages/\(GraphPath.segment(messageID))/attachments/\(GraphPath.segment(attachmentID))/$value")
     }
