@@ -18,6 +18,11 @@ config=release
 # Sign with your Apple Development certificate when you have one (Xcode >
 # Settings > Accounts). Otherwise sign ad hoc, which is fine for your own Mac.
 identity="${SIGN_IDENTITY:-}"
+# Developer ID가 있으면 그것으로: 배포본(tools/release.sh)과 같은 서명이라 키체인의 로그인 정보를 함께 쓴다
+# (서명이 다르면 macOS가 "키체인 … 사용하려고 합니다" 창을 띄운다).
+if [[ -z "$identity" ]]; then
+  identity=$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 -o '"Developer ID Application: [^"]*"' | tr -d '"' || true)
+fi
 if [[ -z "$identity" ]]; then
   identity=$(security find-identity -v -p codesigning 2>/dev/null | grep -m1 -o '"Apple Development: [^"]*"' | tr -d '"' || true)
 fi

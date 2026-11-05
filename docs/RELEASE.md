@@ -55,4 +55,5 @@ GitHub 릴리스에 올린다. 소개 사이트(mail.fakukulab.com, fakukulab.co
 | 받은 사람이 "확인되지 않은 개발자" | 공증 전 DMG를 올렸거나 staple이 빠졌다 |
 | 캘린더·연락처 권한 창이 안 뜸 | entitlements 없이 서명했다 (`tools/release.sh`로 서명) |
 | codesign: "resource fork, Finder information, or similar detritus not allowed" | 문서 폴더를 iCloud로 동기화해 Finder 정보가 붙었다. release.sh는 ~/Library/Developer/FAKUKUMail/release에서 서명한다 |
+| 앱을 열면 "키체인에서 FAKUKU Mail이 … 사용하려고 합니다" | 로그인 정보를 다른 서명(개발용)의 앱이 만들었다. Mac 로그인 암호 → 항상 허용. build.sh도 Developer ID가 있으면 그것으로 서명해 다시 뜨지 않게 한다 |
 | Microsoft 로그인 후 앱으로 안 돌아옴 | 번들 id(`com.fakukulab.fakukumail`)를 바꾸지 않았는지 (Azure 리디렉션 URI가 이것에 묶여 있다) |
