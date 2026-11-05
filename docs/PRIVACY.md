@@ -4,14 +4,15 @@
 
 시행일: 2026년 11월 4일 · 운영: FAKUKU Lab · 문의: https://github.com/fakukulab/fakuku-mail/issues
 
-FAKUKU Mail("앱")은 Microsoft Exchange Online 메일을 macOS에서 읽고 쓰는 앱입니다.
+FAKUKU Mail("앱")은 Microsoft Exchange Online, iCloud 메일, Gmail을 macOS에서 읽고 쓰는 앱입니다.
 
 ## 1. 앱 제작자가 모으는 정보
 **없습니다.** 앱은 제작자의 서버로 메일, 주소, 사용 기록, 분석 정보를 보내지 않습니다. 광고나 분석 도구가 없습니다.
 
 ## 2. 앱이 다루는 정보와 저장 위치
 - **메일, 일정, 사서함 설정**: 사용자의 Microsoft 365(Exchange Online) 사서함에 있으며, 앱은 Microsoft Graph로 직접 읽고 씁니다.
-- **로그인 토큰**: 사용자의 Mac **키체인**에만 저장합니다. 비밀번호는 앱이 받지 않으며 Microsoft 로그인 창에서 입력합니다.
+- **iCloud·Gmail 메일**: Apple과 Google의 메일 서버에 있으며, 앱은 IMAP(읽기)·SMTP(보내기)로 TLS를 거쳐 직접 통신합니다.
+- **로그인 정보**: Microsoft는 비밀번호를 앱이 받지 않고(로그인 창에서 입력) 토큰만 Mac **키체인**에 둡니다. iCloud·Gmail은 사용자가 만든 앱 전용 암호를 키체인에만 저장합니다.
 - **이 Mac에만 저장되는 것** (`~/Library/Application Support/FAKUKUMail/`): 서명, VIP·스마트 메일상자, 개별 발송 템플릿과 그룹,
   최근 메일의 오프라인 사본(로그아웃하면 지움), 사용자가 가져온 메일상자(.mbox).
 - **맥 캘린더·연락처**: 사용자가 허용한 경우에만, 수락한 회의를 캘린더에 넣고 연락처 카드를 보입니다.

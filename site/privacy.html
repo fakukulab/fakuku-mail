@@ -11,9 +11,9 @@
 <main>
 <p><a href="index.html">FAKUKU Mail</a></p>
 <h1>개인정보 처리방침</h1>
-<p class="muted">시행일: 2026년 11월 4일 · 운영: FAKUKU Lab · 문의: <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a></p>
+<p class="muted">시행일: 2026년 11월 5일 · 운영: FAKUKU Lab · 문의: <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a></p>
 
-<p>FAKUKU Mail(“앱”)은 Microsoft Exchange Online 메일을 macOS에서 읽고 쓰는 앱입니다.</p>
+<p>FAKUKU Mail(“앱”)은 Microsoft Exchange Online, iCloud 메일, Gmail을 macOS에서 읽고 쓰는 앱입니다.</p>
 
 <h2>1. 앱 제작자가 모으는 정보</h2>
 <p><strong>없습니다.</strong> 앱은 제작자의 서버로 메일, 주소, 사용 기록, 분석 정보를 보내지 않습니다. 광고나 분석 도구가 없습니다.</p>
@@ -21,8 +21,9 @@
 <h2>2. 앱이 다루는 정보와 저장 위치</h2>
 <ul>
   <li><strong>메일, 일정, 사서함 설정</strong>: 사용자의 Microsoft 365(Exchange Online) 사서함에 있으며, 앱은 Microsoft Graph로 직접 읽고 씁니다.</li>
-  <li><strong>로그인 토큰</strong>: 사용자의 Mac 키체인에만 저장합니다. 비밀번호는 앱이 받지 않으며 Microsoft 로그인 창에서 입력합니다.</li>
-  <li><strong>이 Mac에만 저장되는 것</strong>: 서명, VIP·스마트 메일상자, 개별 발송 템플릿과 그룹, 최근 메일의 오프라인 사본(로그아웃하면 지움), 사용자가 가져온 메일상자.</li>
+  <li><strong>iCloud·Gmail 메일</strong>: Apple과 Google의 메일 서버에 있으며, 앱은 IMAP(읽기)과 SMTP(보내기)로 그 서버와 TLS로 직접 통신합니다.</li>
+  <li><strong>로그인 정보</strong>: Microsoft 계정은 비밀번호를 앱이 받지 않고 Microsoft 로그인 창에서 입력하며, 받은 토큰만 Mac 키체인에 둡니다. iCloud·Gmail은 사용자가 만든 앱 전용 암호를 Mac 키체인에만 저장합니다(Apple·Google 계정 암호는 받지 않습니다).</li>
+  <li><strong>이 Mac에만 저장되는 것</strong>: 서명, VIP·스마트 메일상자, 개별 발송 템플릿과 그룹, 최근 메일의 오프라인 사본(계정을 빼면 지움), 사용자가 가져온 메일상자.</li>
   <li><strong>맥 캘린더·연락처</strong>: 사용자가 허용한 경우에만, 수락한 회의를 캘린더에 넣고 연락처 카드를 보입니다.</li>
 </ul>
 
@@ -41,8 +42,8 @@
 <p>메일 활동 보호가 켜져 있으면 메일 안의 원격 그림은 사용자의 Mac이 쿠키와 리퍼러 없이 직접 받아 보여 줍니다. 제작자의 중계 서버를 거치지 않습니다.</p>
 
 <h2>5. 지우기와 철회</h2>
-<p>앱에서 로그아웃하면 토큰과 오프라인 사본을 지웁니다. 앱과 <code>~/Library/Application Support/FAKUKUMail/</code> 폴더를 지우면 이 Mac의 앱 데이터가 모두 없어집니다.
-Microsoft 계정에 준 앱 권한은 <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> 또는 회사 관리자에게서 철회할 수 있습니다.</p>
+<p>설정 &gt; 계정에서 계정을 빼면 그 계정의 토큰이나 앱 암호, 오프라인 사본을 지웁니다. 앱과 <code>~/Library/Application Support/FAKUKUMail/</code> 폴더를 지우면 이 Mac의 앱 데이터가 모두 없어집니다.
+Microsoft 계정에 준 앱 권한은 <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> 또는 회사 관리자에게서 철회할 수 있습니다. iCloud·Gmail 앱 암호는 Apple 계정·Google 계정 설정에서 언제든 지울 수 있습니다.</p>
 
 <h2>6. 바뀌는 경우</h2>
 <p>이 방침이 바뀌면 이 페이지에 알리고 시행일을 고칩니다.</p>
@@ -50,15 +51,16 @@ Microsoft 계정에 준 앱 권한은 <a href="https://myapps.microsoft.com">mya
 <hr>
 
 <h1>Privacy Policy</h1>
-<p class="muted">Effective November 4, 2026 · Operated by FAKUKU Lab · Contact: <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a></p>
+<p class="muted">Effective November 5, 2026 · Operated by FAKUKU Lab · Contact: <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a></p>
 
 <h3>What the developer collects</h3>
 <p><strong>Nothing.</strong> FAKUKU Mail does not send your mail, contacts, usage, or analytics to the developer. There are no ads or analytics.</p>
 <h3>What the app handles and where</h3>
 <ul>
   <li><strong>Mail, calendar, and mailbox settings</strong> stay in your Microsoft 365 mailbox and are accessed directly through Microsoft Graph.</li>
-  <li><strong>Sign-in tokens</strong> are kept only in your Mac’s Keychain. The app never receives your password; you enter it in Microsoft’s sign-in window.</li>
-  <li><strong>Stored only on your Mac</strong>: signatures, VIPs and smart mailboxes, individual-sending templates and groups, an offline copy of recent mail (removed when you sign out), and mailboxes you import.</li>
+  <li><strong>iCloud and Gmail mail</strong> stays on Apple’s and Google’s mail servers; the app talks to them directly over TLS using IMAP (reading) and SMTP (sending).</li>
+  <li><strong>Sign-in</strong>: for Microsoft accounts the app never receives your password (you enter it in Microsoft’s window) and keeps only tokens in your Keychain. For iCloud and Gmail, the app-specific password you create is kept only in your Keychain; your Apple or Google account password is never used.</li>
+  <li><strong>Stored only on your Mac</strong>: signatures, VIPs and smart mailboxes, individual-sending templates and groups, an offline copy of recent mail (removed when you remove the account), and mailboxes you import.</li>
   <li><strong>Calendar and Contacts</strong> are used only if you allow them, to add accepted meetings and show contact cards.</li>
 </ul>
 <h3>Microsoft permissions</h3>
@@ -66,7 +68,7 @@ Microsoft 계정에 준 앱 권한은 <a href="https://myapps.microsoft.com">mya
 <h3>Remote images</h3>
 <p>With Protect Mail Activity on, remote images are downloaded by your Mac without cookies or referrer, never through a developer relay.</p>
 <h3>Deleting and revoking</h3>
-<p>Signing out removes tokens and the offline copy. Deleting the app and <code>~/Library/Application Support/FAKUKUMail/</code> removes all app data on your Mac. You can revoke the app’s permissions at <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> or through your administrator.</p>
+<p>Removing an account in Settings &gt; Accounts removes its token or app password and offline copy. Deleting the app and <code>~/Library/Application Support/FAKUKUMail/</code> removes all app data on your Mac. You can revoke the app’s permissions at <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> or through your administrator. Revoke iCloud or Gmail app passwords anytime in your Apple Account or Google Account settings.</p>
 
 <footer>© 2026 FAKUKU Lab</footer>
 </main>
