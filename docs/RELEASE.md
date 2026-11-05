@@ -34,7 +34,7 @@ GitHub 릴리스에 올린다. 소개 사이트(mail.fakukulab.com, fakukulab.co
    ```
    tools/release.sh
    ```
-   `dist/FAKUKU-Mail-<버전>.dmg`가 생긴다. 공증은 보통 2~10분.
+   `dist/FAKUKU-Mail-<버전>.dmg`가 생긴다 (작업은 `~/Library/Developer/FAKUKUMail/release`에서 한다). 공증은 보통 2~10분.
 5. 다른 Mac(또는 새 사용자 계정)에서 DMG를 받아 열어 본다: 경고 없이 열려야 한다.
 6. 올리기:
    ```
@@ -54,4 +54,5 @@ GitHub 릴리스에 올린다. 소개 사이트(mail.fakukulab.com, fakukulab.co
 | notarytool: `Invalid` | `xcrun notarytool log <id> --keychain-profile fakuku-notary`로 이유를 본다 (서명 빠진 파일, 타임스탬프 없음 등) |
 | 받은 사람이 "확인되지 않은 개발자" | 공증 전 DMG를 올렸거나 staple이 빠졌다 |
 | 캘린더·연락처 권한 창이 안 뜸 | entitlements 없이 서명했다 (`tools/release.sh`로 서명) |
+| codesign: "resource fork, Finder information, or similar detritus not allowed" | 문서 폴더를 iCloud로 동기화해 Finder 정보가 붙었다. release.sh는 ~/Library/Developer/FAKUKUMail/release에서 서명한다 |
 | Microsoft 로그인 후 앱으로 안 돌아옴 | 번들 id(`com.fakukulab.fakukumail`)를 바꾸지 않았는지 (Azure 리디렉션 URI가 이것에 묶여 있다) |

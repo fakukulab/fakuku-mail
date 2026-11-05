@@ -31,13 +31,17 @@ echo "release: 버전 $version, 서명 $identity"
 
 # 1. 빌드 (build.sh가 ~/Applications에 설치한다) → dist로 복사
 "$here/build.sh"
-out="$here/dist"
+# 서명·DMG는 iCloud와 동기화되지 않는 빌드 폴더에서 한다: 문서·데스크탑 폴더를 iCloud로 동기화하면 macOS가
+# 파일에 Finder 정보(com.apple.FinderInfo 등)를 계속 다시 붙여 codesign이 "detritus not allowed"로 거부한다.
+out="$HOME/Library/Developer/FAKUKUMail/release"
 rm -rf "$out"; mkdir -p "$out"
-ditto "$HOME/Applications/$display.app" "$out/$display.app"
+# --noextattr --norsrc: 확장 속성·리소스 포크 없이 복사
+ditto --noextattr --norsrc "$HOME/Applications/$display.app" "$out/$display.app"
 app="$out/$display.app"
 
 # 2. Developer ID 서명: 강화된 런타임, 보안 타임스탬프, 권한 파일
 xattr -cr "$app"
+find "$app" -exec xattr -c {} + 2>/dev/null || true
 codesign --force --options runtime --timestamp --entitlements "$entitlements" --sign "$identity" "$app"
 codesign --verify --strict --verbose=2 "$app"
 echo "release: 서명 확인 완료"
@@ -63,7 +67,7 @@ if $notarize; then notarize_and_staple "$app"; fi
 # 4. DMG: 앱 + 응용 프로그램 폴더 바로가기
 dmg="$out/FAKUKU-Mail-$version.dmg"
 stage=$(mktemp -d)
-ditto "$app" "$stage/$display.app"
+ditto --noextattr --norsrc "$app" "$stage/$display.app"
 ln -s /Applications "$stage/Applications"
 hdiutil create -volname "$display $version" -srcfolder "$stage" -ov -format UDZO "$dmg" >/dev/null
 rm -rf "$stage"
@@ -75,7 +79,11 @@ if $notarize; then
   spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
   spctl --assess --type execute --verbose=2 "$app"
 fi
-shasum -a 256 "$dmg" | tee "$dmg.sha256"
+(cd "$out" && shasum -a 256 "$(basename "$dmg")" | tee "$(basename "$dmg").sha256")
+# 다 만든 DMG만 저장소의 dist/로 (DMG는 서명이 안에 있어 동기화 꼬리표가 붙어도 괜찮다)
+mkdir -p "$here/dist"
+cp "$dmg" "$dmg.sha256" "$here/dist/"
+dmg="$here/dist/$(basename "$dmg")"
 echo "release: 완료 $dmg"
 
 # 6. GitHub 릴리스 (소개 사이트의 다운로드 단추가 releases/latest를 가리킨다)
