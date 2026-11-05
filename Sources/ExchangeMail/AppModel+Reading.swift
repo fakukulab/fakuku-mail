@@ -103,8 +103,12 @@ extension AppModel {
         }
     }
 
-    /// 메일을 열면 작은 첨부(하나 10MB, 모두 30MB까지)를 차례로 받아 둔다
+    /// 메일을 열면 작은 첨부(하나 10MB, 모두 30MB까지)를 차례로 받아 둔다.
+    /// 로그인 토큰도 새로 고쳐 둔다: 아직 못 받은 큰 첨부를 끌면 놓을 때 그 토큰으로 바로 받는다 (AttachmentDrag).
     func warmAttachments(_ list: [FileAttachment], messageID: String) {
+        if list.contains(where: { $0.isInline != true }) {
+            Task { _ = try? await accounts.accounts.first { $0.id == router.accountID(forMessage: messageID) }?.auth.validAccessToken() }
+        }
         var budget = 30 * 1024 * 1024
         for a in list where a.isInline != true && a.data == nil {
             let size = a.size ?? Int.max

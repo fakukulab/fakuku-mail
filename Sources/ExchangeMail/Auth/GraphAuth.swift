@@ -154,9 +154,9 @@ final class GraphAuth: NSObject {
 
     // MARK: 토큰
 
-    /// 아직 5분 넘게 남은 토큰 (메인 스레드 밖에서 바로 요청할 때: 첨부 끌기). 없으면 nil.
+    /// 아직 2분 넘게 남은 토큰 (메인 스레드 밖에서 바로 요청할 때: 첨부 끌기). 없으면 nil.
     var cachedAccessToken: String? {
-        guard let t = tokens, t.expiresAt.timeIntervalSinceNow > 300 else { return nil }
+        guard let t = tokens, t.expiresAt.timeIntervalSinceNow > 120 else { return nil }
         return t.accessToken
     }
 

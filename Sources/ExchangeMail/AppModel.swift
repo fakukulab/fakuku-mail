@@ -581,6 +581,9 @@ final class AppModel {
                     updateMenu()
                 }
             }
+            // 기억에서 연 메일도 첨부를 미리 받는다 (끌어서 첨부·저장이 바로 되게)
+            guard id == displayedMessageID else { return }
+            warmAttachments(detailAttachments, messageID: id)
             return
         }
         do {
