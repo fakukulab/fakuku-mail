@@ -298,14 +298,13 @@ struct FolderRow: View {
     }
 }
 
-/// 사이드바 구역 이름 (맥 Mail): 접혀 있으면 읽지 않은 수, 마우스를 올리면 새 폴더 단추와 ⌄·›.
-/// 시스템의 접기 화살표는 마우스를 올릴 때 생겨 옆 내용을 밀어내므로, 화살표를 직접 그리고 자리를 늘 비워 둔다.
+/// 사이드바 구역 이름 (맥 Mail): 오른쪽에 새 폴더 단추(계정만)와 ⌄·›. 접혀 있으면 읽지 않은 수.
+/// 마우스를 올릴 때 나타나게 하면 구역 머리글의 마우스 추적이 들락날락해 깜빡이므로 늘 보인다.
 struct SidebarSectionHeader: View {
     let title: String
     @Binding var isExpanded: Bool
     var unread = 0
     var newFolder: (() -> Void)?
-    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: Space.sm) {
@@ -315,7 +314,6 @@ struct SidebarSectionHeader: View {
             if !isExpanded && unread > 0 {
                 Text(unread, format: .number)
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
             }
             if let newFolder {
                 Button(action: newFolder) {
@@ -324,22 +322,18 @@ struct SidebarSectionHeader: View {
                 .buttonStyle(.borderless)
                 .help(L("새 폴더…"))
                 .accessibilityLabel(L("새 폴더…"))
-                .opacity(hovering ? 1 : 0)
-                .allowsHitTesting(hovering)
             }
             Button {
                 isExpanded.toggle()
             } label: {
-                Image(systemName: "chevron.right")
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .frame(width: Space.lg)
             }
             .buttonStyle(.borderless)
             .help(isExpanded ? L("접기") : L("펼치기"))
             .accessibilityLabel(isExpanded ? L("접기") : L("펼치기"))
-            .opacity(hovering ? 1 : 0)
         }
+        .foregroundStyle(.secondary)
         .contentShape(Rectangle())
-        .onHover { hovering = $0 }
     }
 }

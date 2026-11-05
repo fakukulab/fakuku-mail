@@ -82,8 +82,6 @@ struct ComposeAddressToken: View {
     let token: String
     let edit: () -> Void
     let remove: () -> Void
-    @State private var hovering = false
-
     private var address: MailAddress? { AddressParser.parseOne(token) }
 
     var body: some View {
@@ -100,29 +98,24 @@ struct ComposeAddressToken: View {
             Divider()
             Button(L("제거"), role: .destructive) { remove() }
         } label: {
+            // 맥 Mail처럼 늘 같은 모양: 연한 강조색 바탕, 이름, ⌄ (마우스를 올려도 크기·색이 바뀌지 않아 줄이 흔들리지 않는다)
             HStack(spacing: 2) {
                 Text(address?.display ?? token)
-                // ⌄ 자리는 늘 비워 둔다: 마우스를 올릴 때 토큰 폭이 바뀌면 줄이 다시 놓여 옆 토큰이 밀린다
+                    .foregroundStyle(address == nil ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
                 Image(systemName: "chevron.down")
                     .font(.caption2.weight(.semibold))
-                    .opacity(hovering ? 1 : 0)
+                    .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
-            .foregroundStyle(hovering ? AnyShapeStyle(Palette.onAccent)
-                             : address == nil ? AnyShapeStyle(.red) : AnyShapeStyle(Palette.accentText))
             .padding(.horizontal, Space.xs)
             .padding(.vertical, 1)
-            .background {
-                if hovering {
-                    RoundedRectangle(cornerRadius: Space.xs, style: .continuous).fill(Palette.accent)
-                }
-            }
+            .background(RoundedRectangle(cornerRadius: Space.xs, style: .continuous)
+                .fill(address == nil ? AnyShapeStyle(Color.red.opacity(0.15)) : AnyShapeStyle(Palette.accentFill)))
         }
         .menuStyle(.button)
         .menuIndicator(.hidden)
         .buttonStyle(.plain)
         .fixedSize()
-        .onHover { hovering = $0 }
         .help(address == nil ? L("주소 형식이 맞지 않습니다: \(token)") : (address?.editable ?? token))
     }
 }
