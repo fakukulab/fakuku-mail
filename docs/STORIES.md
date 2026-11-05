@@ -675,6 +675,11 @@ Status: done (맥에서 Gmail 계정으로 확인 2026-11-05)
 - [x] 대화는 Gmail 대화 번호(X-GM-THRID)로, 대화 내역은 받은 편지함·보낸 편지함·전체 보관함에서 (같은 메일은 한 번)
 - [x] 모든 폴더 검색·깃발 표시·VIP는 전체 보관함 하나에서 (라벨마다 같은 메일이 또 나오지 않게)
 
+## 배포
+- 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
+  (만드는 법: docs/RELEASE.md, tools/release.sh)
+- 남은 일: NSTableView 재진입 경고 (동작 영향 없음, docs/FIXLOG.md), iCloud·Gmail 회의 초대(.ics) 막대
+
 ## Later
 - Sparkle 업데이트와 공증 배포 (기획안 7장)
 
