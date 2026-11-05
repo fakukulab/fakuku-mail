@@ -198,10 +198,8 @@ struct MessageHeader: View {
                             .foregroundStyle(.secondary)
                     }
                     Text(message.title)
-                        .font(.title3)
                         .textSelection(.enabled)
-                    recipients(L("받는 사람:"), message.toRecipients)
-                    recipients(L("참조:"), message.ccRecipients)
+                    recipientLine
                 }
             }
             if !attachments.isEmpty {
@@ -226,16 +224,24 @@ struct MessageHeader: View {
         .padding(.vertical, Space.lg)
     }
 
+    /// "받는 사람: 김전, 참조: Lorielaine Mendoza, 이정식" — 맥 Mail처럼 한 줄에 이어 붙인다 (많으면 줄을 넘긴다).
+    /// 레이블은 진하게, 이름은 흐리게. 이름을 누르면 주소 메뉴.
     @ViewBuilder
-    private func recipients(_ label: String, _ list: [Recipient]?) -> some View {
-        if let list, !list.isEmpty {
-            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                Text(label)
-                    .foregroundStyle(.secondary)
-                // 받는 사람이 많으면 줄을 넘겨 늘어놓는다.
-                FlowLayout(spacing: Space.xs) {
-                    ForEach(Array(list.enumerated()), id: \.offset) { index, r in
-                        AddressToken(recipient: r, trailingComma: index < list.count - 1)
+    private var recipientLine: some View {
+        let to = message.toRecipients ?? []
+        let cc = message.ccRecipients ?? []
+        if !to.isEmpty || !cc.isEmpty {
+            FlowLayout(spacing: Space.xs) {
+                if !to.isEmpty {
+                    Text(L("받는 사람:"))
+                    ForEach(Array(to.enumerated()), id: \.offset) { index, r in
+                        AddressToken(recipient: r, trailingComma: index < to.count - 1 || !cc.isEmpty)
+                    }
+                }
+                if !cc.isEmpty {
+                    Text(L("참조:"))
+                    ForEach(Array(cc.enumerated()), id: \.offset) { index, r in
+                        AddressToken(recipient: r, trailingComma: index < cc.count - 1)
                     }
                 }
             }
@@ -267,55 +273,95 @@ struct SenderAvatar: View {
     }
 }
 
-/// 머리글의 주소 하나: 이름(없으면 주소)을 단추로 보이고, 누르면 주소 메뉴를 연다.
+/// 머리글의 주소 하나 (맥 Mail처럼): 보낸 사람은 굵은 이름 + ⌄, 받는 사람·참조는 흐린 이름.
+/// 마우스를 올리면 강조색 바탕으로 바뀌고, 누르면 주소 메뉴를 연다.
 struct AddressToken: View {
     let recipient: Recipient
     var prominent = false
     var trailingComma = false
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @State private var hovering = false
 
     private var address: String { recipient.emailAddress.address ?? "" }
     private var name: String { recipient.emailAddress.display }
 
     var body: some View {
-        Menu {
-            Text(address)
-            Divider()
-            Button(L("주소 복사")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(recipient.emailAddress.mailAddress?.editable ?? address, forType: .string)
+        HStack(spacing: 0) {
+            Menu {
+                menuItems
+            } label: {
+                HStack(spacing: 2) {
+                    Text(name)
+                        .font(prominent ? .headline : .callout)
+                    if prominent {
+                        Image(systemName: "chevron.down")
+                            .font(.caption2.weight(.semibold))
+                            .accessibilityHidden(true)
+                    }
+                }
+                .foregroundStyle(hovering ? AnyShapeStyle(Palette.onAccent)
+                                 : prominent ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .padding(.horizontal, Space.xs)
+                .padding(.vertical, 1)
+                .background {
+                    if hovering {
+                        RoundedRectangle(cornerRadius: Space.xs, style: .continuous).fill(Palette.accent)
+                    }
+                }
             }
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(.plain)
+            .fixedSize()
+            .onHover { hovering = $0 && !address.isEmpty }
+            .help(address)
+            .disabled(address.isEmpty)
+            if trailingComma {
+                Text(",")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// 맥 Mail의 주소 메뉴와 같은 차례
+    @ViewBuilder
+    private var menuItems: some View {
+        // 맨 위: 체크 표시와 주소 (고를 수 없다)
+        Toggle(address, isOn: .constant(true))
+            .disabled(true)
+        Divider()
+        Button(L("주소 복사")) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(recipient.emailAddress.mailAddress?.editable ?? address, forType: .string)
+        }
+        if model.mailboxes.vip(address: address) == nil {
+            Button(L("VIP에 추가")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
+        } else {
+            Button(L("VIP에서 제거")) { model.removeVIP(address: address) }
+        }
+        Button(L("새로운 이메일")) {
+            openWindow(id: "compose", value: ComposeDraft(to: recipient.emailAddress.mailAddress?.editable ?? address))
+        }
+        Divider()
+        Button(L("이전 수신자 목록에서 제거")) { model.addressBook.remove(address) }
+        Button(L("연락처 카드 보기")) { Task { await ContactCard.show(address: address, name: recipient.emailAddress.name) } }
+        Divider()
+        Button(L("'\(name)' 검색")) {
+            model.searchScope = .all
+            model.searchText = recipient.emailAddress.name?.isEmpty == false ? (recipient.emailAddress.name ?? address) : address
+            Task { await model.loadMessages() }
+        }
+        Divider()
+        // 이 보낸 사람을 어떻게 다룰지
+        Menu(L("발신자 분류")) {
             if model.mailboxes.vip(address: address) == nil {
-                Button(L("VIP에 추가…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
+                Button(L("VIP로 지정…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
             } else {
                 Button(L("VIP 이름·아이콘 변경…")) { model.editVIP(address: address, name: recipient.emailAddress.name) }
-                Button(L("VIP에서 빼기")) { model.removeVIP(address: address) }
             }
             Button(L("발신자 차단")) { Task { await model.block(address: address) } }
-            Button(L("새로운 이메일")) {
-                openWindow(id: "compose", value: ComposeDraft(to: recipient.emailAddress.mailAddress?.editable ?? address))
-            }
-            Divider()
-            Button(L("이전 수신자 목록에서 제거")) { model.addressBook.remove(address) }
-            Button(L("연락처 카드 보기")) { Task { await ContactCard.show(address: address, name: recipient.emailAddress.name) } }
-            Divider()
-            Button(L("'\(name)' 검색")) {
-                model.searchScope = .all
-                model.searchText = recipient.emailAddress.name?.isEmpty == false ? (recipient.emailAddress.name ?? address) : address
-                Task { await model.loadMessages() }
-            }
-        } label: {
-            Text(name + (trailingComma ? "," : ""))
-                .font(prominent ? .headline : .callout)
-                .foregroundStyle(.primary)
         }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(.plain)
-        .fixedSize()
-        .help(address)
-        .disabled(address.isEmpty)
     }
 }
 

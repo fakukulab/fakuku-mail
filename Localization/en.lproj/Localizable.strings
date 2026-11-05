@@ -914,3 +914,7 @@
 "기본값으로 되돌리기" = "Restore Defaults";
 "메일을 찾을 수 없습니다" = "Message Not Found";
 "다른 기기나 규칙이 이 메일을 옮겼거나 지웠습니다. 목록을 새로 고쳤습니다." = "Another device or a rule moved or deleted this message. The list has been refreshed.";
+"VIP에 추가" = "Add to VIPs";
+"VIP에서 제거" = "Remove from VIPs";
+"VIP로 지정…" = "Add to VIPs…";
+"발신자 분류" = "Categorize Sender";
