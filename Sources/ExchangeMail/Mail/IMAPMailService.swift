@@ -116,14 +116,16 @@ final class IMAPMailService: MailService {
         kinds = newKinds
         // 읽지 않은 수와 전체 수: 폴더마다 STATUS 한 번, 연결 여러 개로 나눠 동시에
         let paths = out.map { IMAP.parseID($0.id)?.path }
-        let counts = await withTaskGroup(of: (Int, [IMAPValue]?).self) { group in
-            for (i, path) in paths.enumerated() {
-                guard let p = path else { continue }
-                group.addTask { @MainActor in (i, await self.status(of: p)) }
+        // (작업 그룹은 Swift 6.2 영역 검사기가 해석하지 못해 빌드가 멈춘다: 폴더마다 Task를 띄우고 차례로 기다린다)
+        let tasks = paths.map { path in
+            Task { () -> [IMAPValue]? in
+                guard let path else { return nil }
+                return await self.status(of: path)
             }
-            var result: [Int: [IMAPValue]] = [:]
-            for await (i, items) in group { if let items { result[i] = items } }
-            return result
+        }
+        var counts: [(Int, [IMAPValue])] = []
+        for (i, task) in tasks.enumerated() {
+            if let items = await task.value { counts.append((i, items)) }
         }
         for (i, items) in counts {
             var k = 0
