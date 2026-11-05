@@ -73,12 +73,12 @@ final class IMAPMailService: MailService {
     }
 
     /// 폴더의 첫 쪽 (늘 새로 연 폴더에서, 한 연결로)
-    private func latest(in path: String) async throws -> (low: Int, reply: IMAPReply) {
+    private func latest(in path: String, count: Int = 50) async throws -> (low: Int, reply: IMAPReply) {
         let i = pick(for: path)
         load[i] += 1
         selectedOn[i] = path
         defer { load[i] -= 1 }
-        return try await pool[i].latest(in: path, count: Self.pageSize, items: IMAP.summaryItems)
+        return try await pool[i].latest(in: path, count: count, items: IMAP.summaryItems)
     }
 
     /// 계정 추가 때: 연결해서 로그인되는지 본다
@@ -355,16 +355,40 @@ final class IMAPMailService: MailService {
         return data
     }
 
-    /// 대화의 모든 메일 (휴지통·정크 밖의 모든 폴더): 첫 메일 자체, 그리고 References·In-Reply-To에 첫 메일이 있는 메일.
-    /// 대화 id는 목록에서 정한다 (`IMAP.threadRoot`).
+    /// 대화의 모든 메일. 같은 대화 = 목록에서 정한 대화 id가 같은 메일 (`IMAP.threadRoot`).
+    /// 받은 편지함·보낸 편지함·보관과 메일이 있던 폴더의 최근 메일 머리글을 받아 앱이 고르고,
+    /// 서버 검색(SEARCH HEADER)으로 더 오래된 것도 찾는다. iCloud는 머리글 검색에 답하지 않을 때가 있어 둘 다 쓴다.
     func conversation(id: String) async throws -> [MailMessage] {
         guard let conv = IMAP.parseConversationID(id), conv.account == accountID else { return [] }
+        if kinds.isEmpty { _ = try await folders() }
+        var paths = ["INBOX"] + kinds.filter { ["sentitems", "archive"].contains($0.value) }.map(\.key)  // l10n: data
+        for path in recentMemo.keys where !paths.contains(path) && recentMemo[path]?.list.contains(where: { $0.conversationId == id }) == true {
+            paths.append(path)   // 목록에서 이 대화를 본 다른 폴더
+        }
         let root = conv.root
         let criteria: [IMAPPart] = [.text("OR OR HEADER Message-ID "), .literalOrQuoted(root),
                                     .text(" HEADER References "), .literalOrQuoted(root),
                                     .text(" HEADER In-Reply-To "), .literalOrQuoted(root)]
-        // 같은 대화로 묶인 것만 (References 가운데쯤에 그 id가 있는 다른 대화의 메일은 뺀다)
-        return try await searchFolders(criteria, limit: 200).messages.filter { $0.conversationId == id }
+        let searched = Task { (try? await self.searchFolders(criteria, limit: 200).messages) ?? [] }
+        let scans = paths.map { path in Task { await self.recent(path) } }
+        var seen = Set<String>()
+        var out: [MailMessage] = []
+        for task in scans {
+            for m in await task.value where m.conversationId == id && seen.insert(m.id).inserted { out.append(m) }
+        }
+        for m in await searched.value where m.conversationId == id && seen.insert(m.id).inserted { out.append(m) }
+        return out
+    }
+
+    /// 폴더의 최근 메일 요약 300통 (대화 찾기용, 1분 기억)
+    private var recentMemo: [String: (at: Date, list: [MailMessage])] = [:]
+
+    private func recent(_ path: String) async -> [MailMessage] {
+        if let m = recentMemo[path], Date().timeIntervalSince(m.at) < 60 { return m.list }
+        guard let result = try? await latest(in: path, count: 300) else { return recentMemo[path]?.list ?? [] }
+        let list = summaries(result.reply, path: path)
+        recentMemo[path] = (Date(), list)
+        return list
     }
 
     // MARK: 표시
@@ -481,6 +505,7 @@ final class IMAPMailService: MailService {
         guard let sent = kinds.first(where: { $0.value == "sentitems" })?.key else { return }
         // 보낸 것은 이미 갔다: 사본 저장이 실패해도 보내기는 성공으로 둔다
         _ = try? await append(mime, to: sent, flags: "(\\Seen)")
+        recentMemo[sent] = nil   // 방금 보낸 답장이 대화 내역에 바로 들어가게
     }
 
     /// 임시 보관함에 새 초안을 두고(\Draft), 예전 초안은 지운다. 새 초안 id.
