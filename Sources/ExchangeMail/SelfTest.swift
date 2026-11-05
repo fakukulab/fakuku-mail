@@ -696,6 +696,7 @@ enum SelfTest {
                 await model.respondToMeeting(.tentativelyAccept)
                 check("S-038 수락한 뒤 미정으로 바꿀 수 있다", model.detail?.event?.response == .tentativelyAccept)
                 check("S-056 데모·셀프 테스트에서는 맥 캘린더를 건드리지 않는다", model.macCalendarStatus.isEmpty)
+                try? await Task.sleep(for: .seconds(0.1))   // 메뉴 상태는 다음 차례에 발행된다
                 check("S-056 회의 초대면 메시지 > 맥 캘린더에 추가가 켜진다", MenuState.shared.snapshot.isMeeting)
                 if let event = model.detail?.event {
                     let entry = CalendarEntry(event: event, fallbackTitle: model.detail?.subject)
@@ -1061,6 +1062,7 @@ enum SelfTest {
                       archived.allSatisfy { $0.html != nil && $0.date != nil })
                 let partial = Store.directory.appending(path: ".selftest-export.mbox.part")
                 check("S-053 작업용 반쪽 파일이 남지 않는다", !FileManager.default.fileExists(atPath: partial.path))
+                try? await Task.sleep(for: .seconds(0.1))   // 메뉴 상태는 다음 차례에 발행된다
                 check("S-053 내보내기가 끝나면 메뉴가 다시 내보내기로", !model.archiveExporting && !MenuState.shared.snapshot.exporting)
 
                 // S-055: 내보낸 파일을 나의 Mac에 가져와 앱 안에 보관한다

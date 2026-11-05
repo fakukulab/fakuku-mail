@@ -236,3 +236,5 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   Dock 배지는 계정별 폴더(`accountFolders`)를 보므로 다음 새로 고침(기본 2분)까지 그대로였다. 모든 받은 편지함·깃발 표시·
   스마트 메일상자에서 읽으면 아무 수도 줄지 않았다.
 - 고침: 메일이 실제로 있는 폴더(parentFolderId)의 수를 `folders`와 `accountFolders` 모두에서 바로 고친다 (`adjustUnread`).
+- 다시 (같은 날): 사이드바만 고쳐서는 경고가 그대로였다. 표가 선택을 바꾸는 도중 앱이 `MenuState`(ObservableObject)를 바로
+  발행해 메뉴·창이 그 자리에서 다시 계산됐다. `MenuState.update`가 다음 차례에 한 번만 발행한다.

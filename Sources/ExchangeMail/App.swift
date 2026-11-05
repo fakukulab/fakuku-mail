@@ -137,9 +137,21 @@ struct MenuSnapshot: Equatable {
 final class MenuState: ObservableObject {
     static let shared = MenuState()
     @Published private(set) var snapshot = MenuSnapshot()
+    /// 아직 발행하지 않은 다음 상태
+    private var pending: MenuSnapshot?
 
+    /// 메뉴 상태를 다음 차례에 발행한다. 목록·사이드바 표가 선택을 바꾸는 도중에(표의 delegate 안에서) 바로 발행하면
+    /// 메뉴와 창이 그 자리에서 다시 계산되어 "reentrant operation in its NSTableView delegate" 경고가 났다.
+    /// 한 차례 안에 여러 번 바뀌면 마지막 것 하나만 발행한다.
     func update(_ s: MenuSnapshot) {
-        if snapshot != s { snapshot = s }
+        let scheduled = pending != nil
+        pending = s
+        guard !scheduled else { return }
+        Task { @MainActor in
+            guard let next = self.pending else { return }
+            self.pending = nil
+            if self.snapshot != next { self.snapshot = next }
+        }
     }
 }
 
