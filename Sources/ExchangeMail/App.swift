@@ -187,6 +187,19 @@ struct MailCommands: Commands {
                 .keyboardShortcut("0")
             Divider()
         }
+        // 도움말 > FAKUKU Mail 도움말: 소개 사이트의 도움말 (Mac 언어가 한국어면 한국어, 아니면 영어)
+        CommandGroup(replacing: .help) {
+            Button(L("FAKUKU Mail 도움말")) { NSWorkspace.shared.open(Self.helpURL) }
+                .keyboardShortcut("?")
+            Button(L("문제 신고하기…")) {
+                if let url = URL(string: "https://github.com/fakukulab/fakuku-mail/issues") { NSWorkspace.shared.open(url) }  // l10n: data
+            }
+        }
+    }
+
+    static var helpURL: URL {
+        let korean = Bundle.main.preferredLocalizations.first?.hasPrefix("ko") ?? true
+        return URL(string: korean ? "https://mail.fakukulab.com/help.html" : "https://mail.fakukulab.com/help-en.html")!  // l10n: data
     }
 
     // MARK: 보기

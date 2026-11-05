@@ -1005,3 +1005,5 @@
 "FAKUKU Mail 시험 일정" = "FAKUKU Mail Test Event";
 "넣고 지우기 성공 (%@, 캘린더 %@개)" = "Added and removed (%1$@, %2$@ calendars)";
 "넣지 못했습니다: %@" = "Couldn’t add: %@";
+"FAKUKU Mail 도움말" = "FAKUKU Mail Help";
+"문제 신고하기…" = "Report a Problem…";

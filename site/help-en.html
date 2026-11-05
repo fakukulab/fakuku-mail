@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAKUKU Mail Help</title>
+<meta name="description" content="How to use FAKUKU Mail: adding accounts, reading and organizing, writing and attachment fixes, individual sending, meetings and Mac Calendar, shortcuts, troubleshooting.">
+<link rel="icon" href="images/icon.png">
+<link rel="canonical" href="https://mail.fakukulab.com/help-en.html">
+<link rel="alternate" hreflang="ko" href="https://mail.fakukulab.com/help.html">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="help">
+<p class="lang"><a href="help.html">한국어</a></p>
+<header>
+  <img src="images/icon.png" alt="">
+  <div>
+    <h1>FAKUKU Mail Help</h1>
+    <p class="muted">macOS 26 or later · Microsoft Exchange Online, iCloud, Gmail</p>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <a href="#start">Getting started</a>
+  <a href="#screen">The window</a>
+  <a href="#read">Reading and organizing</a>
+  <a href="#search">Search and smart mailboxes</a>
+  <a href="#write">Writing mail</a>
+  <a href="#fix">Attachment fix</a>
+  <a href="#merge">Individual sending</a>
+  <a href="#meeting">Meetings and Mac Calendar</a>
+  <a href="#server">Rules and automatic replies</a>
+  <a href="#local">Import and export mailboxes</a>
+  <a href="#notify">Notifications, Siri, Shortcuts</a>
+  <a href="#privacy">Privacy and security</a>
+  <a href="#settings">Settings</a>
+  <a href="#keys">Keyboard shortcuts</a>
+  <a href="#trouble">Troubleshooting</a>
+</nav>
+
+<h2 id="start">Getting started</h2>
+<p>FAKUKU Mail reads and writes your mail where it lives, on the server. You can add several accounts and use them in one window.</p>
+
+<h3>Microsoft Exchange (work mail)</h3>
+<ol>
+  <li>On the first screen, enter your work email address and click <strong>Sign In</strong>. If you already use the app, choose <strong>Settings &gt; Accounts &gt; + &gt; Microsoft Exchange…</strong>.</li>
+  <li>Enter your password and approve on your phone in the Microsoft sign-in window. The app never sees your password.</li>
+  <li>If you see “Admin approval required,” click <strong>Copy Admin Approval Link</strong> and send it to your IT administrator. Your company approves the app once.</li>
+</ol>
+
+<h3>iCloud</h3>
+<ol>
+  <li>At account.apple.com &gt; <strong>Sign-In and Security</strong> &gt; <strong>App-Specific Passwords</strong>, create a password.</li>
+  <li>In <strong>Settings &gt; Accounts &gt; + &gt; iCloud…</strong>, enter your name, iCloud address, and the <em>app-specific password</em> (not your Apple Account password).</li>
+</ol>
+
+<h3>Gmail</h3>
+<ol>
+  <li>Turn on <strong>2-Step Verification</strong> for your Google Account.</li>
+  <li>Create an app password in Google Account &gt; Security &gt; <strong>App passwords</strong>.</li>
+  <li>Make sure IMAP is on in Gmail settings &gt; <strong>Forwarding and POP/IMAP</strong>.</li>
+  <li>In <strong>Settings &gt; Accounts &gt; + &gt; Gmail…</strong>, enter your address and the app password.</li>
+</ol>
+<p class="note">Gmail’s “All Mail” is used as the Archive mailbox. Starred and Important labels aren’t shown in the sidebar (see starred mail in <strong>Flagged</strong>).</p>
+
+<h3>Removing an account</h3>
+<p>In <strong>Settings &gt; Accounts</strong>, select the account and click <strong>−</strong>. This removes the account’s offline copy and sign-in from this Mac only; mail on the server stays.</p>
+
+<h2 id="screen">The window</h2>
+<figure class="window"><img src="images/en/inbox-light.png" alt="FAKUKU Mail main window: sidebar, message list, message"></figure>
+<h3>Sidebar</h3>
+<ul>
+  <li><strong>Smart Mailboxes</strong>: All Inboxes (with two or more accounts), Flagged (by color), and smart mailboxes you create.</li>
+  <li><strong>VIPs</strong>: mail from people you mark as VIP.</li>
+  <li><strong>Account sections</strong>: each account’s mailboxes. Hover over a section name to show the New Mailbox button and the collapse arrow; a collapsed section shows its inbox unread count.</li>
+  <li><strong>On My Mac</strong>: mailboxes imported from files, stored only on this Mac.</li>
+</ul>
+<h3>Message list</h3>
+<ul>
+  <li><strong>View &gt; Organize by Conversation</strong> (⌃⌘T) groups a conversation into one row with a count.</li>
+  <li>Swipe a row left or right with two fingers to show actions. By default, swipe right = Read, full swipe left = Delete. Change this in <strong>Settings &gt; Viewing</strong>.</li>
+  <li>Use <strong>Filter</strong> (Unread, Flagged, Attachments, High Priority, To or Cc Me, Mentions) and <strong>Sort</strong> in the View menu.</li>
+</ul>
+<h3>Message</h3>
+<ul>
+  <li>The <strong>conversation strip</strong> above the message shows the rest of the conversation, including your replies in other mailboxes, and highlights the message you’re reading. Drag its bottom edge or press ⌥⌘↓ / ⌥⌘↑ to resize it.</li>
+  <li>Hover over a name in the header to show ⌄; click it to copy the address, mark as VIP, or show the contact card.</li>
+  <li>Attachments appear as cards under the subject. Click to Quick Look, use ⌄ to open or save.</li>
+</ul>
+
+<h2 id="read">Reading and organizing</h2>
+<table>
+  <tr><th>To</th><th>Do this</th></tr>
+  <tr><td>Mark read / unread</td><td>Message &gt; Mark as Read (⇧⌘U), or swipe right</td></tr>
+  <tr><td>Flag</td><td>⇧⌘L. Choose a color in Message &gt; Flag Color</td></tr>
+  <tr><td>Archive</td><td>⌃⌘A. Moves to the account’s Archive (Gmail removes it from Inbox)</td></tr>
+  <tr><td>Delete</td><td>Delete (⌫). Moves to Deleted Items / Trash</td></tr>
+  <tr><td>Move</td><td>Drag rows onto a mailbox, Message &gt; Move… (⇧⌘M), Move Again to Same Folder (⌃⌘M)</td></tr>
+  <tr><td>Undo</td><td>⌘Z returns moved, archived, or deleted mail to its mailbox</td></tr>
+  <tr><td>Junk</td><td>⇧⌘J moves to Junk so the server learns</td></tr>
+  <tr><td>Block sender</td><td>⌃⌘B. Their mail goes to Deleted Items from now on</td></tr>
+  <tr><td>Mute conversation</td><td>⌃⇧M. No notifications for new mail in it</td></tr>
+  <tr><td>Open in a new window</td><td>⌘O or double-click</td></tr>
+  <tr><td>Raw Source</td><td>⌥⌘U shows all headers and the MIME source</td></tr>
+  <tr><td>Print</td><td>⌘P</td></tr>
+  <tr><td>New, rename, delete mailboxes</td><td>Mailbox menu, or Control-click a mailbox</td></tr>
+</table>
+
+<h2 id="search">Search and smart mailboxes</h2>
+<ul>
+  <li>Type in the toolbar search field (⌥⌘F) and choose <strong>This Folder</strong> or <strong>All Folders</strong>. All Folders searches every account and your imported mail in <strong>On My Mac</strong>.</li>
+  <li><strong>Mailbox &gt; New Smart Mailbox…</strong> (⌥⌘N) saves conditions — sender, subject, unread, flagged, attachments, high priority, VIP, received in the last days, mailbox — and shows them like a mailbox.</li>
+  <li><strong>VIP</strong>: select a message and choose Message &gt; Add Sender to VIPs… (⌃⌘V). You can give each VIP a name and icon.</li>
+</ul>
+
+<h2 id="write">Writing mail</h2>
+<figure class="window"><img src="images/en/compose-light.png" alt="Compose window"></figure>
+<ul>
+  <li><strong>New Message</strong> ⌘N, <strong>Reply</strong> ⌘R, <strong>Reply All</strong> ⇧⌘R, <strong>Forward</strong> ⇧⌘F, <strong>Forward as Attachment</strong> ⌥⇧⌘F, <strong>Send Again</strong> ⌥⌘D. <strong>Send</strong> ⇧⌘D.</li>
+  <li><strong>Recipients</strong>: type an address and press comma, semicolon, or Return to make a name token. Addresses you’ve used before are suggested (choose one with the arrow keys). Use a token’s ⌄ menu to copy or remove it; double-click to edit.</li>
+  <li>Show or hide <strong>Cc, Bcc, Reply-To, and Priority</strong> with the View menu or the header fields button (Bcc ⌥⌘B).</li>
+  <li><strong>From</strong>: with two or more accounts, choose which one sends. Replies and forwards default to the account that received the original.</li>
+  <li><strong>Formatting</strong>: Format menu (Bold ⌘B, Italic ⌘I, Underline ⌘U, lists, alignment, quote level). Tab indents in the body. <strong>Writing Tools</strong> (⌃⌘W) can rewrite your text.</li>
+  <li><strong>Signatures</strong>: create several in Settings &gt; Signatures and choose a default for new mail, replies, and forwards.</li>
+  <li><strong>Outside addresses</strong>: list your company domains in Settings &gt; Composing; recipients outside them are shown in orange.</li>
+  <li><strong>Undo Send</strong>: choose 5–20 seconds in Settings &gt; Composing, then cancel from the bar at the top of the window (Esc).</li>
+  <li><strong>Send Later</strong> (Exchange): choose <strong>Send Later…</strong> (⌥⇧⌘D) in the compose toolbar; the server sends it at that time.</li>
+  <li><strong>Drafts</strong> are saved as you write. You’re asked whether to save when you close the window.</li>
+  <li><strong>Large attachments</strong>: Exchange uploads attachments over 4 MB separately (up to 150 MB per file). iCloud accepts about 20 MB per message, Gmail 25 MB.</li>
+</ul>
+
+<h2 id="fix">Attachment fix (Korean file names and inline images)</h2>
+<p>When Exchange mail is sent from other clients, Korean attachment names can arrive garbled, and images in the body may not show as attachments. FAKUKU Mail fixes this before sending.</p>
+<ul>
+  <li>File names are written in the standard form (NFC, RFC 2231) so they show correctly in Outlook, Naver, Daum, and others.</li>
+  <li><strong>Send inline images as regular attachments</strong> (on by default). Images in signatures and quotes stay in the body; small images below the KB threshold can stay inline.</li>
+  <li><strong>EUC-KR file names</strong>: turn on only for older Korean systems.</li>
+  <li>Set defaults in Settings &gt; Composing and turn it off per message in the compose window.</li>
+</ul>
+
+<h2 id="merge">Individual sending</h2>
+<p><strong>Message &gt; Individual Sending…</strong> (⌥⇧⌘M) sends the same message to many people <em>one at a time</em>, so no one sees the other recipients.</p>
+<ol>
+  <li><strong>Templates</strong>: save a subject and body with placeholders such as <code>{{name}}</code>.</li>
+  <li><strong>Groups</strong>: build a recipient list or import a CSV. Column names that match placeholders are filled in per person.</li>
+  <li><strong>Send</strong>: send yourself a test first, then send. You can add an unsubscribe line.</li>
+</ol>
+
+<h2 id="meeting">Meetings and Mac Calendar</h2>
+<ul>
+  <li>Exchange meeting invitations show an <strong>Accept · Tentative · Decline</strong> bar. After you answer, the app checks that the server calendar was updated.</li>
+  <li><strong>Mac Calendar</strong>: turn on <strong>Add accepted meetings to Calendar on this Mac</strong> in Settings &gt; Accounts &gt; Account Information. Accepted and tentative meetings are added to the calendar you choose; declining removes what the app added. Duplicates — already there, or arriving later through Exchange sync — are cleaned up.</li>
+  <li>Add one yourself with Message &gt; Add to Calendar (⌥⌘K).</li>
+  <li><strong>Add Test Event</strong> in Settings checks calendar access.</li>
+</ul>
+<p class="note">Invitations received in iCloud or Gmail (.ics) don’t show the meeting bar yet.</p>
+
+<h2 id="server">Rules and automatic replies (Exchange)</h2>
+<ul>
+  <li><strong>Settings &gt; Rules</strong>: move, mark read, set importance, or delete by sender or subject words. These are Exchange server rules, so they run even when the app is closed and show in Outlook.</li>
+  <li><strong>Settings &gt; Automatic Replies</strong>: turn on an out-of-office reply with dates and separate text for people inside and outside your organization.</li>
+</ul>
+
+<h2 id="local">Import and export mailboxes</h2>
+<ul>
+  <li><strong>File &gt; Import Mailboxes…</strong> (⌥⌘O) imports a <code>.mbox</code> (or a folder of .emlx files) from Mail or other apps into <strong>On My Mac</strong>. It’s stored and searchable on this Mac, independent of any server.</li>
+  <li><strong>Mailbox &gt; Export Mailbox…</strong> (⌥⌘E) saves the current mailbox as <code>.mbox</code> for backup or moving to another app.</li>
+</ul>
+
+<h2 id="notify">Notifications, Siri, Shortcuts</h2>
+<ul>
+  <li><strong>New mail notifications</strong>: Settings &gt; Notifications. Exchange is checked at the interval in Settings &gt; General (2 minutes by default); iCloud and Gmail are checked as soon as the server reports new mail. The Dock badge (Settings &gt; General) is the unread count of all inboxes.</li>
+  <li><strong>Siri</strong> (in English): “How many unread emails do I have in FAKUKU Mail,” “Get new mail in FAKUKU Mail,” “Read my latest email in FAKUKU Mail,” “Flag this email in FAKUKU Mail,” “Reply to this email in FAKUKU Mail,” “Show VIP mail in FAKUKU Mail.”</li>
+  <li>The same actions appear under FAKUKU Mail in the <strong>Shortcuts</strong> app for automations.</li>
+</ul>
+
+<h2 id="privacy">Privacy and security</h2>
+<ul>
+  <li>Your mail stays on each provider’s server (Microsoft, Apple, Google), and the app talks only to those servers. Nothing is sent to the developer.</li>
+  <li>Sign-in tokens and app passwords are kept only in your Mac’s <strong>Keychain</strong>.</li>
+  <li>Scripts in received HTML never run.</li>
+  <li><strong>Remote content</strong> (Settings &gt; Viewing &gt; Privacy): the default, <strong>Protect Mail Activity</strong>, removes tracking pixels and loads other remote images without cookies, so senders can’t tell when you opened their mail. <strong>Block all remote content</strong> loads none; use Message &gt; Load Remote Images (⇧⌘I) for one message.</li>
+  <li><strong>Offline</strong>: recent lists and messages you opened are kept on this Mac so you can read them without a network (Settings &gt; General &gt; Offline; removed when you remove the account).</li>
+</ul>
+<p>Details: <a href="privacy.html">Privacy Policy</a></p>
+
+<h2 id="settings">Settings (⌘,)</h2>
+<table>
+  <tr><th>Tab</th><th>Main options</th></tr>
+  <tr><td>General</td><td>Accent color, check for new mail, Dock badge, offline copy</td></tr>
+  <tr><td>Accounts</td><td>Add and remove accounts, description (sidebar name), mailbox behaviors, server settings, Mac Calendar</td></tr>
+  <tr><td>Junk Mail</td><td>How junk is handled, unblock senders</td></tr>
+  <tr><td>Fonts &amp; Colors</td><td>List font size, message font, fixed-width plain text, quote level colors</td></tr>
+  <tr><td>Viewing</td><td>Preview lines, bold unread, when to mark read, conversations, prefetch, swipe actions, remote content</td></tr>
+  <tr><td>Composing</td><td>Spelling, automatically include me, company domains, quote original, attachment fix defaults, Undo Send</td></tr>
+  <tr><td>Signatures</td><td>Create and style signatures, defaults per situation</td></tr>
+  <tr><td>Rules · Automatic Replies</td><td>Exchange server rules, out-of-office reply</td></tr>
+  <tr><td>Notifications</td><td>New mail notifications, sound</td></tr>
+</table>
+
+<h2 id="keys">Keyboard shortcuts</h2>
+<div class="keys">
+<table>
+  <tr><th colspan="2">Mail</th></tr>
+  <tr><td>New Message</td><td><kbd>⌘N</kbd></td></tr>
+  <tr><td>Reply / Reply All</td><td><kbd>⌘R</kbd> / <kbd>⇧⌘R</kbd></td></tr>
+  <tr><td>Forward / as Attachment</td><td><kbd>⇧⌘F</kbd> / <kbd>⌥⇧⌘F</kbd></td></tr>
+  <tr><td>Send Again</td><td><kbd>⌥⌘D</kbd></td></tr>
+  <tr><td>Individual Sending</td><td><kbd>⌥⇧⌘M</kbd></td></tr>
+  <tr><td>Get All New Mail</td><td><kbd>⇧⌘N</kbd></td></tr>
+  <tr><td>Search</td><td><kbd>⌥⌘F</kbd></td></tr>
+  <tr><td>Print</td><td><kbd>⌘P</kbd></td></tr>
+</table>
+<table>
+  <tr><th colspan="2">Message</th></tr>
+  <tr><td>Mark Read / Unread</td><td><kbd>⇧⌘U</kbd></td></tr>
+  <tr><td>Flag</td><td><kbd>⇧⌘L</kbd></td></tr>
+  <tr><td>Archive</td><td><kbd>⌃⌘A</kbd></td></tr>
+  <tr><td>Delete</td><td><kbd>⌫</kbd></td></tr>
+  <tr><td>Move… / Move Again</td><td><kbd>⇧⌘M</kbd> / <kbd>⌃⌘M</kbd></td></tr>
+  <tr><td>Mark as Junk</td><td><kbd>⇧⌘J</kbd></td></tr>
+  <tr><td>Block Sender</td><td><kbd>⌃⌘B</kbd></td></tr>
+  <tr><td>Add to VIPs</td><td><kbd>⌃⌘V</kbd></td></tr>
+  <tr><td>Mute</td><td><kbd>⌃⇧M</kbd></td></tr>
+  <tr><td>Open in New Window</td><td><kbd>⌘O</kbd></td></tr>
+  <tr><td>Quick Look Attachments</td><td><kbd>⌘Y</kbd></td></tr>
+  <tr><td>Raw Source</td><td><kbd>⌥⌘U</kbd></td></tr>
+  <tr><td>Load Remote Images</td><td><kbd>⇧⌘I</kbd></td></tr>
+  <tr><td>Add to Calendar</td><td><kbd>⌥⌘K</kbd></td></tr>
+  <tr><td>Undo</td><td><kbd>⌘Z</kbd></td></tr>
+</table>
+<table>
+  <tr><th colspan="2">Mailboxes and view</th></tr>
+  <tr><td>New Mailbox</td><td><kbd>⌃⌘N</kbd></td></tr>
+  <tr><td>New Smart Mailbox</td><td><kbd>⌥⌘N</kbd></td></tr>
+  <tr><td>Previous / Next Mailbox</td><td><kbd>⌃⌘[</kbd> / <kbd>⌃⌘]</kbd></td></tr>
+  <tr><td>Mark All as Read</td><td><kbd>⌥⇧⌘C</kbd></td></tr>
+  <tr><td>Erase Deleted Items</td><td><kbd>⌥⇧⌘⌫</kbd></td></tr>
+  <tr><td>Erase Junk Mail</td><td><kbd>⌥⌘J</kbd></td></tr>
+  <tr><td>Import / Export Mailbox</td><td><kbd>⌥⌘O</kbd> / <kbd>⌥⌘E</kbd></td></tr>
+  <tr><td>Organize by Conversation</td><td><kbd>⌃⌘T</kbd></td></tr>
+  <tr><td>Taller / Shorter Conversation</td><td><kbd>⌥⌘↓</kbd> / <kbd>⌥⌘↑</kbd></td></tr>
+  <tr><td>Clear All Filters</td><td><kbd>⌥⌘L</kbd></td></tr>
+  <tr><td>Message Viewer</td><td><kbd>⌘0</kbd></td></tr>
+</table>
+<table>
+  <tr><th colspan="2">Compose window</th></tr>
+  <tr><td>Send</td><td><kbd>⇧⌘D</kbd></td></tr>
+  <tr><td>Bcc / Reply-To field</td><td><kbd>⌥⌘B</kbd> / <kbd>⌥⌘R</kbd></td></tr>
+  <tr><td>Bold / Italic / Underline / Strikethrough</td><td><kbd>⌘B</kbd> / <kbd>⌘I</kbd> / <kbd>⌘U</kbd> / <kbd>⌃⌘X</kbd></td></tr>
+  <tr><td>Bulleted / Numbered List</td><td><kbd>⇧⌘7</kbd> / <kbd>⇧⌘8</kbd></td></tr>
+  <tr><td>Align Left / Center / Right</td><td><kbd>⌘{</kbd> / <kbd>⌘|</kbd> / <kbd>⌘}</kbd></td></tr>
+  <tr><td>Indent / Outdent</td><td><kbd>⌘]</kbd> / <kbd>⌘[</kbd></td></tr>
+  <tr><td>Increase / Decrease Quote Level</td><td><kbd>⌘'</kbd> / <kbd>⌥⌘'</kbd></td></tr>
+  <tr><td>Writing Tools</td><td><kbd>⌃⌘W</kbd></td></tr>
+  <tr><td>Send Later (Exchange)</td><td><kbd>⌥⇧⌘D</kbd></td></tr>
+</table>
+</div>
+
+<h2 id="trouble">Troubleshooting</h2>
+<details><summary>“Admin approval required” (Exchange)</summary>
+<p>Your company requires IT to approve new apps. Click <strong>Copy Admin Approval Link</strong> on the sign-in screen and send it to your IT administrator. Once approved, everyone at your company can sign in.</p></details>
+<details><summary>I can’t sign in to iCloud or Gmail</summary>
+<p>Use an <strong>app-specific password / app password</strong>, not your account password. Gmail also needs 2-Step Verification and IMAP turned on. If you created a new app password, remove the account (−) and add it again.</p></details>
+<details><summary>“Too many requests”</summary>
+<p>Exchange is briefly limiting requests. The app waits as long as the server asks and tries again. After a minute or two, try <strong>Get All New Mail</strong> (⇧⌘N).</p></details>
+<details><summary>“Message not found”</summary>
+<p>A phone, another computer, or a server rule moved or deleted it. The app refreshes the list quietly.</p></details>
+<details><summary>Recipients see garbled Korean attachment names</summary>
+<p>Check that <strong>Attachment fix</strong> is on in the compose window. For older Korean systems, turn on <strong>EUC-KR file names</strong> in Settings &gt; Composing.</p></details>
+<details><summary>I don’t get new mail notifications</summary>
+<p>Check Settings &gt; Notifications and System Settings &gt; Notifications &gt; FAKUKU Mail. Muted conversations (⌃⇧M) don’t notify.</p></details>
+<details><summary>Accepted meetings don’t appear in Mac Calendar</summary>
+<p>In Settings &gt; Accounts &gt; Account Information, check that <strong>Access</strong> says Allowed and click <strong>Add Test Event</strong>. If it’s denied, turn on FAKUKU Mail in System Settings &gt; Privacy &amp; Security &gt; Calendars.</p></details>
+<details><summary>Siri doesn’t understand</summary>
+<p>Open the app once, then include the app name: “… in FAKUKU Mail.” You can run the actions from the Shortcuts app to see any error.</p></details>
+<details><summary>Remove all mail from this Mac</summary>
+<p>Removing an account (−) in Settings &gt; Accounts deletes its offline copy and sign-in. Delete imported mailboxes by Control-clicking them &gt; Delete Mailbox.</p></details>
+
+<h2>Contact</h2>
+<p>Report bugs or ideas in <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a>. Include the app version (FAKUKU Mail &gt; About FAKUKU Mail) and a screenshot.</p>
+
+<footer><a href="en.html">FAKUKU Mail</a> · <a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms</a> · © 2026 FAKUKU Lab</footer>
+</main>
+</body>
+</html>

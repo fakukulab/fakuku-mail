@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAKUKU Mail 도움말</title>
+<meta name="description" content="FAKUKU Mail 사용법: 계정 추가, 메일 읽기와 정리, 쓰기와 첨부 보정, 개별 발송, 회의와 맥 캘린더, 단축키, 문제 해결.">
+<link rel="icon" href="images/icon.png">
+<link rel="canonical" href="https://mail.fakukulab.com/help.html">
+<link rel="alternate" hreflang="en" href="https://mail.fakukulab.com/help-en.html">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="help">
+<p class="lang"><a href="help-en.html">English</a></p>
+<header>
+  <img src="images/icon.png" alt="">
+  <div>
+    <h1>FAKUKU Mail 도움말</h1>
+    <p class="muted">macOS 26 이상 · Microsoft Exchange Online, iCloud, Gmail</p>
+  </div>
+</header>
+
+<nav class="toc" aria-label="목차">
+  <a href="#start">시작하기</a>
+  <a href="#screen">화면 둘러보기</a>
+  <a href="#read">읽기와 정리</a>
+  <a href="#search">검색과 스마트 메일상자</a>
+  <a href="#write">메일 쓰기</a>
+  <a href="#fix">첨부 보정</a>
+  <a href="#merge">개별 발송</a>
+  <a href="#meeting">회의와 맥 캘린더</a>
+  <a href="#server">규칙과 자동 응답</a>
+  <a href="#local">메일상자 가져오기·내보내기</a>
+  <a href="#notify">알림, Siri, 단축어</a>
+  <a href="#privacy">개인정보와 보안</a>
+  <a href="#settings">설정</a>
+  <a href="#keys">단축키</a>
+  <a href="#trouble">문제 해결</a>
+</nav>
+
+<!-- ───────────────────────────── -->
+<h2 id="start">시작하기</h2>
+<p>FAKUKU Mail은 메일을 서버에 그대로 두고 읽고 씁니다. 계정을 여러 개 더해 한 창에서 함께 쓸 수 있습니다.</p>
+
+<h3>Microsoft Exchange (회사 메일)</h3>
+<ol>
+  <li>처음 화면에서 회사 이메일 주소를 넣고 <strong>로그인</strong>을 누릅니다. 이미 쓰는 중이면 <strong>설정 &gt; 계정</strong>에서 <strong>+</strong> &gt; <strong>Microsoft Exchange…</strong>를 고릅니다.</li>
+  <li>Microsoft 로그인 창에서 비밀번호와 휴대폰 승인(다중 인증)을 합니다. 앱은 비밀번호를 받지 않습니다.</li>
+  <li>“관리자 승인이 필요합니다”가 나오면 화면의 <strong>관리자 승인 링크 복사</strong>를 눌러 회사 IT 관리자에게 보내 주세요. 회사에서 한 번만 승인하면 됩니다.</li>
+</ol>
+
+<h3>iCloud</h3>
+<ol>
+  <li>Apple 계정 웹(account.apple.com) &gt; <strong>로그인 및 보안</strong> &gt; <strong>앱 암호</strong>에서 앱 암호를 하나 만듭니다.</li>
+  <li><strong>설정 &gt; 계정 &gt; + &gt; iCloud…</strong>에서 이름, iCloud 주소, 앱 암호를 넣고 <strong>로그인</strong>을 누릅니다. Apple 계정 암호가 아니라 <em>앱 암호</em>를 넣어야 합니다.</li>
+</ol>
+
+<h3>Gmail</h3>
+<ol>
+  <li>Google 계정에서 <strong>2단계 인증</strong>을 켭니다.</li>
+  <li>Google 계정 &gt; 보안 &gt; <strong>앱 비밀번호</strong>에서 앱 비밀번호를 만듭니다.</li>
+  <li>Gmail 웹 설정 &gt; <strong>전달 및 POP/IMAP</strong>에서 IMAP이 켜져 있는지 봅니다.</li>
+  <li><strong>설정 &gt; 계정 &gt; + &gt; Gmail…</strong>에서 주소와 앱 비밀번호를 넣습니다.</li>
+</ol>
+<p class="note">Gmail의 “전체보관함”은 보관 폴더로 쓰입니다. 별표·중요 라벨은 사이드바에 넣지 않습니다(별표한 메일은 <strong>깃발 표시</strong>에서 봅니다).</p>
+
+<h3>계정 빼기</h3>
+<p><strong>설정 &gt; 계정</strong>에서 계정을 고르고 <strong>−</strong>를 누릅니다. 이 Mac에 저장한 그 계정의 메일 사본과 로그인 정보만 지우고, 서버의 메일은 그대로입니다.</p>
+
+<!-- ───────────────────────────── -->
+<h2 id="screen">화면 둘러보기</h2>
+<figure class="window"><img src="images/inbox-light.png" alt="FAKUKU Mail 메인 창: 사이드바, 메일 목록, 본문"></figure>
+<h3>사이드바</h3>
+<ul>
+  <li><strong>스마트 메일상자</strong>: 모든 받은 편지함(계정이 둘 이상일 때), 깃발 표시(색별), 직접 만든 스마트 메일상자.</li>
+  <li><strong>VIP</strong>: VIP로 지정한 사람의 메일만 모아 봅니다.</li>
+  <li><strong>계정 구역</strong>: 계정마다 폴더가 따로 보입니다. 구역 이름에 마우스를 올리면 새 폴더 단추와 접기(⌄)가 나타나고, 접으면 받은 편지함의 읽지 않은 수가 보입니다.</li>
+  <li><strong>나의 Mac에</strong>: 파일에서 가져온 메일상자(이 Mac에만 저장).</li>
+</ul>
+<h3>메일 목록</h3>
+<ul>
+  <li><strong>보기 &gt; 대화별로 정리</strong>(⌃⌘T)를 켜면 같은 대화가 한 줄로 묶이고 메일 수가 보입니다.</li>
+  <li>트랙패드 두 손가락으로 줄을 좌우로 쓸면 동작 단추가 나옵니다. 기본은 오른쪽으로 쓸기 = 읽음, 왼쪽으로 끝까지 쓸기 = 지우기이며 <strong>설정 &gt; 보기</strong>에서 바꿉니다.</li>
+  <li>보기 메뉴의 <strong>필터</strong>(읽지 않음, 깃발, 첨부, 높은 우선순위, 나에게 온 것, 멘션)와 <strong>정렬</strong>로 목록을 좁힙니다.</li>
+</ul>
+<h3>본문</h3>
+<ul>
+  <li>위쪽 <strong>대화 내역 줄</strong>에 같은 대화의 메일(다른 폴더의 내 답장 포함)이 보이고, 지금 보는 메일이 강조됩니다. 줄 높이는 아래 가장자리를 끌거나 ⌥⌘↓ / ⌥⌘↑로 바꿉니다.</li>
+  <li>머리글의 이름에 마우스를 올리면 ⌄가 나타나고, 누르면 주소 복사, VIP 지정, 연락처 카드 보기 같은 메뉴가 나옵니다.</li>
+  <li>첨부는 제목 아래 카드로 보입니다. 누르면 훑어보기, ⌄로 열기·저장.</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="read">읽기와 정리</h2>
+<table>
+  <tr><th>하고 싶은 일</th><th>방법</th></tr>
+  <tr><td>읽음 / 읽지 않음</td><td>메시지 &gt; 읽음으로 표시 (⇧⌘U), 또는 오른쪽으로 쓸기</td></tr>
+  <tr><td>깃발</td><td>⇧⌘L. 메시지 &gt; 깃발 색에서 색을 고릅니다</td></tr>
+  <tr><td>보관</td><td>⌃⌘A. 계정의 보관 폴더로 옮깁니다 (Gmail은 받은 편지함에서만 뺍니다)</td></tr>
+  <tr><td>지우기</td><td>Delete(⌫) 키. 지운 편지함(휴지통)으로 옮깁니다</td></tr>
+  <tr><td>다른 폴더로 옮기기</td><td>줄을 사이드바 폴더로 끌어다 놓기, 메시지 &gt; 이동…(⇧⌘M), 같은 폴더로 다시 이동(⌃⌘M)</td></tr>
+  <tr><td>되돌리기</td><td>⌘Z. 옮기기·보관·지우기를 원래 폴더로 되돌립니다</td></tr>
+  <tr><td>정크 메일</td><td>⇧⌘J. 정크 메일 폴더로 옮겨 서버가 배우게 합니다</td></tr>
+  <tr><td>보낸 사람 차단</td><td>⌃⌘B. 그 사람의 메일은 앞으로 지운 편지함으로 갑니다</td></tr>
+  <tr><td>대화 알림 끄기</td><td>⌃⇧M. 그 대화에 새 메일이 와도 알리지 않습니다</td></tr>
+  <tr><td>새 창에서 열기</td><td>⌘O 또는 줄을 두 번 누르기</td></tr>
+  <tr><td>원본 보기</td><td>⌥⌘U. 모든 머리글과 MIME 원본</td></tr>
+  <tr><td>인쇄</td><td>⌘P</td></tr>
+  <tr><td>폴더 만들기·이름 바꾸기·지우기</td><td>메일상자 메뉴, 또는 폴더를 ⌃-클릭</td></tr>
+</table>
+
+<!-- ───────────────────────────── -->
+<h2 id="search">검색과 스마트 메일상자</h2>
+<ul>
+  <li>도구 막대의 검색 칸(⌥⌘F)에 낱말을 넣습니다. 오른쪽에서 <strong>이 폴더</strong> 또는 <strong>모든 폴더</strong>를 고릅니다. 모든 폴더 검색은 모든 계정과 <strong>나의 Mac에</strong>의 가져온 메일도 찾습니다.</li>
+  <li><strong>메일상자 &gt; 새 스마트 메일상자…</strong>(⌥⌘N): 보낸 사람, 제목, 읽지 않음, 깃발, 첨부, 높은 우선순위, VIP, 최근 며칠, 폴더 같은 조건을 저장해 두고 폴더처럼 봅니다.</li>
+  <li><strong>VIP</strong>: 메일을 고르고 메시지 &gt; 보낸 사람을 VIP로 지정…(⌃⌘V). 이름과 아이콘을 정할 수 있습니다.</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="write">메일 쓰기</h2>
+<figure class="window"><img src="images/compose-light.png" alt="메일 작성 창"></figure>
+<ul>
+  <li><strong>새로운 메시지</strong> ⌘N, <strong>답장</strong> ⌘R, <strong>전체 답장</strong> ⇧⌘R, <strong>전달</strong> ⇧⌘F, <strong>첨부 파일로 전달</strong> ⌥⇧⌘F, <strong>다시 보내기</strong> ⌥⌘D.</li>
+  <li><strong>받는 사람</strong>: 주소를 쓰고 쉼표, 세미콜론, Return을 누르면 이름 토큰이 됩니다. 쓰는 동안 주고받은 적 있는 주소가 아래에 제안됩니다(화살표로 골라야 들어갑니다). 토큰의 ⌄ 메뉴로 복사·제거, 두 번 눌러 고치기.</li>
+  <li><strong>참조·숨은 참조·답장 받을 사람·우선 순위</strong> 칸은 보기 메뉴나 도구 막대의 머리글 필드 단추로 보이고 감춥니다(숨은 참조 ⌥⌘B).</li>
+  <li><strong>보낸 사람</strong>: 계정이 둘 이상이면 보낼 계정을 고릅니다. 답장·전달은 원래 메일을 받은 계정이 기본입니다.</li>
+  <li><strong>서식</strong>: 포맷 메뉴(굵게 ⌘B, 기울임 ⌘I, 밑줄 ⌘U, 목록, 정렬, 인용 단계). 본문에서 Tab은 들여쓰기입니다. <strong>Siri로 글쓰기</strong>(⌃⌘W)로 문장을 다듬을 수 있습니다.</li>
+  <li><strong>서명</strong>: 설정 &gt; 서명에서 여러 개 만들고, 새 메일·답장·전달마다 기본 서명을 정합니다. 작성 창의 서명 메뉴로 바꿉니다.</li>
+  <li><strong>회사 밖 주소 알림</strong>: 설정 &gt; 작성에 회사 도메인을 적어 두면, 그 밖의 받는 사람이 주황색으로 보입니다.</li>
+  <li><strong>보내기 취소</strong>: 설정 &gt; 작성에서 5~20초를 고르면, 보낸 직후 창 위의 막대에서 취소(Esc)할 수 있습니다.</li>
+  <li><strong>나중에 보내기</strong>(Exchange): 작성 창 도구 막대의 <strong>나중에 보내기…</strong>(⌥⇧⌘D)에서 시각을 고르면 서버가 그 시각에 보냅니다.</li>
+  <li><strong>초안</strong>: 쓰는 동안 임시 보관함에 저장됩니다. 창을 닫을 때 저장 여부를 묻습니다.</li>
+  <li><strong>큰 첨부</strong>: Exchange는 4MB가 넘는 첨부를 따로 올려 보냅니다(파일 하나 150MB까지). iCloud는 메일 한 통 20MB 정도, Gmail은 25MB까지입니다.</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="fix">첨부 보정 (한글 파일명과 본문 그림)</h2>
+<p>맥 Mail로 Exchange를 쓰면 받는 쪽에서 한글 첨부 파일명이 깨지거나, 본문에 넣은 그림이 첨부로 보이지 않는 일이 있습니다. FAKUKU Mail은 보내기 전에 이를 바로잡습니다.</p>
+<ul>
+  <li>파일명을 표준 방식(NFC, RFC 2231)으로 적어 Outlook, 네이버, 다음 등에서 그대로 보이게 합니다.</li>
+  <li><strong>본문 그림을 일반 첨부파일로 보내기</strong>(기본 켬): 본문의 그림을 첨부로도 보냅니다. 서명과 인용문 안의 그림은 본문에 둡니다. 작은 그림(설정의 KB 기준 미만)은 본문에 둘 수 있습니다.</li>
+  <li><strong>EUC-KR 파일명</strong>: 오래된 국내 시스템으로 보낼 때만 켭니다.</li>
+  <li>설정 &gt; 작성에서 기본값을 정하고, 작성 창에서 메일마다 끌 수 있습니다.</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="merge">개별 발송</h2>
+<p><strong>메시지 &gt; 개별 발송…</strong>(⌥⇧⌘M)은 같은 내용을 여러 사람에게 <em>한 통씩 따로</em> 보냅니다. 받는 사람은 다른 받는 사람을 볼 수 없습니다.</p>
+<ol>
+  <li><strong>템플릿</strong>: 제목과 본문에 <code>{{이름}}</code> 같은 자리표시자를 넣어 저장합니다.</li>
+  <li><strong>그룹</strong>: 받는 사람 목록을 만들거나 CSV에서 가져옵니다. 열 이름이 자리표시자와 맞으면 사람마다 바뀝니다.</li>
+  <li><strong>보내기</strong>: 먼저 나에게 시험 메일을 보내 확인한 뒤 보냅니다. 수신 거부 문구를 덧붙일 수 있습니다.</li>
+</ol>
+
+<!-- ───────────────────────────── -->
+<h2 id="meeting">회의와 맥 캘린더</h2>
+<ul>
+  <li>Exchange로 받은 회의 초대에는 본문 위에 <strong>수락 · 미정 · 거절</strong> 막대가 보입니다. 답하면 서버 일정에 반영됐는지 다시 확인해 알려 줍니다.</li>
+  <li><strong>맥 캘린더</strong>: 설정 &gt; 계정 &gt; 계정 정보의 <strong>수락한 회의를 맥 캘린더에 추가</strong>를 켜면, 수락·미정한 회의를 고른 캘린더에 넣고 거절하면 앱이 넣은 일정을 지웁니다. 같은 회의가 이미 있거나 나중에 Exchange 동기화로 들어오면 두 번 생기지 않게 정리합니다.</li>
+  <li>직접 넣기: 메시지 &gt; 맥 캘린더에 추가(⌥⌘K).</li>
+  <li>설정의 <strong>시험 일정 넣기</strong>로 캘린더 접근이 되는지 확인할 수 있습니다.</li>
+</ul>
+<p class="note">iCloud·Gmail로 받은 초대(.ics)에는 아직 수락 막대가 보이지 않습니다.</p>
+
+<!-- ───────────────────────────── -->
+<h2 id="server">규칙과 자동 응답 (Exchange)</h2>
+<ul>
+  <li><strong>설정 &gt; 규칙</strong>: 보낸 사람이나 제목의 낱말에 따라 폴더로 옮기기, 읽음, 중요도, 지우기. Exchange 서버 규칙이라 앱이 꺼져 있어도 적용되고 Outlook에도 보입니다.</li>
+  <li><strong>설정 &gt; 자동 응답</strong>: 부재중 자동 응답을 켜고 기간, 조직 안·밖 사람에게 보낼 글을 정합니다.</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="local">메일상자 가져오기·내보내기</h2>
+<ul>
+  <li><strong>파일 &gt; 메일상자 가져오기…</strong>(⌥⌘O): 맥 Mail이나 다른 앱에서 내보낸 <code>.mbox</code>(또는 .emlx 폴더)를 가져와 사이드바 <strong>나의 Mac에</strong>에 둡니다. 서버와 상관없이 이 Mac에 저장되고 검색됩니다.</li>
+  <li><strong>메일상자 &gt; 메일상자 내보내기…</strong>(⌥⌘E): 지금 폴더의 메일을 <code>.mbox</code>로 저장합니다(백업, 다른 앱으로 옮기기).</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="notify">알림, Siri, 단축어</h2>
+<ul>
+  <li><strong>새 메일 알림</strong>: 설정 &gt; 알림. Exchange는 설정 &gt; 일반의 간격(기본 2분)마다, iCloud·Gmail은 서버가 알리는 즉시 확인합니다. Dock 배지(설정 &gt; 일반)는 모든 계정 받은 편지함의 읽지 않은 수입니다.</li>
+  <li><strong>Siri</strong>: “FAKUKU Mail 읽지 않은 메일 몇 통이야”, “FAKUKU Mail 새 메일 가져와”, “FAKUKU Mail 최근 메일 읽어 줘”, “FAKUKU Mail 이 메일에 깃발 달아 줘”, “FAKUKU Mail 이 메일에 답장해 줘”, “FAKUKU Mail VIP 메일 보여 줘”.</li>
+  <li><strong>단축어</strong> 앱에서 같은 동작을 FAKUKU Mail 항목으로 찾아 자동화에 쓸 수 있습니다.</li>
+</ul>
+
+<!-- ───────────────────────────── -->
+<h2 id="privacy">개인정보와 보안</h2>
+<ul>
+  <li>메일은 각 서비스의 서버(Microsoft, Apple, Google)에 있고, 앱은 그 서버와만 직접 통신합니다. 제작자에게 보내는 정보는 없습니다.</li>
+  <li>로그인 토큰과 앱 암호는 Mac의 <strong>키체인</strong>에만 저장합니다.</li>
+  <li>받은 메일의 HTML에서 스크립트는 실행하지 않습니다.</li>
+  <li><strong>원격 콘텐츠</strong>(설정 &gt; 보기 &gt; 개인정보 보호): 기본 <strong>메일 활동 보호</strong>는 추적 픽셀을 지우고 다른 원격 그림은 쿠키 없이 받아 보낸 사람이 메일을 연 때를 알 수 없게 합니다. <strong>모든 원격 콘텐츠 차단</strong>을 고르면 그림을 받지 않고, 메시지 &gt; 원격 이미지 불러오기(⇧⌘I)로 그 메일만 봅니다.</li>
+  <li><strong>오프라인</strong>: 최근 목록과 열어 본 메일을 이 Mac에 저장해 네트워크가 없을 때도 봅니다(설정 &gt; 일반 &gt; 오프라인, 계정을 빼면 지움).</li>
+</ul>
+<p>자세한 내용: <a href="privacy.html">개인정보 처리방침</a></p>
+
+<!-- ───────────────────────────── -->
+<h2 id="settings">설정 (⌘,)</h2>
+<table>
+  <tr><th>탭</th><th>주요 항목</th></tr>
+  <tr><td>일반</td><td>강조 색, 새 메일 확인 간격, Dock 배지, 오프라인 저장</td></tr>
+  <tr><td>계정</td><td>계정 추가·빼기, 설명(사이드바 이름), 메일상자 동작, 서버 설정, 맥 캘린더</td></tr>
+  <tr><td>정크 메일</td><td>정크 처리 안내, 차단한 보낸 사람 해제</td></tr>
+  <tr><td>서체 및 색상</td><td>목록 글자 크기, 메시지 서체, 일반 텍스트 고정폭, 인용 단계 색</td></tr>
+  <tr><td>보기</td><td>목록 미리보기 줄 수, 볼드체 읽지 않음, 읽음 표시 시점, 대화 보기, 미리 받기, 쓸기 동작, 원격 콘텐츠</td></tr>
+  <tr><td>작성</td><td>맞춤법 검사, 자동으로 나를 포함, 회사 도메인, 원문 인용, 첨부 보정 기본값, 보내기 취소</td></tr>
+  <tr><td>서명</td><td>서명 만들기·꾸미기, 상황별 기본 서명</td></tr>
+  <tr><td>규칙 · 자동 응답</td><td>Exchange 서버 규칙, 부재중 자동 응답</td></tr>
+  <tr><td>알림</td><td>새 메일 알림, 알림 소리</td></tr>
+</table>
+
+<!-- ───────────────────────────── -->
+<h2 id="keys">단축키</h2>
+<div class="keys">
+<table>
+  <tr><th colspan="2">메일</th></tr>
+  <tr><td>새로운 메시지</td><td><kbd>⌘N</kbd></td></tr>
+  <tr><td>답장 / 전체 답장</td><td><kbd>⌘R</kbd> / <kbd>⇧⌘R</kbd></td></tr>
+  <tr><td>전달 / 첨부 파일로 전달</td><td><kbd>⇧⌘F</kbd> / <kbd>⌥⇧⌘F</kbd></td></tr>
+  <tr><td>다시 보내기</td><td><kbd>⌥⌘D</kbd></td></tr>
+  <tr><td>개별 발송</td><td><kbd>⌥⇧⌘M</kbd></td></tr>
+  <tr><td>모든 새로운 메일 가져오기</td><td><kbd>⇧⌘N</kbd></td></tr>
+  <tr><td>메일 검색</td><td><kbd>⌥⌘F</kbd></td></tr>
+  <tr><td>인쇄</td><td><kbd>⌘P</kbd></td></tr>
+</table>
+<table>
+  <tr><th colspan="2">메시지</th></tr>
+  <tr><td>읽음 / 읽지 않음</td><td><kbd>⇧⌘U</kbd></td></tr>
+  <tr><td>깃발</td><td><kbd>⇧⌘L</kbd></td></tr>
+  <tr><td>보관</td><td><kbd>⌃⌘A</kbd></td></tr>
+  <tr><td>지우기</td><td><kbd>⌫</kbd></td></tr>
+  <tr><td>이동… / 같은 폴더로 다시 이동</td><td><kbd>⇧⌘M</kbd> / <kbd>⌃⌘M</kbd></td></tr>
+  <tr><td>정크 메일로 표시</td><td><kbd>⇧⌘J</kbd></td></tr>
+  <tr><td>보낸 사람 차단</td><td><kbd>⌃⌘B</kbd></td></tr>
+  <tr><td>VIP로 지정</td><td><kbd>⌃⌘V</kbd></td></tr>
+  <tr><td>알림 비활성화</td><td><kbd>⌃⇧M</kbd></td></tr>
+  <tr><td>새 창에서 열기</td><td><kbd>⌘O</kbd></td></tr>
+  <tr><td>첨부 훑어보기</td><td><kbd>⌘Y</kbd></td></tr>
+  <tr><td>원본 보기</td><td><kbd>⌥⌘U</kbd></td></tr>
+  <tr><td>원격 이미지 불러오기</td><td><kbd>⇧⌘I</kbd></td></tr>
+  <tr><td>맥 캘린더에 추가</td><td><kbd>⌥⌘K</kbd></td></tr>
+  <tr><td>되돌리기</td><td><kbd>⌘Z</kbd></td></tr>
+</table>
+<table>
+  <tr><th colspan="2">메일상자와 보기</th></tr>
+  <tr><td>새 폴더</td><td><kbd>⌃⌘N</kbd></td></tr>
+  <tr><td>새 스마트 메일상자</td><td><kbd>⌥⌘N</kbd></td></tr>
+  <tr><td>이전 / 다음 메일상자</td><td><kbd>⌃⌘[</kbd> / <kbd>⌃⌘]</kbd></td></tr>
+  <tr><td>모든 메시지를 읽음으로 표시</td><td><kbd>⌥⇧⌘C</kbd></td></tr>
+  <tr><td>지운 편지함 비우기</td><td><kbd>⌥⇧⌘⌫</kbd></td></tr>
+  <tr><td>정크 메일 지우기</td><td><kbd>⌥⌘J</kbd></td></tr>
+  <tr><td>메일상자 가져오기 / 내보내기</td><td><kbd>⌥⌘O</kbd> / <kbd>⌥⌘E</kbd></td></tr>
+  <tr><td>대화별로 정리</td><td><kbd>⌃⌘T</kbd></td></tr>
+  <tr><td>대화 내역 늘리기 / 줄이기</td><td><kbd>⌥⌘↓</kbd> / <kbd>⌥⌘↑</kbd></td></tr>
+  <tr><td>모든 필터 해제</td><td><kbd>⌥⌘L</kbd></td></tr>
+  <tr><td>메시지 뷰어(메인 창)</td><td><kbd>⌘0</kbd></td></tr>
+</table>
+<table>
+  <tr><th colspan="2">작성 창</th></tr>
+  <tr><td>보내기</td><td><kbd>⇧⌘D</kbd></td></tr>
+  <tr><td>숨은 참조 / 답장 받을 사람 칸</td><td><kbd>⌥⌘B</kbd> / <kbd>⌥⌘R</kbd></td></tr>
+  <tr><td>굵게 / 기울임 / 밑줄 / 취소선</td><td><kbd>⌘B</kbd> / <kbd>⌘I</kbd> / <kbd>⌘U</kbd> / <kbd>⌃⌘X</kbd></td></tr>
+  <tr><td>글머리 기호 / 번호 목록</td><td><kbd>⇧⌘7</kbd> / <kbd>⇧⌘8</kbd></td></tr>
+  <tr><td>왼쪽 / 가운데 / 오른쪽 정렬</td><td><kbd>⌘{</kbd> / <kbd>⌘|</kbd> / <kbd>⌘}</kbd></td></tr>
+  <tr><td>들여쓰기 / 내어쓰기</td><td><kbd>⌘]</kbd> / <kbd>⌘[</kbd></td></tr>
+  <tr><td>인용 단계 늘리기 / 줄이기</td><td><kbd>⌘'</kbd> / <kbd>⌥⌘'</kbd></td></tr>
+  <tr><td>Siri로 글쓰기</td><td><kbd>⌃⌘W</kbd></td></tr>
+  <tr><td>나중에 보내기 (Exchange)</td><td><kbd>⌥⇧⌘D</kbd></td></tr>
+</table>
+</div>
+
+<!-- ───────────────────────────── -->
+<h2 id="trouble">문제 해결</h2>
+<details><summary>“관리자 승인이 필요합니다”가 나와요 (Exchange)</summary>
+<p>회사가 새 앱에 IT 관리자의 승인을 요구하는 설정입니다. 로그인 화면의 <strong>관리자 승인 링크 복사</strong>를 눌러 IT 관리자에게 보내 주세요. 한 번 승인되면 회사의 다른 사람도 바로 씁니다.</p></details>
+<details><summary>iCloud·Gmail 로그인이 안 돼요</summary>
+<p>계정 암호가 아니라 <strong>앱 암호(앱 비밀번호)</strong>를 넣어야 합니다. Gmail은 2단계 인증과 IMAP이 켜져 있어야 합니다. 앱 암호를 새로 만들었으면 계정을 빼고(−) 다시 추가하세요.</p></details>
+<details><summary>“요청이 너무 많습니다”가 나와요</summary>
+<p>Exchange 서버가 잠시 요청을 막은 것입니다. 앱이 서버가 알려 준 시간만큼 기다렸다 자동으로 다시 시도합니다. 1~2분 뒤 <strong>모든 새로운 메일 가져오기</strong>(⇧⌘N)를 눌러 보세요.</p></details>
+<details><summary>“메일을 찾을 수 없습니다”가 나와요</summary>
+<p>휴대폰이나 다른 컴퓨터, 서버 규칙이 그 메일을 옮기거나 지운 경우입니다. 앱이 목록을 조용히 새로 고칩니다.</p></details>
+<details><summary>받는 쪽에서 한글 첨부 파일명이 깨진대요</summary>
+<p>작성 창의 <strong>첨부 보정</strong>이 켜져 있는지 봅니다. 상대가 오래된 국내 시스템이면 설정 &gt; 작성의 <strong>EUC-KR 파일명</strong>을 켜 보세요.</p></details>
+<details><summary>새 메일 알림이 오지 않아요</summary>
+<p>설정 &gt; 알림에서 알림이 켜져 있는지, 시스템 설정 &gt; 알림 &gt; FAKUKU Mail이 허용되어 있는지 봅니다. 대화 알림을 꺼 둔 메일(⌃⇧M)은 알리지 않습니다.</p></details>
+<details><summary>수락한 회의가 맥 캘린더에 들어가지 않아요</summary>
+<p>설정 &gt; 계정 &gt; 계정 정보의 <strong>접근</strong>이 “허용됨”인지 보고 <strong>시험 일정 넣기</strong>를 눌러 보세요. 거부됨이면 시스템 설정 &gt; 개인정보 보호 및 보안 &gt; 캘린더에서 FAKUKU Mail을 켭니다.</p></details>
+<details><summary>Siri가 명령을 알아듣지 못해요</summary>
+<p>앱을 한 번 실행한 뒤 Siri에 “FAKUKU Mail …”처럼 앱 이름을 넣어 말합니다. 단축어 앱의 FAKUKU Mail 항목에서 동작을 직접 실행해 오류를 확인할 수 있습니다.</p></details>
+<details><summary>메일을 이 Mac에서 완전히 지우고 싶어요</summary>
+<p>설정 &gt; 계정에서 계정을 빼면(−) 그 계정의 오프라인 사본과 로그인 정보가 지워집니다. 가져온 메일상자는 사이드바에서 ⌃-클릭 &gt; 메일상자 지우기.</p></details>
+
+<h2>문의</h2>
+<p>버그나 제안은 <a href="https://github.com/fakukulab/fakuku-mail/issues">GitHub Issues</a>에 남겨 주세요. 앱 버전(FAKUKU Mail &gt; FAKUKU Mail에 관하여)과 화면을 함께 보내 주시면 빨리 볼 수 있습니다.</p>
+
+<footer><a href="index.html">FAKUKU Mail</a> · <a href="privacy.html">개인정보 처리방침</a> · <a href="terms.html">서비스 약관</a> · © 2026 FAKUKU Lab</footer>
+</main>
+</body>
+</html>
