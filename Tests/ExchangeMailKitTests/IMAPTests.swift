@@ -122,3 +122,10 @@ private func data(_ s: String) -> Data { Data(s.utf8) }
     #expect(IMAP.summary(items, account: "acc", path: "INBOX")?.conversationId == id)
     #expect(IMAP.bodySection(items) == nil)
 }
+
+@Test func gmailThreadIDWins() throws {
+    let raw = "* 1 FETCH (X-GM-THRID 1278455344230334865 UID 9 ENVELOPE (NIL \"Hi\" NIL NIL NIL NIL NIL NIL NIL \"<c@x>\"))\r\n"
+    guard case .untagged(let values) = IMAP.parse(data(raw)) else { Issue.record("not untagged"); return }
+    let items = try #require(IMAP.fetchItems(values))
+    #expect(IMAP.summary(items, account: "g", path: "INBOX")?.conversationId == "imapconv:g:gm-1278455344230334865")
+}

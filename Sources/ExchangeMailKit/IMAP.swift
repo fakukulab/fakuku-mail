@@ -460,6 +460,10 @@ extension IMAP {
                                  messageID: env?.messageID) {
             m.conversationId = conversationID(account: account, root: root)
         }
+        // Gmail은 서버가 정한 대화 번호가 있다 (X-GM-THRID): 머리글보다 정확하다
+        if let thread = items["X-GM-THRID"]?.text, !thread.isEmpty {
+            m.conversationId = conversationID(account: account, root: "gm-" + thread)
+        }
         m.flag = marks.contains("\\flagged") ? .flagged : .notFlagged
         return m
     }

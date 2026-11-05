@@ -28,6 +28,14 @@ final class IMAPMailService: MailService {
     /// 방금 연 메일의 첨부 (attachments(messageID:)가 다시 받지 않게)
     private var attachmentMemo: [String: [FileAttachment]] = [:]
     private static let pageSize = 50
+
+    // MARK: Gmail (M25)
+
+    private var isGmail: Bool { config.provider == .gmail }
+    /// Gmail 전체 보관함 경로 ([Gmail]/All Mail, 한국어 Gmail이면 [Gmail]/전체보관함)
+    private var allMailPath: String?
+    /// 목록에 받는 항목: Gmail은 대화 번호(X-GM-THRID)도 받는다
+    private var summaryItems: String { isGmail ? IMAP.summaryItems + " X-GM-THRID" : IMAP.summaryItems }  // l10n: data
     /// 서버에서 사라진 메일 (Graph의 404와 같게 다뤄 목록을 조용히 고친다)
     private static var notFound: GraphError {
         GraphError(status: 404, code: "ErrorItemNotFound", message: "The message is no longer on the server.")  // l10n: data
@@ -78,7 +86,7 @@ final class IMAPMailService: MailService {
         load[i] += 1
         selectedOn[i] = path
         defer { load[i] -= 1 }
-        return try await pool[i].latest(in: path, count: count, items: IMAP.summaryItems)
+        return try await pool[i].latest(in: path, count: count, items: summaryItems)
     }
 
     /// 계정 추가 때: 연결해서 로그인되는지 본다
@@ -153,11 +161,21 @@ final class IMAPMailService: MailService {
         let reply = try await run("LIST \"\" \"*\"")
         var out: [MailFolder] = []
         var newKinds: [String: String] = [:]
+        var newAllMail: String?
         for values in reply.untagged {
             guard let entry = IMAP.listEntry(values), !entry.flags.contains("\\noselect"),
                   !entry.flags.contains("\\nonexistent") else { continue }
             let path = IMAP.decodeFolderName(entry.path)
-            let kind = IMAP.kind(of: entry)
+            var kind = IMAP.kind(of: entry)
+            if isGmail {
+                // Gmail의 별표·중요 라벨은 다른 메일함의 메일을 다시 보여 줄 뿐이라 사이드바에 넣지 않는다 (깃발 표시가 별표)
+                if entry.flags.contains("\\flagged") || entry.flags.contains("\\important") { continue }
+                // 전체 보관함: 보관하면 받은 편지함 라벨만 떼어 여기에 남는다 → 보관 폴더로 쓴다
+                if kind == "allmail" {
+                    newAllMail = path
+                    if !reply.untagged.contains(where: { IMAP.listEntry($0)?.flags.contains("\\archive") == true }) { kind = "archive" }
+                }
+            }
             if let kind { newKinds[path] = kind }
             let components = entry.delimiter.map { path.components(separatedBy: $0) } ?? [path]
             var folder = MailFolder(id: IMAP.folderID(account: accountID, path: path),
@@ -169,6 +187,7 @@ final class IMAPMailService: MailService {
             out.append(folder)
         }
         kinds = newKinds
+        allMailPath = newAllMail
         // 읽지 않은 수와 전체 수: 폴더마다 STATUS 한 번, 연결 여러 개로 나눠 동시에
         let paths = out.map { IMAP.parseID($0.id)?.path }
         // (작업 그룹은 Swift 6.2 영역 검사기가 해석하지 못해 빌드가 멈춘다: 폴더마다 Task를 띄우고 차례로 기다린다)
@@ -255,7 +274,7 @@ final class IMAPMailService: MailService {
     private func page(folderID: String, path: String, top: Int) async throws -> MessagePage {
         guard top > 0 else { return MessagePage(messages: [], nextLink: nil, serverFiltered: false) }
         let low = max(1, top - Self.pageSize + 1)
-        let reply = try await run(select: path, "FETCH \(low):\(top) (\(IMAP.summaryItems))")
+        let reply = try await run(select: path, "FETCH \(low):\(top) (\(summaryItems))")
         let list = summaries(reply, path: path)
         return MessagePage(messages: list, nextLink: pageLink(folderID: folderID, below: low - 1), serverFiltered: false)
     }
@@ -272,7 +291,7 @@ final class IMAPMailService: MailService {
     private func fetch(path: String, uids: [Int]) async throws -> [MailMessage] {
         guard !uids.isEmpty else { return [] }
         let uidList = uids.map(String.init).joined(separator: ",")
-        return summaries(try await run(select: path, "UID FETCH \(uidList) (\(IMAP.summaryItems))"), path: path)
+        return summaries(try await run(select: path, "UID FETCH \(uidList) (\(summaryItems))"), path: path)
     }
 
     // MARK: 검색
@@ -290,10 +309,16 @@ final class IMAPMailService: MailService {
     /// 여러 폴더에서 찾는다 (휴지통·정크 제외). 최근 순 50통.
     private func searchFolders(_ criteria: [IMAPPart], limit: Int = 50) async throws -> MessagePage {
         if kinds.isEmpty { _ = try await folders() }
-        let reply = try await run("LIST \"\" \"*\"")
-        let paths = reply.untagged.compactMap(IMAP.listEntry)
-            .filter { !$0.flags.contains("\\noselect") && !["deleteditems", "junkemail", "allmail"].contains(IMAP.kind(of: $0) ?? "") }
-            .map { IMAP.decodeFolderName($0.path) }
+        let paths: [String]
+        if isGmail, let allMailPath {
+            // Gmail: 전체 보관함 하나만 찾으면 된다 (라벨마다 같은 메일이 또 나오지 않게)
+            paths = [allMailPath]
+        } else {
+            let reply = try await run("LIST \"\" \"*\"")
+            paths = reply.untagged.compactMap(IMAP.listEntry)
+                .filter { !$0.flags.contains("\\noselect") && !["deleteditems", "junkemail", "allmail"].contains(IMAP.kind(of: $0) ?? "") }
+                .map { IMAP.decodeFolderName($0.path) }
+        }
         // 폴더마다 동시에 찾는다 (연결 여러 개가 나눠 맡는다)
         let tasks = paths.map { path in
             Task { () -> [MailMessage] in
@@ -303,8 +328,18 @@ final class IMAPMailService: MailService {
         }
         var all: [MailMessage] = []
         for task in tasks { all += await task.value }
+        all = Self.uniqueByMessageID(all)
         all.sort { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
         return MessagePage(messages: Array(all.prefix(limit)), nextLink: nil, serverFiltered: false)
+    }
+
+    /// 같은 메일(Message-ID가 같은 것)이 여러 폴더·라벨에 있으면 앞의 것만 남긴다
+    static func uniqueByMessageID(_ list: [MailMessage]) -> [MailMessage] {
+        var seen = Set<String>()
+        return list.filter { m in
+            guard let key = m.internetMessageId?.lowercased(), !key.isEmpty else { return true }
+            return seen.insert(key).inserted
+        }
     }
 
     func searchAll(_ text: String) async throws -> MessagePage { try await searchFolders(textCriteria(text)) }
@@ -327,7 +362,7 @@ final class IMAPMailService: MailService {
 
     func message(id: String) async throws -> MailMessage {
         let (path, uid) = try parts(id)
-        let reply = try await run(select: path, "UID FETCH \(uid) (\(IMAP.summaryItems) BODY.PEEK[])")
+        let reply = try await run(select: path, "UID FETCH \(uid) (\(summaryItems) BODY.PEEK[])")
         guard let items = reply.untagged.compactMap(IMAP.fetchItems).first(where: { $0["UID"]?.int == uid }),
               let base = IMAP.summary(items, account: accountID, path: path) else { throw Self.notFound }
         let (message, files) = IMAP.detail(base, mime: IMAP.bodySection(items) ?? Data())
@@ -361,6 +396,21 @@ final class IMAPMailService: MailService {
     func conversation(id: String) async throws -> [MailMessage] {
         guard let conv = IMAP.parseConversationID(id), conv.account == accountID else { return [] }
         if kinds.isEmpty { _ = try await folders() }
+        // Gmail: 대화 번호로 받은 편지함·보낸 편지함·전체 보관함에서 찾는다. 같은 메일이 여러 라벨에 있으면 앞의 것만.
+        if conv.root.hasPrefix("gm-"), let thread = Int(conv.root.dropFirst(3)) {
+            let sent = kinds.first { $0.value == "sentitems" }?.key
+            let paths = (["INBOX", sent, allMailPath] as [String?]).compactMap { $0 }  // l10n: data
+            let tasks = paths.map { path in
+                Task { () -> [MailMessage] in
+                    guard let uids = try? await self.searchUIDs(path: path, criteria: [.text("X-GM-THRID \(thread)")]),
+                          !uids.isEmpty else { return [] }
+                    return (try? await self.fetch(path: path, uids: Array(uids.suffix(200)))) ?? []
+                }
+            }
+            var all: [MailMessage] = []
+            for task in tasks { all += await task.value }
+            return Self.uniqueByMessageID(all)
+        }
         var paths = ["INBOX"] + kinds.filter { ["sentitems", "archive"].contains($0.value) }.map(\.key)  // l10n: data
         for path in recentMemo.keys where !paths.contains(path) && recentMemo[path]?.list.contains(where: { $0.conversationId == id }) == true {
             paths.append(path)   // 목록에서 이 대화를 본 다른 폴더
