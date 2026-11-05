@@ -173,3 +173,11 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 ## 2026-11-05 소개 페이지의 받은 편지함 스크린샷에 작성 창이 찍힘
 - 원인: Snapshot이 "메인 창이 될 수 있는 첫 창"을 받은 편지함 창으로 여겼다. 복원된 작성 창이 먼저 있으면 그 창을 찍었다.
 - 고침: 메인 창은 identifier "main"으로 찾고, 찍기 전에 다른 창을 닫는다.
+
+## 2026-11-05 새 메일에서 주소를 두 번째 넣을 때 앱이 꺼짐 (NSWindow _postWindowNeedsUpdateConstraints)
+- 원인: 받는 사람 칸을 SwiftUI 사용자 배치(TokenFlow: 마지막 입력 칸이 남은 폭을 다 쓰고, 기준선을 직접 계산)와
+  AppKit 버튼(Menu) 토큰으로 만들었다. 토큰이 둘이 되자 크기 계산이 AppKit 제약 갱신과 서로를 다시 부르며 끝나지 않아
+  AppKit이 예외로 앱을 멈췄다.
+- 고침: 받는 사람 칸은 시스템 토큰 칸 NSTokenField (`Compose/RecipientField.swift`). 토큰 모양·⌄ 메뉴·자동완성·줄 바꿈을
+  시스템이 한다. 높이는 `sizeThatFits`에서 셀 크기로만 알려 준다.
+- 규칙: 입력 칸과 AppKit 기반 컨트롤을 섞는 사용자 Layout은 만들지 않는다. 토큰 입력은 NSTokenField.

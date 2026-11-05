@@ -2,168 +2,162 @@ import AppKit
 import ExchangeMailKit
 import SwiftUI
 
-/// 작성 창의 받는 사람 칸 (맥 Mail처럼): 끝난 주소는 이름 토큰으로, 마우스를 올리면 강조색과 ⌄, 누르면 메뉴.
+/// 작성 창의 받는 사람 칸 (맥 Mail처럼): 시스템 토큰 칸(NSTokenField). 끝난 주소는 이름 토큰(⌄ 메뉴)으로,
+/// 쉼표·세미콜론·Return이나 자동완성으로 토큰이 되고, 토큰을 두 번 누르면 고친다.
 /// 칸의 값은 예전처럼 "이름 <주소>, 주소, …" 글자 하나다 (초안·보내기는 그대로).
-/// 쉼표·세미콜론·Return이나 자동완성으로 토큰이 되고, 빈 칸에서 ⌫를 누르면 마지막 토큰을 지운다.
-struct RecipientField<Focus: Hashable>: View {
+/// (SwiftUI로 만든 토큰 줄은 자리 계산이 AppKit 제약과 맞물려 앱이 멈췄다: docs/FIXLOG.md)
+struct RecipientField<Focus: Hashable>: NSViewRepresentable {
     let title: String
     @Binding var text: String
     let book: AddressBookStore
     var focus: FocusState<Focus?>.Binding
     let focusValue: Focus
 
-    /// 끝난 주소와 쓰는 중인 글자. 칸 밖에 있으면 쓰던 글자도 토큰으로 보인다 (답장에 미리 채운 마지막 주소 등).
-    private var pieces: (tokens: [String], pending: String) {
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSTokenField {
+        let field = NSTokenField()
+        field.delegate = context.coordinator
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.font = .systemFont(ofSize: NSFont.systemFontSize)
+        field.tokenizingCharacterSet = CharacterSet(charactersIn: ",;")
+        field.completionDelay = 0.1
+        field.cell?.wraps = true
+        field.cell?.isScrollable = false
+        field.lineBreakMode = .byWordWrapping
+        field.setAccessibilityLabel(title)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.objectValue = Self.tokens(text)
+        return field
+    }
+
+    func updateNSView(_ field: NSTokenField, context: Context) {
+        context.coordinator.parent = self
+        if !context.coordinator.isEditing, Self.text(of: field) != text {
+            field.objectValue = Self.tokens(text)
+        }
+        // 작성 창이 이 칸을 고르라고 하면 (새 메일을 열 때 받는 사람)
+        if focus.wrappedValue == focusValue, let window = field.window,
+           field.currentEditor() == nil, !context.coordinator.isEditing {
+            Task { @MainActor in window.makeFirstResponder(field) }
+        }
+    }
+
+    /// 폭에 맞춰 줄 바꿈한 높이
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView field: NSTokenField, context: Context) -> CGSize? {
+        let width = proposal.width ?? 320
+        let height = field.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: 10_000)).height
+            ?? field.intrinsicContentSize.height
+        return CGSize(width: width, height: ceil(height))
+    }
+
+    static func tokens(_ text: String) -> [String] {
         let p = AddressBook.pieces(text)
-        guard focus.wrappedValue != focusValue, !p.pending.isEmpty else { return p }
-        return (p.tokens + [p.pending], "")
+        return p.pending.isEmpty ? p.tokens : p.tokens + [p.pending]
     }
 
-    /// 지금 쓰는 글자 (토큰 뒤의 입력 칸)
-    private var pending: Binding<String> {
-        Binding(get: { pieces.pending },
-                set: { text = AddressBook.join(tokens: pieces.tokens, pending: $0) })
+    static func text(of field: NSTokenField) -> String {
+        let items = (field.objectValue as? [Any] ?? []).compactMap { $0 as? String }
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return items.joined(separator: ", ")
     }
 
-    var body: some View {
-        let tokens = pieces.tokens
-        TokenFlow(spacing: Space.xs, lastMinWidth: 120) {
-            ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
-                ComposeAddressToken(token: token,
-                                    edit: { edit(at: index) },
-                                    remove: { remove(at: index) })
-            }
-            TextField(title, text: pending, prompt: Text(""))
-                .textFieldStyle(.plain)
-                .focused(focus, equals: focusValue)
-                .addressSuggestions(for: pending.wrappedValue, from: book)
-                .onSubmit(commit)
-                .onKeyPress(.delete) {
-                    guard pieces.pending.isEmpty, !pieces.tokens.isEmpty else { return .ignored }
-                    remove(at: pieces.tokens.count - 1)
-                    return .handled
-                }
+    final class Coordinator: NSObject, NSTokenFieldDelegate {
+        var parent: RecipientField
+        var isEditing = false
+
+        init(_ parent: RecipientField) { self.parent = parent }
+
+        private func push(_ field: NSTokenField) {
+            let value = RecipientField.text(of: field)
+            if value != parent.text { parent.text = value }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { focus.wrappedValue = focusValue }
-        .onChange(of: focus.wrappedValue) { old, new in
-            // 칸을 떠나면 쓰던 주소도 토큰으로
-            if old == focusValue && new != focusValue { commit() }
+
+        func controlTextDidBeginEditing(_ note: Notification) {
+            isEditing = true
+            if parent.focus.wrappedValue != parent.focusValue { parent.focus.wrappedValue = parent.focusValue }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(title)
-    }
 
-    private func commit() {
-        let p = pieces
-        guard !p.pending.isEmpty else { return }
-        text = AddressBook.join(tokens: p.tokens + [p.pending], pending: "")
-    }
-
-    private func remove(at index: Int) {
-        var tokens = pieces.tokens
-        guard tokens.indices.contains(index) else { return }
-        tokens.remove(at: index)
-        text = AddressBook.join(tokens: tokens, pending: pieces.pending)
-    }
-
-    /// 토큰을 다시 글자로 (입력 칸에 넣어 고친다)
-    private func edit(at index: Int) {
-        var tokens = pieces.tokens
-        guard tokens.indices.contains(index) else { return }
-        let token = tokens.remove(at: index)
-        text = AddressBook.join(tokens: tokens, pending: token)
-        focus.wrappedValue = focusValue
-    }
-}
-
-/// 작성 창의 주소 토큰: 받은 메일 머리글의 `AddressToken`과 같은 모양 (이름, 마우스를 올리면 강조색과 ⌄)
-struct ComposeAddressToken: View {
-    let token: String
-    let edit: () -> Void
-    let remove: () -> Void
-    private var address: MailAddress? { AddressParser.parseOne(token) }
-
-    var body: some View {
-        Menu {
-            if let address {
-                Toggle(address.address, isOn: .constant(true)).disabled(true)
-                Divider()
-            }
-            Button(L("주소 편집")) { edit() }
-            Button(L("주소 복사")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(address?.editable ?? token, forType: .string)
-            }
-            Divider()
-            Button(L("제거"), role: .destructive) { remove() }
-        } label: {
-            // 맥 Mail처럼 늘 같은 모양: 연한 강조색 바탕, 이름, ⌄ (마우스를 올려도 크기·색이 바뀌지 않아 줄이 흔들리지 않는다)
-            HStack(spacing: 2) {
-                Text(address?.display ?? token)
-                    .foregroundStyle(address == nil ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
-                Image(systemName: "chevron.down")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, Space.xs)
-            .padding(.vertical, 1)
-            .background(RoundedRectangle(cornerRadius: Space.xs, style: .continuous)
-                .fill(address == nil ? AnyShapeStyle(Color.red.opacity(0.15)) : AnyShapeStyle(Palette.accentFill)))
+        func controlTextDidChange(_ note: Notification) {
+            if let field = note.object as? NSTokenField { push(field) }
         }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(.plain)
-        .fixedSize()
-        .help(address == nil ? L("주소 형식이 맞지 않습니다: \(token)") : (address?.editable ?? token))
-    }
-}
 
-/// 토큰을 줄 바꿈하며 놓고, 마지막(입력 칸)은 그 줄의 남은 폭을 다 쓴다 (모자라면 다음 줄 전체)
-struct TokenFlow: Layout {
-    var spacing: CGFloat
-    var lastMinWidth: CGFloat
-
-    private func frames(width: CGFloat, subviews: Subviews) -> [CGRect] {
-        var out: [CGRect] = []
-        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0
-        for (i, v) in subviews.enumerated() {
-            let isLast = i == subviews.count - 1
-            var size = v.sizeThatFits(.unspecified)
-            if isLast {
-                if x > 0 && width - x < lastMinWidth { x = 0; y += line + spacing; line = 0 }
-                size.width = max(lastMinWidth, width - x)
-                size.height = v.sizeThatFits(ProposedViewSize(width: size.width, height: nil)).height
-            } else if x > 0 && x + size.width > width {
-                x = 0; y += line + spacing; line = 0
-            }
-            out.append(CGRect(x: x, y: y, width: size.width, height: size.height))
-            x += size.width + spacing
-            line = max(line, size.height)
+        func controlTextDidEndEditing(_ note: Notification) {
+            isEditing = false
+            if let field = note.object as? NSTokenField { push(field) }
+            // 다른 칸(제목 등)이 이미 초점을 가져갔으면 건드리지 않는다
+            if parent.focus.wrappedValue == parent.focusValue { parent.focus.wrappedValue = nil }
         }
-        return out
-    }
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 400
-        let f = frames(width: width, subviews: subviews)
-        return CGSize(width: width, height: f.map(\.maxY).max() ?? 0)
-    }
+        // MARK: 토큰 모양
 
-    /// 레이블("받는 사람:")과 첫 줄의 글자 기준선을 맞춘다
-    func explicitAlignment(of guide: VerticalAlignment, in bounds: CGRect, proposal: ProposedViewSize,
-                           subviews: Subviews, cache: inout ()) -> CGFloat? {
-        guard guide == .firstTextBaseline, let first = subviews.first,
-              let r = frames(width: bounds.width, subviews: subviews).first else { return nil }
-        return bounds.minY + r.minY + first.dimensions(in: ProposedViewSize(width: r.width, height: r.height))[.firstTextBaseline]
-    }
+        func tokenField(_ tokenField: NSTokenField, displayStringForRepresentedObject representedObject: Any) -> String? {
+            guard let token = representedObject as? String else { return nil }
+            return AddressParser.parseOne(token)?.display ?? token
+        }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let f = frames(width: bounds.width, subviews: subviews)
-        for (v, r) in zip(subviews, f) {
-            v.place(at: CGPoint(x: bounds.minX + r.minX, y: bounds.minY + r.minY),
-                    proposal: ProposedViewSize(width: r.width, height: r.height))
+        func tokenField(_ tokenField: NSTokenField, editingStringForRepresentedObject representedObject: Any) -> String? {
+            representedObject as? String
+        }
+
+        func tokenField(_ tokenField: NSTokenField, representedObjectForEditing editingString: String) -> Any? {
+            editingString.trimmingCharacters(in: .whitespaces)
+        }
+
+        func tokenField(_ tokenField: NSTokenField, styleForRepresentedObject representedObject: Any) -> NSTokenField.TokenStyle {
+            .rounded
+        }
+
+        // MARK: 자동완성 (주소록)
+
+        func tokenField(_ tokenField: NSTokenField, completionsForSubstring substring: String,
+                        indexOfToken tokenIndex: Int, indexOfSelectedItem selectedIndex: UnsafeMutablePointer<Int>?) -> [Any]? {
+            let list = parent.book.suggestions(for: substring).map(\.editable)
+            selectedIndex?.pointee = list.isEmpty ? -1 : 0
+            return list
+        }
+
+        // MARK: ⌄ 메뉴
+
+        func tokenField(_ tokenField: NSTokenField, hasMenuForRepresentedObject representedObject: Any) -> Bool { true }
+
+        func tokenField(_ tokenField: NSTokenField, menuForRepresentedObject representedObject: Any) -> NSMenu? {
+            guard let token = representedObject as? String else { return nil }
+            menuField = tokenField
+            let menu = NSMenu()
+            let header = NSMenuItem(title: AddressParser.parseOne(token)?.address ?? token, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            menu.addItem(.separator())
+            let copy = NSMenuItem(title: L("주소 복사"), action: #selector(copyAddress(_:)), keyEquivalent: "")
+            copy.target = self
+            copy.representedObject = token
+            menu.addItem(copy)
+            let remove = NSMenuItem(title: L("제거"), action: #selector(removeToken(_:)), keyEquivalent: "")
+            remove.target = self
+            remove.representedObject = token
+            menu.addItem(remove)
+            return menu
+        }
+
+        /// 메뉴를 연 칸 (제거에 쓴다)
+        private weak var menuField: NSTokenField?
+
+        @objc private func copyAddress(_ sender: NSMenuItem) {
+            guard let token = sender.representedObject as? String else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(AddressParser.parseOne(token)?.editable ?? token, forType: .string)
+        }
+
+        @objc private func removeToken(_ sender: NSMenuItem) {
+            guard let field = menuField, let token = sender.representedObject as? String else { return }
+            var items = field.objectValue as? [Any] ?? []
+            if let i = items.firstIndex(where: { ($0 as? String) == token }) { items.remove(at: i) }
+            field.objectValue = items
+            push(field)
         }
     }
 }
