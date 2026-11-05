@@ -722,7 +722,8 @@ enum SelfTest {
                 check("S-043 받은 메일은 메시지 창으로 연다", model.openTarget() == .message(model.displayedMessageID ?? ""))
                 let reader = MessageReader(messageID: first.id)
                 await reader.load(using: model)
-                check("S-043 창은 메일 한 통을 따로 읽는다", reader.message?.id == first.id && reader.body != nil && reader.failure == nil)
+                check("S-043 창은 메일 한 통을 따로 읽는다", reader.message?.id == first.id && reader.body != nil && reader.failure == nil,
+                      "\(first.id) \(reader.message?.id ?? "nil") body=\(reader.body != nil) \(reader.failure ?? "")")
                 check("S-043 창에서 답장하면 제목에 RE:가 붙는다",
                       reader.draft(.reply, model: model)?.subject.hasPrefix("RE:") == true)
                 let wasFlagged = reader.message?.isFlagged ?? false
@@ -1073,6 +1074,10 @@ enum SelfTest {
                 // 다른 상자를 갔다 와도 다시 읽지 않는다
                 if let imported {
                     let second = await model.importLocalMailbox(from: file)
+                    // 가져오면 그 상자를 잠시 뒤에 연다: 열린 뒤에 고른다 (먼저 고르면 앞 상자에 기억된다)
+                    for _ in 0..<20 where model.localBoxes.openedID != second?.id || model.localBoxes.isLoading {
+                        try? await Task.sleep(for: .seconds(0.1))
+                    }
                     model.localBoxes.selection = model.localBoxes.mails.last?.id
                     let picked = model.localBoxes.selection
                     model.selectedFolderID = imported.sidebarID
@@ -1082,7 +1087,8 @@ enum SelfTest {
                     if let second {
                         model.selectedFolderID = second.sidebarID
                         try? await Task.sleep(for: .seconds(0.3))
-                        check("S-055 상자마다 고른 메일을 기억한다", model.localBoxes.selection == picked)
+                        check("S-055 상자마다 고른 메일을 기억한다", model.localBoxes.selection == picked,
+                              "\(model.localBoxes.selection.map(String.init(describing:)) ?? "nil") != \(picked.map(String.init(describing:)) ?? "nil")")
                         model.localBoxes.remove(second.id)
                     }
                     model.selectedFolderID = imported.sidebarID
