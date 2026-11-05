@@ -201,3 +201,10 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: 끌기는 이미 받아 둔 내용만 넘긴다(NSItemProvider(contentsOf:)). 메일을 열 때 10MB 이하 첨부(모두 30MB)를 조용히
   미리 받고, 카드에 마우스를 올리면 그 첨부를 받는다. 아직이면 멈추지 않고 "받는 중, 잠시 뒤 다시 끌기"를 알린다.
 - 규칙: 끌기·대지 공급자 안에서 메인 액터 일(네트워크 포함)을 기다리지 않는다.
+
+## 2026-11-05 build.sh: "unable to open dependencies file … ExchangeMail_dependency_info.dat", "Ld … failed"
+- 원인: Xcode 27(27B52)의 swift build는 새 빌드 시스템으로 링커 기록(dependency_info)을 스스로 남긴다. build.sh가 Siri 메타데이터용으로
+  `-Xlinker -dependency_info`로 위치를 바꾸자 빌드 시스템이 자기 기록을 찾지 못해 링크 단계가 실패했다. 그런데도 예전 실행 파일이
+  남아 있어 "installed"까지 진행됐다.
+- 고침: 이 오류가 나면 위치 지정만 빼고 다시 빌드하고, make_intents.sh는 빌드 시스템이 남긴 기록을 찾아 쓴다. 빌드 로그에
+  "Build failed"가 있으면 설치하지 않고 멈춘다.

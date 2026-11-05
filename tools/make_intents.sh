@@ -25,8 +25,12 @@ if [[ ! -s "$work/constvalues.txt" ]]; then
 fi
 find "$sources" -name '*.swift' > "$work/sources.txt"
 
-# 링커의 dependency_info (build.sh가 -Xlinker -dependency_info로 남긴다)
+# 링커의 dependency_info: build.sh가 -Xlinker -dependency_info로 남긴 것, 없으면 빌드 시스템(Xcode 27의 swift build)이 남긴 것
 deps="$products/intents/$name"_dependency_info.dat
+if [[ ! -s "$deps" ]]; then
+  found=$(find "$products" -name "${name}_dependency_info.dat" -size +0 2>/dev/null | head -1)
+  [[ -n "$found" ]] && deps="$found"
+fi
 if [[ ! -s "$deps" ]]; then
   echo "make_intents: 링커 기록($deps)이 없습니다. ./build.sh로 다시 빌드해 주세요." >&2
   exit 1
