@@ -986,3 +986,7 @@
 "휴지통" = "Trash";
 "임시 보관함" = "Drafts";
 "다른 계정의 폴더입니다." = "That mailbox belongs to another account.";
+"보내는 메일 서버가 거부했습니다: %@" = "The outgoing mail server refused the message: %@";
+"보내는 메일 서버에 로그인하지 못했습니다. 앱 암호를 확인하세요. (%@)" = "Couldn’t sign in to the outgoing mail server. Check the app-specific password. (%@)";
+"보내는 메일 서버와의 연결이 끊겼습니다." = "The connection to the outgoing mail server was lost.";
+"받는 사람이 없습니다." = "There are no recipients.";

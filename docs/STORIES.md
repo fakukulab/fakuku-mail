@@ -644,21 +644,24 @@ Status: done (맥에서 빌드·셀프 테스트 2026-11-05)
 
 ### S-061 iCloud·Gmail 계정 읽기
 As the user, iCloud(또는 Gmail) 메일을 앱 암호로 더해 Exchange 메일과 같은 창에서 읽는다.
-Status: in progress (1단계 코드, 맥에서 실제 iCloud 확인 전)
+Status: in progress (iCloud 읽기·지우기·⌘Z·속도 맥에서 확인 2026-11-05, Gmail 확인 전)
 Acceptance:
-- [ ] 설정 > 계정 > + > iCloud…/Gmail…: 이름, 이메일, 앱 암호. 로그인을 확인한 뒤에만 더한다 (틀리면 시트에 이유)
+- [x] 설정 > 계정 > + > iCloud…/Gmail…: 이름, 이메일, 앱 암호. 로그인을 확인한 뒤에만 더한다 (틀리면 시트에 이유)
 - [ ] 로그인 화면에서도 iCloud·Gmail로 시작할 수 있다
-- [ ] 앱 암호는 키체인에만, 서버 설정은 UserDefaults "accounts.imap"
-- [ ] 폴더 목록(한글 폴더 이름, 하위 폴더), 받은 편지함·보낸 편지함·휴지통·정크를 알아본다
-- [ ] 목록 50통씩, 더 보기, 본문(HTML, 글자), 첨부, 원본 보기
-- [ ] 읽음·깃발, 옮기기·복사·지우기(휴지통으로), 폴더 만들기·이름 바꾸기·지우기
+- [x] 앱 암호는 키체인에만, 서버 설정은 UserDefaults "accounts.imap"
+- [x] 폴더 목록(한글 폴더 이름, 하위 폴더), 받은 편지함·보낸 편지함·휴지통·정크를 알아본다
+- [x] 목록 50통씩, 더 보기, 본문(HTML, 글자), 첨부, 원본 보기
+- [x] 읽음·깃발, 옮기기·복사·지우기(휴지통으로), 폴더 만들기·이름 바꾸기·지우기
 - [ ] 폴더 검색, 모든 폴더 검색, 깃발 표시, VIP
 - [ ] 계정 빼기(−)는 그 계정의 앱 암호와 이 Mac의 캐시를 지운다
 
 ### S-062 iCloud·Gmail 보내기 (2단계)
-Status: todo
-- [ ] SMTP(STARTTLS 587, TLS 465)로 보내고 보낸 편지함에 저장
-- [ ] 초안 저장(IMAP APPEND), 대화 묶기(References), 새 메일 즉시 알림(IDLE)
+Status: in progress (코드, 맥에서 확인 전)
+- [ ] SMTP(iCloud STARTTLS 587, Gmail TLS 465, AUTH PLAIN)로 보낸다. 숨은 참조 머리글은 빼고 보낸다
+- [ ] iCloud는 보낸 편지함에 사본(IMAP APPEND), Gmail은 서버가 알아서
+- [ ] 큰 첨부도 메일 하나로 (Graph처럼 나눠 올리지 않는다)
+- [ ] 초안 저장(임시 보관함에 APPEND, 예전 초안은 지운다)
+- [ ] 대화 묶기(References), 새 메일 즉시 알림(IDLE)
 
 ## Later
 - Sparkle 업데이트와 공증 배포 (기획안 7장)

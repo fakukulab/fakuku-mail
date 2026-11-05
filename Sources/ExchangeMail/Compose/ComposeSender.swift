@@ -75,11 +75,14 @@ struct ComposeSender {
 
     /// Graph로 보낼 준비 (S-023). 4MB를 넘으면 큰 첨부를 `uploads`로 뺀다.
     /// 초안이면 보정 없이(그림은 본문에), 보낼 때는 첨부 보정을 적용한다.
-    static func prepare(_ input: Input, options: FixOptions, forDraft: Bool, date: Date = Date()) throws -> GraphMailPlan {
+    /// `requestLimit`: Graph 요청 한도. iCloud·Gmail(SMTP)은 나눠 올리는 길이 없으므로 `.max`로 MIME 하나에 다 넣는다 (M24).
+    static func prepare(_ input: Input, options: FixOptions, forDraft: Bool, date: Date = Date(),
+                        requestLimit: Int = MIMEBuilder.graphRequestLimit) throws -> GraphMailPlan {
         let message = try outgoing(input, validate: !forDraft)
         let fix = forDraft ? FixOptions.off : (input.fixEnabled ? options : .off)
         let domain = input.from.address.split(separator: "@").last.map(String.init) ?? "exchangemail.local"
-        let plan = MIMEBuilder.buildForGraph(message, options: fix, messageID: "\(UUID().uuidString)@\(domain)", date: date)
+        let plan = MIMEBuilder.buildForGraph(message, options: fix, messageID: "\(UUID().uuidString)@\(domain)", date: date,
+                                             requestLimit: requestLimit)
         if let big = plan.uploads.first(where: { $0.data.count > UploadChunks.maxAttachmentBytes }) {
             throw Problem.attachmentTooLarge(FilenameEncoder.normalize(big.filename))
         }

@@ -14,6 +14,8 @@ final class IMAPMailService: MailService {
     /// 연결마다 지금 맡은 명령 수 (가장 한가한 연결을 고른다)
     private var load: [Int]
     private static let poolSize = 3
+    /// 보내기 (SMTP)
+    private let smtp: SMTPClient
     /// 목록에서 본 메일의 Message-ID (옮긴 뒤 새 UID를 찾는 데 쓴다. 서버에 다시 묻지 않게)
     private var headerMemo: [String: String] = [:]
     /// 옮긴 메일의 임시 UID (음수, 겹치지 않게)
@@ -37,6 +39,7 @@ final class IMAPMailService: MailService {
             IMAPConnection(host: config.imapHost, port: config.imapPort, username: config.username, password: password)
         }
         load = Array(repeating: 0, count: Self.poolSize)
+        smtp = SMTPClient(config: config, password: password)
     }
 
     // MARK: 연결 고르기
@@ -416,10 +419,46 @@ final class IMAPMailService: MailService {
         _ = try? await run(select: path, "UID EXPUNGE \(uid)")
     }
 
-    // MARK: 2단계 (보내기, 초안)
+    // MARK: 보내기·초안 (2단계)
 
-    func sendMIME(_ mime: Data) async throws { throw IMAPError.unsupported }
-    func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String { throw IMAPError.unsupported }
+    /// SMTP로 보내고, 보낸 편지함에 사본을 둔다. Gmail은 서버가 알아서 보낸 편지함에 넣으므로 두지 않는다.
+    func sendMIME(_ mime: Data) async throws {
+        try await smtp.send(mime, from: config.email)
+        guard config.provider != .gmail else { return }
+        if kinds.isEmpty { _ = try? await folders() }
+        guard let sent = kinds.first(where: { $0.value == "sentitems" })?.key else { return }
+        // 보낸 것은 이미 갔다: 사본 저장이 실패해도 보내기는 성공으로 둔다
+        _ = try? await append(mime, to: sent, flags: "(\\Seen)")
+    }
+
+    /// 임시 보관함에 새 초안을 두고(\Draft), 예전 초안은 지운다. 새 초안 id.
+    func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String {
+        if kinds.isEmpty { _ = try await folders() }
+        guard let drafts = kinds.first(where: { $0.value == "drafts" })?.key else { throw IMAPError.missingFolder("drafts") }
+        let reply = try await append(mime, to: drafts, flags: "(\\Seen \\Draft)")
+        if let oldID, let old = try? parts(oldID), old.uid > 0 {
+            _ = try? await run(select: old.path, "UID STORE \(old.uid) +FLAGS.SILENT (\\Deleted)")
+            _ = try? await run(select: old.path, "UID EXPUNGE \(old.uid)")
+        }
+        // 새 UID: APPENDUID (RFC 4315), 없으면 Message-ID로 찾는다
+        if let uid = appendUID(reply) { return IMAP.messageID(account: accountID, path: drafts, uid: uid) }
+        if let header = SMTP.messageID(mime), let uid = await findUID(path: drafts, messageID: header) {
+            return IMAP.messageID(account: accountID, path: drafts, uid: uid)
+        }
+        throw IMAPError.server("APPEND")
+    }
+
+    private func append(_ mime: Data, to path: String, flags: String) async throws -> IMAPReply {
+        try await run([.text("APPEND " + IMAP.quote(IMAP.encodeFolderName(path)) + " " + flags + " "), .literal(mime)])
+    }
+
+    /// "[APPENDUID <uidvalidity> <uid>]"
+    private func appendUID(_ reply: IMAPReply) -> Int? {
+        guard let r = reply.text.range(of: "[APPENDUID ", options: .caseInsensitive) else { return nil }
+        let fields = reply.text[r.upperBound...].split(separator: " ")
+        guard fields.count >= 2 else { return nil }
+        return Int(fields[1].trimmingCharacters(in: CharacterSet(charactersIn: "]")))
+    }
     func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,
                           progress: @escaping (Double) -> Void) async throws { throw IMAPError.unsupported }
     func sendDraft(id: String) async throws { throw IMAPError.unsupported }

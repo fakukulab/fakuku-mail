@@ -201,7 +201,8 @@ final class ComposeModel {
         sending = true
         defer { sending = false }
         do {
-            let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false)
+            let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false,
+                                                 requestLimit: requestLimit(app))
             if undoDelay > 0 {
                 let go = await countdown(undoDelay)
                 if !go { return false }
@@ -266,7 +267,8 @@ final class ComposeModel {
         sending = true
         defer { sending = false }
         do {
-            let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false)
+            let plan = try ComposeSender.prepare(input(app: app), options: ComposeSender.defaultOptions(), forDraft: false,
+                                                 requestLimit: requestLimit(app))
             let id = try await service(app).saveDraft(plan.mime, preview: preview, replacing: nil)
             do {
                 if !plan.uploads.isEmpty { try await upload(plan.uploads, to: id, app: app) }
@@ -306,7 +308,7 @@ final class ComposeModel {
         defer { savingDraft = false }
         let draftInput = input(app: app)
         do {
-            let plan = try ComposeSender.prepare(draftInput, options: .off, forDraft: true)
+            let plan = try ComposeSender.prepare(draftInput, options: .off, forDraft: true, requestLimit: requestLimit(app))
             let newID = try await service(app).saveDraft(plan.mime, preview: preview, replacing: savedDraftID)
             savedDraftID = newID
             if !plan.uploads.isEmpty { try await upload(plan.uploads, to: newID, app: app) }
@@ -380,6 +382,11 @@ final class ComposeModel {
                 self?.uploadFraction = (Double(index) + part) / Double(list.count)
             }
         }
+    }
+
+    /// iCloud·Gmail은 MIME 하나로 보낸다 (Graph의 4MB 한도와 나눠 올리기가 없다, M24)
+    private func requestLimit(_ app: AppModel) -> Int {
+        account(app)?.imap != nil ? .max : MIMEBuilder.graphRequestLimit
     }
 
     /// 첨부 막대 안내: 큰 첨부는 따로 올려 보낸다 (대략 2MB부터).
