@@ -116,7 +116,8 @@ struct RecipientField<Focus: Hashable>: NSViewRepresentable {
         func tokenField(_ tokenField: NSTokenField, completionsForSubstring substring: String,
                         indexOfToken tokenIndex: Int, indexOfSelectedItem selectedIndex: UnsafeMutablePointer<Int>?) -> [Any]? {
             let list = parent.book.suggestions(for: substring).map(\.editable)
-            selectedIndex?.pointee = list.isEmpty ? -1 : 0
+            // 후보를 미리 고르지 않는다: 고르면 쓰던 글자가 그 후보로 채워져, 목록에 없는 주소를 넣을 수 없다
+            selectedIndex?.pointee = -1
             return list
         }
 

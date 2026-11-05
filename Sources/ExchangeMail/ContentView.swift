@@ -326,8 +326,10 @@ struct SidebarSectionHeader: View {
             Button {
                 isExpanded.toggle()
             } label: {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .frame(width: Space.lg)
+                // 같은 그림을 돌린다: ⌄와 ›를 다른 그림으로 쓰면 폭이 달라 자리가 흔들린다
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .frame(width: Space.lg, height: Space.lg)
             }
             .buttonStyle(.borderless)
             .help(isExpanded ? L("접기") : L("펼치기"))
