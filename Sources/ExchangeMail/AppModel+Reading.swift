@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import ExchangeMailKit
 import Foundation
 import WebKit
@@ -51,12 +52,24 @@ extension AppModel {
     func dragProvider(for attachment: FileAttachment, messageID: String? = nil) -> NSItemProvider {
         // 카드가 가진 것보다 본문 목록에 이미 받아 둔 내용이 있으면 그것을
         let current = detailAttachments.first { $0.id == attachment.id && $0.data != nil } ?? attachment
-        guard current.data != nil, let url = previewFile(for: current), let provider = NSItemProvider(contentsOf: url) else {
+        guard current.data != nil, let url = previewFile(for: current) else {
             warmAttachment(attachment, messageID: messageID)
             noticeMessage = L("\(attachment.name)을(를) 받는 중입니다. 잠시 뒤 다시 끌어 주세요.")
             return NSItemProvider()
         }
-        provider.suggestedName = FilenameEncoder.normalize(attachment.name)
+        return Self.fileDragProvider(url, name: FilenameEncoder.normalize(attachment.name))
+    }
+
+    /// 이미 있는 파일을 끌기로 넘긴다: 파일 주소(작성 창의 첨부 받기, Finder 복사)와 파일 내용(다른 앱) 둘 다.
+    /// 둘 다 바로 내줄 수 있어 놓는 쪽이 기다려도 멈추지 않는다.
+    static func fileDragProvider(_ url: URL, name: String) -> NSItemProvider {
+        let provider = NSItemProvider(object: url as NSURL)
+        let type = UTType(filenameExtension: url.pathExtension) ?? .data
+        provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
+            completion(url, false, nil)
+            return nil
+        }
+        provider.suggestedName = name
         return provider
     }
 

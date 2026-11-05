@@ -200,9 +200,8 @@ enum ArchivedFiles {
 
     /// 끌기: Finder에 저장하거나 작성 창에 첨부
     static func dragProvider(_ file: ArchivedAttachment) -> NSItemProvider {
-        guard let url = tempFile(file), let provider = NSItemProvider(contentsOf: url) else { return NSItemProvider() }
-        provider.suggestedName = FilenameEncoder.normalize(safeName(file.name))
-        return provider
+        guard let url = tempFile(file) else { return NSItemProvider() }
+        return AppModel.fileDragProvider(url, name: FilenameEncoder.normalize(safeName(file.name)))
     }
 
     static func save(_ file: ArchivedAttachment) {
