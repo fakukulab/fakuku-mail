@@ -237,7 +237,10 @@ final class CachedMailService: MailService {
         return !isOffline
     }
 
+    /// 저장된 메일을 지운다. 쓰기 줄(writer)에 남은 저장이 다 끝난 뒤에 지운다:
+    /// 바로 지우면 줄에 있던 저장이 그 뒤에 다시 써서 사본이 남았다 (계정 빼기, 설정의 저장된 메일 지우기).
     func clearCache() {
-        cache?.clear()
+        guard let c = cache else { return }
+        Self.writer.sync { c.clear() }
     }
 }
