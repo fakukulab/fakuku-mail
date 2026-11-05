@@ -14,7 +14,7 @@ extension AppModel {
         guard let data = attachment.data else { return nil }
         let dir = FileManager.default.temporaryDirectory
             .appending(path: "FAKUKUMail-preview", directoryHint: .isDirectory)
-            .appending(path: attachment.id.replacingOccurrences(of: "/", with: "_").prefix(64).description, directoryHint: .isDirectory)
+            .appending(path: AttachmentDrag.folderName(attachment.id), directoryHint: .isDirectory)
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let url = dir.appending(path: FilenameEncoder.normalize(attachment.name))
@@ -54,13 +54,11 @@ extension AppModel {
         let current = detailAttachments.first { $0.id == attachment.id && $0.data != nil } ?? attachment
         let name = FilenameEncoder.normalize(attachment.name)
         if current.data != nil, let url = previewFile(for: current) {
-            NSLog("FAKUKU drag: %@ 받아 둔 파일 %@", name, url.path)  // l10n: data
             return Self.fileDragProvider(url, name: name)
         }
         // 아직 받지 않았다: 놓을 때 메인 스레드 밖에서 서버에서 바로 받는다 (메인 스레드를 쓰면 놓는 쪽과 서로 기다려 멈춘다)
         let mid = messageID ?? detail?.id ?? ""
         if let request = directAttachmentRequest(messageID: mid, attachmentID: attachment.id) {
-            NSLog("FAKUKU drag: %@ 놓을 때 받기", name)  // l10n: data
             warmAttachment(attachment, messageID: messageID)
             return AttachmentDrag.lazyProvider(request, name: name, folder: attachment.id)
         }
@@ -197,13 +195,24 @@ final class MailPrinter: NSObject, WKNavigationDelegate {
 
 /// 끌기 공급자 (메인 액터 밖): 놓는 쪽은 메인 스레드를 멈추고 기다리므로, 여기 일은 메인 스레드를 쓰지 않는다.
 nonisolated enum AttachmentDrag {
+    /// 첨부마다 다른 임시 폴더 이름. Exchange 첨부 id는 앞부분이 메일함 전체에서 같아서 앞 64글자로 자르면
+    /// 다른 메일의 같은 이름 첨부가 같은 파일을 덮어썼다 (작성 중인 메일의 첨부가 바뀔 수 있었다). id 전체의 해시를 쓴다.
+    static func folderName(_ id: String) -> String {
+        var hash: UInt64 = 0xcbf29ce484222325   // FNV-1a 64
+        for byte in id.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
+
     /// 놓을 때 서버에서 받아 임시 파일로 쓰고 그 파일을 넘긴다 (파일 주소와 파일 내용 둘 다)
     static func lazyProvider(_ request: URLRequest, name: String, folder: String) -> NSItemProvider {
         let provider = NSItemProvider()
         provider.suggestedName = name
         let dir = FileManager.default.temporaryDirectory
             .appending(path: "FAKUKUMail-preview", directoryHint: .isDirectory)
-            .appending(path: String(folder.replacingOccurrences(of: "/", with: "_").prefix(64)), directoryHint: .isDirectory)
+            .appending(path: folderName(folder), directoryHint: .isDirectory)
         let target = dir.appending(path: name)
         let fetch: @Sendable () async throws -> URL = {
             if FileManager.default.fileExists(atPath: target.path) { return target }

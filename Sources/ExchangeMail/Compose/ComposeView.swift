@@ -8,11 +8,8 @@ import UniformTypeIdentifiers
 extension ComposeView {
     static func receiveFiles(_ providers: [NSItemProvider], add: @escaping @Sendable @MainActor ([URL]) -> Void) -> Bool {
         let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
-        NSLog("FAKUKU drop: %d개 중 파일 주소 %d개 (%@)", providers.count, files.count,  // l10n: data
-              providers.flatMap(\.registeredTypeIdentifiers).joined(separator: ", "))
         for p in files {
-            _ = p.loadObject(ofClass: URL.self) { url, error in
-                NSLog("FAKUKU drop: 받음 %@ %@", url?.path ?? "nil", error?.localizedDescription ?? "")  // l10n: data
+            _ = p.loadObject(ofClass: URL.self) { url, _ in
                 guard let url, url.isFileURL else { return }
                 Task { @MainActor in add([url]) }
             }

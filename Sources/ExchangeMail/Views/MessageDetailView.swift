@@ -211,10 +211,7 @@ struct MessageHeader: View {
                                        preview: { preview(a) },
                                        open: { Task { await model.openAttachment(a, messageID: message.id) } },
                                        save: { Task { await model.save(attachment: a, messageID: message.id) } })
-                            .onDrag {
-                                NSLog("FAKUKU drag: 시작 %@", a.name)  // l10n: data
-                                return model.dragProvider(for: a, messageID: message.id)
-                            }
+                            .onDrag { model.dragProvider(for: a, messageID: message.id) }
                             // 끌기 전에 내용을 받아 두고, 끌 수 있는 첨부로 기억한다 (놓는 쪽이 빈 끌기를 받아도 이것을 넣는다)
                             .onHover { inside in
                                 guard inside else { return }

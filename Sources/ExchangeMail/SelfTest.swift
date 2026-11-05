@@ -640,6 +640,15 @@ enum SelfTest {
                       && droppedURL?.lastPathComponent == "보고서.pdf",
                   "\(accepted) \(droppedURL?.path ?? "nil")")
 
+            // 다른 메일의 같은 이름 첨부는 다른 임시 파일 (앞부분이 같은 Exchange id라도 서로 덮어쓰지 않게)
+            let sameA = FileAttachment(id: String(repeating: "A", count: 80) + "/one", name: "같은.xlsx", contentType: nil,
+                                       size: 3, isInline: false, contentBytes: "AQID")
+            let sameB = FileAttachment(id: String(repeating: "A", count: 80) + "/two", name: "같은.xlsx", contentType: nil,
+                                       size: 3, isInline: false, contentBytes: "BAUG")
+            let pathA = model.previewFile(for: sameA), pathB = model.previewFile(for: sameB)
+            check("다른 메일의 같은 이름 첨부는 서로 덮어쓰지 않는다",
+                  pathA != nil && pathA != pathB && pathA.flatMap { try? Data(contentsOf: $0) } == Data([1, 2, 3]))
+
             let undoable = ComposeModel(draft: ComposeDraft())
             await undoable.setUp(app: model, fixDefault: true)
             undoable.to = "client@x.com"

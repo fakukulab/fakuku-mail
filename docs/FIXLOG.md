@@ -219,3 +219,8 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: 사이드바는 이미 `.scrollIndicators(.never)`이므로 그 고리를 뗐다.
 - 첨부 끌기: 내용이 없으면 놓을 때 메인 스레드 밖에서 Graph에 바로 받는다(`AttachmentDrag.lazyProvider`, 미리 만든 요청과 토큰).
   끌기·놓기마다 "FAKUKU drag/drop:" 로그를 남긴다.
+- 결론 (같은 날): 끄는 쪽(onDrag)은 불리고 파일도 넘기지만, 같은 앱 안의 SwiftUI 끌기는 작성 창에 내용 없이(타입 0개) 도착했다.
+  작성 창이 내용 없는 끌기를 받으면, 1분 안에 마우스를 올린 받은 메일의 첨부를 받아 넣는다 (`droppedAttachmentFile`).
+  Finder로 끄는 것과 Finder에서 끌어오는 것은 그대로 파일 주소로 오간다.
+- 함께 고침: 첨부 임시 파일 폴더를 id 앞 64글자로 나눴는데 Exchange 첨부 id는 앞부분이 메일함 전체에서 같다 → 다른 메일의
+  같은 이름 첨부가 같은 파일을 덮어썼다. id 전체의 해시로 나눈다 (`AttachmentDrag.folderName`).
