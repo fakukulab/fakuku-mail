@@ -29,6 +29,10 @@ final class AccountStore {
     /// 새 계정을 더할 때 쓰는 로그인 (계정이 하나도 없으면 로그인 화면이 이것을 쓴다)
     private(set) var pending: GraphAuth
 
+    /// 계정마다 설명 (설정 > 계정 > 설명). 사이드바 구역 이름에 쓴다. 비어 있으면 이메일 주소.
+    private(set) var descriptions: [String: String] =
+        UserDefaults.standard.dictionary(forKey: "accounts.descriptions") as? [String: String] ?? [:]
+
     @ObservationIgnored private let makeService: (GraphAuth) -> CachedMailService
     @ObservationIgnored private let persist: Bool
     private static let idsKey = "accounts.ids"
@@ -84,6 +88,17 @@ final class AccountStore {
         accounts.removeAll { $0.id == id }
         if activeID == id { activeID = accounts.first?.id }
         save()
+    }
+
+    /// 사이드바·설정에 보일 계정 이름
+    func title(for account: MailAccount) -> String {
+        let d = descriptions[account.id]?.trimmingCharacters(in: .whitespaces) ?? ""
+        return d.isEmpty ? (account.email.isEmpty ? L("메일상자") : account.email) : d
+    }
+
+    func setDescription(_ text: String, for id: String) {
+        descriptions[id] = text
+        if persist { UserDefaults.standard.set(descriptions, forKey: "accounts.descriptions") }
     }
 
     private func save() {

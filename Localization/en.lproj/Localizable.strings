@@ -928,3 +928,35 @@
 "로그아웃…" = "Sign Out…";
 "모든 받은 편지함" = "All Inboxes";
 "이 Mac에 저장한 그 계정의 메일을 지웁니다. 서버의 메일은 그대로입니다." = "Mail saved on this Mac for that account is removed. Mail on the server isn’t affected.";
+
+/* 설정 > 계정 (맥 Mail 모양) */
+"+를 눌러 계정을 추가하세요." = "Click + to add an account.";
+"Exchange 계정은 서버가 정한 폴더를 씁니다. 보낸 메일은 서버가 보낸 편지함에 저장하고, " = "Exchange accounts use the folders set by the server. Sent mail is saved to Sent Items by the server, ";
+"지운 메일은 지운 편지함으로 옮깁니다." = "and deleted mail moves to Deleted Items.";
+"Gmail (곧 추가)" = "Gmail (coming soon)";
+"iCloud (곧 추가)" = "iCloud (coming soon)";
+"Microsoft Exchange…" = "Microsoft Exchange…";
+"Microsoft 계정 (Microsoft 로그인 창)" = "Microsoft account (Microsoft sign-in window)";
+"계정 삭제" = "Remove Account";
+"계정 없음" = "No Accounts";
+"계정 정보" = "Account Information";
+"계정 추가" = "Add Account";
+"계정을 고르세요" = "Select an Account";
+"고른 계정에서 로그아웃하고 목록에서 뺍니다" = "Signs out of the selected account and removes it from the list";
+"로그인:" = "Sign-in:";
+"메일상자 동작" = "Mailbox Behaviors";
+"보관:" = "Archive:";
+"보낸 편지함:" = "Sent:";
+"사용자 이름:" = "User Name:";
+"상태:" = "Status:";
+"서버 설정" = "Server Settings";
+"서버:" = "Server:";
+"설명" = "Description";
+"설명:" = "Description:";
+"앱 등록:" = "App Registration:";
+"오프라인" = "Offline";
+"온라인" = "Online";
+"이메일 주소:" = "Email Address:";
+"임시 보관함:" = "Drafts:";
+"정크 메일:" = "Junk:";
+"지운 편지함:" = "Trash:";

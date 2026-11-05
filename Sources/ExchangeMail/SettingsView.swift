@@ -29,8 +29,9 @@ struct SettingsView: View {
     @ViewBuilder
     private func page(_ tab: SettingsTab) -> some View {
         switch tab {
-        case .signatures:
-            SignatureSettings()
+        case .signatures, .account:
+            // 왼쪽 목록 + 오른쪽 내용 (맥 Mail의 서명·계정 탭과 같은 틀)
+            Group { if tab == .account { AccountSettings() } else { SignatureSettings() } }
                 .padding(.horizontal, Self.marginX)
                 .padding(.vertical, Self.marginY)
                 .frame(width: Self.size.width, height: Self.size.height)
@@ -48,7 +49,6 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Space.lg) {
                     switch tab {
                     case .general: GeneralSettings()
-                    case .account: AccountSettings()
                     case .junk: JunkSettings()
                     case .fonts: FontSettings()
                     case .viewing: ViewingSettings()
@@ -208,139 +208,6 @@ struct OfflineSettings: View {
 }
 
 // MARK: 계정
-
-struct AccountSettings: View {
-    @Environment(AppModel.self) private var model
-    @AppStorage("azureClientID") private var clientID = ""
-    @AppStorage("azureTenant") private var tenant = ""
-    // S-056 수락한 회의를 맥 캘린더에
-    @AppStorage(Prefs.calendarAddAccepted) private var addAccepted = true
-    @AppStorage(Prefs.calendarTarget) private var calendarTarget = ""
-    @State private var calendars: [(id: String, title: String)] = []
-    @State private var calendarAccess = MacCalendar.shared.hasAccess
-    /// 고급(앱 등록) 칸을 펼쳤다. 앱에 번호가 없는 빌드면 처음부터 펼친다.
-    @State private var showAdvanced = GraphAuth.bundledClientID.isEmpty
-
-    var body: some View {
-        Section {
-            // 계정 여러 개 (M23): 계정마다 이름·주소·로그아웃, 아래에 계정 추가
-            LabeledContent(L("계정:")) {
-                VStack(alignment: .leading, spacing: Space.md) {
-                    if model.isDemo {
-                        Text(model.auth.email ?? "")
-                        SettingsNote(L("데모 모드: 예시 메일로 돌며 서버에 연결하지 않습니다."))
-                    } else {
-                        ForEach(model.accounts.accounts) { account in
-                            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
-                                Label {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(account.auth.displayName ?? account.email)
-                                        Text(account.email).foregroundStyle(.secondary)
-                                    }
-                                } icon: {
-                                    Image(systemName: "envelope.badge.person.crop")
-                                        .foregroundStyle(.tint)
-                                }
-                                Text("Microsoft Exchange")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Button(L("로그아웃…"), role: .destructive) {
-                                    if TextPrompt.confirm(L("\(account.email) 계정에서 로그아웃할까요?"),
-                                                          message: L("이 Mac에 저장한 그 계정의 메일을 지웁니다. 서버의 메일은 그대로입니다."),
-                                                          action: L("로그아웃")) {
-                                        model.signOut(accountID: account.id)
-                                    }
-                                }
-                                .controlSize(.small)
-                            }
-                        }
-                        Button(L("계정 추가…")) { Task { await model.addAccount() } }
-                            .disabled(model.accounts.pending.isSigningIn || model.accounts.pending.clientID.isEmpty)
-                        if let error = model.accounts.pending.lastError {
-                            Label(error, systemImage: "exclamationmark.triangle")
-                                .foregroundStyle(.red)
-                        }
-                        SettingsNote(L("Microsoft 365(Exchange) 계정을 여러 개 쓸 수 있습니다. 계정이 둘 이상이면 사이드바에 \"모든 받은 편지함\"이 생깁니다. ")
-                                     + L("Gmail과 iCloud 메일은 다음 단계에서 추가됩니다."))
-                    }
-                }
-            }
-        }
-        Section {
-            LabeledContent(L("맥 캘린더:")) {
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    Toggle(L("수락한 회의를 맥 캘린더에 추가"), isOn: $addAccepted)
-                    if calendarAccess {
-                        Picker(L("넣을 캘린더"), selection: $calendarTarget) {
-                            Text(L("기본 캘린더")).tag("")
-                            ForEach(calendars, id: \.id) { c in Text(c.title).tag(c.id) }
-                        }
-                        .labelsHidden()
-                        .fixedSize()
-                        .disabled(!addAccepted)
-                    } else {
-                        Button(L("캘린더 접근 허용…")) {
-                            Task {
-                                calendarAccess = await MacCalendar.shared.requestAccess()
-                                if !calendarAccess { MacCalendar.openPrivacySettings() }
-                                loadCalendars()
-                            }
-                        }
-                        .controlSize(.small)
-                    }
-                    SettingsNote(L("수락·미정으로 답한 회의를 넣고, 거절하면 앱이 넣은 일정을 지웁니다. ")
-                                 + L("같은 시각에 같은 제목의 일정이 이미 있으면(Exchange 동기화 등) 넣지 않습니다."))
-                }
-            }
-        }
-        // 고급: 회사가 자체 Azure 앱 등록을 쓸 때만. 앱에 등록 번호가 들어 있어 평소에는 접어 둔다 (S-058).
-        Section {
-            LabeledContent(L("고급:")) {
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    Button(showAdvanced ? L("고급 설정 숨기기") : L("고급 설정 보기…")) { showAdvanced.toggle() }
-                        .buttonStyle(.link)
-                    if !showAdvanced && (!clientID.isEmpty || !tenant.isEmpty) {
-                        SettingsNote(L("직접 넣은 앱 등록 값을 쓰고 있습니다."))
-                    }
-                }
-            }
-            if showAdvanced {
-                LabeledContent(L("클라이언트 ID:")) {
-                    TextField(L("클라이언트 ID"), text: $clientID,
-                              prompt: Text(GraphAuth.bundledClientID.isEmpty ? "00000000-0000-0000-0000-000000000000" : L("비우면 앱 기본값")))
-                        .labelsHidden()
-                }
-                LabeledContent(L("테넌트:")) {
-                    TextField(L("테넌트"), text: $tenant, prompt: Text(L("비우면 common")))
-                        .labelsHidden()
-                }
-                LabeledContent(L("리디렉션 URI:")) {
-                    Text(model.auth.redirectURI)
-                        .textSelection(.enabled)
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("") {
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        SettingsNote(L("회사가 자체 Azure 앱 등록을 쓰는 경우에만 넣습니다. 비워 두면 FAKUKU Mail의 앱 등록을 씁니다. ")
-                                     + L("바꾼 값은 다음 로그인부터 쓰입니다."))
-                        Button(L("기본값으로 되돌리기")) {
-                            clientID = ""
-                            tenant = ""
-                        }
-                        .controlSize(.small)
-                        .disabled(clientID.isEmpty && tenant.isEmpty)
-                    }
-                }
-            }
-        }
-        .task { loadCalendars() }
-    }
-
-    private func loadCalendars() {
-        calendarAccess = MacCalendar.shared.hasAccess
-        calendars = MacCalendar.shared.writableCalendars().map { (id: $0.calendarIdentifier, title: "\($0.title) — \($0.source.title)") }
-    }
-}
 
 // MARK: 정크 메일
 

@@ -172,7 +172,7 @@ struct FolderSidebar: View {
             }
             // 계정마다 구역 (M23). 계정이 하나면 예전과 같다.
             ForEach(model.accounts.accounts) { account in
-            Section(account.email.isEmpty ? L("메일상자") : account.email) {
+            Section(model.accounts.title(for: account)) {
                 ForEach(model.accountFolders[account.id] ?? []) { folder in
                     FolderRow(folder: folder)
                         .tag(folder.id)
