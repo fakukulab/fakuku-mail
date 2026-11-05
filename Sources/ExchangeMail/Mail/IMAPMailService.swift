@@ -278,17 +278,34 @@ final class IMAPMailService: MailService {
             }
             return id
         }
+        // 옮긴 뒤 새 UID를 찾으려고 Message-ID를 먼저 읽는다 (서버의 COPYUID는 없거나 믿기 어려울 때가 있다)
+        let header = await headerMessageID(path: path, uid: uid)
         let reply: IMAPReply
         do {
             reply = try await connection.run(select: path, "UID MOVE \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
         } catch IMAPError.server {
             // MOVE가 없는 서버: 복사하고 지운다
-            let copied = try await connection.run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
+            reply = try await connection.run(select: path, "UID COPY \(uid) " + IMAP.quote(IMAP.encodeFolderName(target)))
             _ = try await connection.run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
             _ = try? await connection.run(select: path, "UID EXPUNGE \(uid)")
-            return newID(copied, target: target) ?? IMAP.folderID(account: accountID, path: target)
+        }
+        if let header, let found = await findUID(path: target, messageID: header) {
+            return IMAP.messageID(account: accountID, path: target, uid: found)
         }
         return newID(reply, target: target) ?? IMAP.folderID(account: accountID, path: target)
+    }
+
+    /// 메일의 Message-ID 머리글
+    private func headerMessageID(path: String, uid: Int) async -> String? {
+        guard let reply = try? await connection.run(select: path, "UID FETCH \(uid) (UID ENVELOPE)"),
+              let items = reply.untagged.compactMap(IMAP.fetchItems).first(where: { $0["UID"]?.int == uid }),
+              let id = items["ENVELOPE"].flatMap(IMAP.envelope)?.messageID, !id.isEmpty else { return nil }
+        return id
+    }
+
+    /// 폴더에서 Message-ID가 같은 메일의 UID (여럿이면 가장 최근에 들어온 것)
+    private func findUID(path: String, messageID: String) async -> Int? {
+        try? await searchUIDs(path: path, criteria: [.text("HEADER Message-ID "), .literalOrQuoted(messageID)]).last
     }
 
     /// "[COPYUID <uidvalidity> <옛 uid> <새 uid>]" (RFC 4315)에서 새 id. MOVE는 이것을 "* OK"로 먼저 보내기도 한다.
