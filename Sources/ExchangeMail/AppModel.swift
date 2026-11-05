@@ -283,8 +283,16 @@ final class AppModel {
         if Store.isDemo, signatures.signatures.isEmpty { DemoMailService.seedSignatures(into: signatures) }
         // 계정마다 메일 서비스: Graph(데모면 예시 사서함) + 오프라인 캐시(S-026, 계정 주소별 폴더).
         let box = ModelBox()
-        let makeService: (GraphAuth) -> CachedMailService = { auth in
-            let remote: any MailService = Store.isDemo ? DemoMailService() : GraphMailService(auth: auth)
+        let makeService: (GraphAuth, IMAPAccountConfig?) -> CachedMailService = { auth, imap in
+            let remote: any MailService
+            if Store.isDemo {
+                remote = DemoMailService()
+            } else if let imap {
+                // iCloud·Gmail (M24): 앱 암호는 키체인에
+                remote = IMAPMailService(accountID: auth.accountKey, config: imap, password: AccountStore.password(for: auth.accountKey))
+            } else {
+                remote = GraphMailService(auth: auth)
+            }
             let cached = CachedMailService(remote: remote, base: Store.directory.appending(path: "cache", directoryHint: .isDirectory),
                                            account: { auth.email }, enabled: { AppModel.cacheEnabled })
             cached.onOfflineChange = { offline in box.model?.isOffline = offline }
@@ -334,6 +342,13 @@ final class AppModel {
             await loadFolders()
             selectedFolderID = accountFolders[account.id]?.first { $0.kind == "inbox" }?.id ?? selectedFolderID
         }
+    }
+
+    /// iCloud·Gmail 계정 추가 (설정 > 계정 > +, M24). 앱 암호가 틀리면 오류를 던진다.
+    func addIMAPAccount(_ config: IMAPAccountConfig, password: String) async throws {
+        let account = try await accounts.addIMAPAccount(config, password: password)
+        await loadFolders()
+        selectedFolderID = accountFolders[account.id]?.first { $0.kind == "inbox" }?.id ?? selectedFolderID
     }
 
     var isSignedIn: Bool { isDemo || !accounts.accounts.isEmpty }

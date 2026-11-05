@@ -8,6 +8,8 @@ struct AccountSettings: View {
     @Environment(AppModel.self) private var model
     @State private var selection: String?
     @State private var page = Page.info
+    /// iCloud·Gmail 추가 시트 (M24)
+    @State private var addingIMAP: IMAPAccountConfig.Provider?
 
     enum Page: String, CaseIterable, Identifiable {
         case info, mailboxes, server
@@ -36,6 +38,9 @@ struct AccountSettings: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onAppear { if selection == nil { selection = model.accounts.active?.id } }
+        .sheet(item: $addingIMAP) { provider in
+            IMAPAccountSheet(provider: provider) { selection = $0 }
+        }
     }
 
     // MARK: 왼쪽: 계정 목록, + −
@@ -45,7 +50,7 @@ struct AccountSettings: View {
             List(selection: $selection) {
                 ForEach(model.accounts.accounts) { account in
                     HStack(spacing: Space.sm) {
-                        Image(systemName: "envelope.badge.person.crop")
+                        Image(systemName: account.symbol)
                             .font(.title2)
                             .foregroundStyle(.tint)
                             .frame(width: 32)
@@ -53,7 +58,7 @@ struct AccountSettings: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(model.accounts.title(for: account))
                                 .lineLimit(1)
-                            Text("Microsoft Exchange")
+                            Text(account.providerTitle)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -77,7 +82,7 @@ struct AccountSettings: View {
             }
             Divider()
             HStack(spacing: Space.xs) {
-                // 계정 추가: 지금은 Exchange. Gmail·iCloud는 다음 단계 (M24, M25).
+                // 계정 추가: Exchange(Microsoft 로그인 창), iCloud·Gmail(앱 암호, M24)
                 Menu {
                     Button(L("Microsoft Exchange…")) {
                         Task {
@@ -87,8 +92,10 @@ struct AccountSettings: View {
                     }
                     .disabled(model.isDemo || model.accounts.pending.clientID.isEmpty)
                     Divider()
-                    Button(L("Gmail (곧 추가)")) {}.disabled(true)
-                    Button(L("iCloud (곧 추가)")) {}.disabled(true)
+                    Button(L("iCloud…")) { addingIMAP = .icloud }
+                        .disabled(model.isDemo)
+                    Button(L("Gmail…")) { addingIMAP = .gmail }
+                        .disabled(model.isDemo)
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -221,8 +228,12 @@ private struct AccountMailboxPage: View {
         LabeledContent(L("지운 편지함:")) { Text(name("deleteditems")) }
         LabeledContent(L("보관:")) { Text(name("archive")) }
         LabeledContent("") {
-            SettingsNote(L("Exchange 계정은 서버가 정한 폴더를 씁니다. 보낸 메일은 서버가 보낸 편지함에 저장하고, ")
-                         + L("지운 메일은 지운 편지함으로 옮깁니다."))
+            if account.imap != nil {
+                SettingsNote(L("메일 서버가 알려 준 폴더를 씁니다. 지운 메일은 휴지통 폴더로 옮깁니다."))
+            } else {
+                SettingsNote(L("Exchange 계정은 서버가 정한 폴더를 씁니다. 보낸 메일은 서버가 보낸 편지함에 저장하고, ")
+                             + L("지운 메일은 지운 편지함으로 옮깁니다."))
+            }
         }
     }
 }
@@ -236,6 +247,29 @@ private struct AccountServerPage: View {
     @State private var showAdvanced = GraphAuth.bundledClientID.isEmpty
 
     var body: some View {
+        if let imap = account.imap {
+            imapRows(imap)
+        } else {
+            exchangeRows
+        }
+    }
+
+    /// iCloud·Gmail (M24): 받는 서버, 보내는 서버, 사용자 이름
+    @ViewBuilder
+    private func imapRows(_ imap: IMAPAccountConfig) -> some View {
+        LabeledContent(L("받는 메일 서버:")) { Text("\(imap.imapHost):\(imap.imapPort) (IMAP, TLS)").textSelection(.enabled) }  // l10n: data
+        LabeledContent(L("보내는 메일 서버:")) {
+            Text("\(imap.smtpHost):\(imap.smtpPort) (SMTP, \(imap.smtpStartTLS ? "STARTTLS" : "TLS"))").textSelection(.enabled)  // l10n: data
+        }
+        LabeledContent(L("사용자 이름:")) { Text(imap.username).textSelection(.enabled) }
+        LabeledContent(L("암호:")) { Text(L("앱 암호 (키체인에 저장)")) }
+        LabeledContent("") {
+            SettingsNote(L("앱 암호를 바꿨으면 이 계정을 빼고(−) 새 앱 암호로 다시 추가하세요."))
+        }
+    }
+
+    @ViewBuilder
+    private var exchangeRows: some View {
         LabeledContent(L("서버:")) { Text("Microsoft Exchange Online (Microsoft Graph)") }
         LabeledContent(L("로그인:")) { Text(L("Microsoft 계정 (Microsoft 로그인 창)")) }
         LabeledContent(L("사용자 이름:")) {

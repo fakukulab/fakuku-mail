@@ -55,6 +55,15 @@ final class GraphAuth: NSObject {
         }
     }
 
+    /// IMAP 계정(iCloud, Gmail, M24)의 이름표: 토큰 없이 주소와 이름만 갖는다. 로그인은 IMAPConnection이 앱 암호로 한다.
+    init(accountKey: String, identityEmail: String, name: String?) {
+        self.accountKey = accountKey
+        isDemo = false
+        super.init()
+        email = identityEmail
+        displayName = name?.isEmpty == false ? name : nil
+    }
+
     var isSignedIn: Bool { isDemo || email != nil }
 
     /// 앱에 들어 있는 Azure 앱 등록 번호 (멀티 테넌트, build.sh가 Config/azure-client-id.txt에서 넣는다).

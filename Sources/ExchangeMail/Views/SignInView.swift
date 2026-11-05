@@ -12,6 +12,8 @@ struct SignInView: View {
     @AppStorage("signIn.lastEmail") private var email = ""
     @State private var showAdvanced = GraphAuth.bundledClientID.isEmpty
     @State private var copied = false
+    /// iCloud·Gmail로 시작 (M24)
+    @State private var addingIMAP: IMAPAccountConfig.Provider?
 
     private var hasClientID: Bool { !model.auth.clientID.isEmpty }
 
@@ -72,6 +74,12 @@ struct SignInView: View {
                     }
                 }
             }
+            // Exchange가 아닌 계정: 앱 암호로 (M24)
+            HStack(spacing: Space.md) {
+                Button(L("iCloud 계정으로 시작…")) { addingIMAP = .icloud }
+                Button(L("Gmail 계정으로 시작…")) { addingIMAP = .gmail }
+            }
+            .buttonStyle(.link)
             DisclosureGroup(L("고급"), isExpanded: $showAdvanced) {
                 Form {
                     TextField(L("클라이언트 ID"), text: $clientID,
@@ -95,6 +103,7 @@ struct SignInView: View {
         .padding(Space.section)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .noInitialFocus()
+        .sheet(item: $addingIMAP) { IMAPAccountSheet(provider: $0) }
     }
 
     private func signIn() {

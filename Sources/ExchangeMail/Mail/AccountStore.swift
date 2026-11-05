@@ -10,12 +10,18 @@ final class MailAccount: Identifiable {
     let id: String
     let auth: GraphAuth
     let service: CachedMailService
+    /// iCloud·Gmail 같은 IMAP 계정이면 서버 설정 (M24). nil이면 Microsoft Exchange.
+    let imap: IMAPAccountConfig?
 
-    init(id: String, auth: GraphAuth, service: CachedMailService) {
+    init(id: String, auth: GraphAuth, service: CachedMailService, imap: IMAPAccountConfig? = nil) {
         self.id = id
         self.auth = auth
         self.service = service
+        self.imap = imap
     }
+
+    /// 계정 종류 이름 (설정 > 계정 목록)
+    var kindName: String { imap?.providerName ?? "Exchange" }  // l10n: data
 
     var email: String { auth.email ?? "" }
     var title: String { auth.displayName.map { "\($0) — \(email)" } ?? email }
@@ -33,27 +39,33 @@ final class AccountStore {
     private(set) var descriptions: [String: String] =
         UserDefaults.standard.dictionary(forKey: "accounts.descriptions") as? [String: String] ?? [:]
 
-    @ObservationIgnored private let makeService: (GraphAuth) -> CachedMailService
+    @ObservationIgnored private let makeService: (GraphAuth, IMAPAccountConfig?) -> CachedMailService
     @ObservationIgnored private let persist: Bool
     private static let idsKey = "accounts.ids"
 
     var active: MailAccount? { accounts.first { $0.id == activeID } ?? accounts.first }
 
     /// `demoEmail`이 있으면 데모 계정 하나 (스냅숏, 셀프 테스트)
-    init(demoEmail: String?, makeService: @escaping (GraphAuth) -> CachedMailService) {
+    init(demoEmail: String?, makeService: @escaping (GraphAuth, IMAPAccountConfig?) -> CachedMailService) {
         self.makeService = makeService
         persist = demoEmail == nil && !Store.isOverridden
         if let demoEmail {
             let auth = GraphAuth(accountKey: "demo", demoEmail: demoEmail)
             pending = auth
-            accounts = [MailAccount(id: "demo", auth: auth, service: makeService(auth))]
+            accounts = [MailAccount(id: "demo", auth: auth, service: makeService(auth, nil))]
         } else {
             pending = GraphAuth(accountKey: UUID().uuidString)
             var ids = UserDefaults.standard.stringArray(forKey: Self.idsKey) ?? []
             if ids.isEmpty { ids = ["primary"] }   // 예전 버전: 키체인 "primary"에 계정 하나
+            let imap = Self.savedIMAP()
             for id in ids {
+                if let config = imap[id] {
+                    let auth = GraphAuth(accountKey: id, identityEmail: config.email, name: config.name)
+                    accounts.append(MailAccount(id: id, auth: auth, service: makeService(auth, config), imap: config))
+                    continue
+                }
                 let auth = GraphAuth(accountKey: id)
-                if auth.isSignedIn { accounts.append(MailAccount(id: id, auth: auth, service: makeService(auth))) }
+                if auth.isSignedIn { accounts.append(MailAccount(id: id, auth: auth, service: makeService(auth, nil))) }
             }
         }
         activeID = accounts.first?.id
@@ -72,7 +84,7 @@ final class AccountStore {
             pending.lastError = L("이미 추가한 계정입니다: \(address)")
             return nil
         }
-        let account = MailAccount(id: auth.accountKey, auth: auth, service: makeService(auth))
+        let account = MailAccount(id: auth.accountKey, auth: auth, service: makeService(auth, nil))
         accounts.append(account)
         if activeID == nil { activeID = account.id }
         pending = GraphAuth(accountKey: UUID().uuidString)
@@ -84,7 +96,15 @@ final class AccountStore {
     func remove(_ id: String) {
         guard let account = accounts.first(where: { $0.id == id }) else { return }
         account.service.clearCache()
-        account.auth.signOut()
+        if account.imap != nil {
+            if let s = account.service.remote as? IMAPMailService { Task { await s.close() } }
+            Keychain.delete(account: Self.passwordKey(id))
+            var saved = Self.savedIMAP()
+            saved[id] = nil
+            if persist { Self.saveIMAP(saved) }
+        } else {
+            account.auth.signOut()
+        }
         accounts.removeAll { $0.id == id }
         if activeID == id { activeID = accounts.first?.id }
         save()
@@ -99,6 +119,49 @@ final class AccountStore {
     func setDescription(_ text: String, for id: String) {
         descriptions[id] = text
         if persist { UserDefaults.standard.set(descriptions, forKey: "accounts.descriptions") }
+    }
+
+    // MARK: IMAP 계정 (M24)
+
+    private static let imapKey = "accounts.imap"
+
+    /// 앱 암호를 둘 키체인 항목 이름
+    static func passwordKey(_ id: String) -> String { "imap.\(id)" }
+
+    static func password(for id: String) -> String {
+        Keychain.load(account: passwordKey(id)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+    }
+
+    private static func savedIMAP() -> [String: IMAPAccountConfig] {
+        guard let data = UserDefaults.standard.data(forKey: imapKey) else { return [:] }
+        return (try? JSONDecoder().decode([String: IMAPAccountConfig].self, from: data)) ?? [:]
+    }
+
+    private static func saveIMAP(_ configs: [String: IMAPAccountConfig]) {
+        UserDefaults.standard.set(try? JSONEncoder().encode(configs), forKey: imapKey)
+    }
+
+    /// iCloud·Gmail 계정 추가: 앱 암호로 로그인되는지 먼저 확인하고, 되면 목록에 넣는다.
+    @discardableResult
+    func addIMAPAccount(_ config: IMAPAccountConfig, password: String) async throws -> MailAccount {
+        let address = config.email.lowercased()
+        if accounts.contains(where: { $0.email.lowercased() == address }) {
+            throw IMAPError.server(L("이미 추가한 계정입니다: \(address)"))
+        }
+        try await IMAPMailService.verify(config, password: password)
+        let id = UUID().uuidString
+        Keychain.save(Data(password.utf8), account: Self.passwordKey(id))
+        if persist {
+            var saved = Self.savedIMAP()
+            saved[id] = config
+            Self.saveIMAP(saved)
+        }
+        let auth = GraphAuth(accountKey: id, identityEmail: config.email, name: config.name)
+        let account = MailAccount(id: id, auth: auth, service: makeService(auth, config), imap: config)
+        accounts.append(account)
+        if activeID == nil { activeID = id }
+        save()
+        return account
     }
 
     private func save() {

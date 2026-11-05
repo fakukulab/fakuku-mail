@@ -33,16 +33,19 @@ final class AccountRouter: MailService {
     }
 
     /// 이 메일의 계정 id (모르면 지금 계정)
-    func accountID(forMessage id: String) -> String? { messageOwner[id] ?? store.active?.id }
-    func accountID(forFolder id: String) -> String? { folderOwner[id] ?? store.active?.id }
+    func accountID(forMessage id: String) -> String? { messageOwner[id] ?? IMAP.parseID(id)?.account ?? store.active?.id }
+    func accountID(forFolder id: String) -> String? { folderOwner[id] ?? IMAP.parseID(id)?.account ?? store.active?.id }
 
     private func forMessage(_ id: String) throws -> any MailService {
         if let owner = messageOwner[id], let s = service(forAccount: owner) { return s }
+        // IMAP id에는 계정이 들어 있다 (M24)
+        if let owner = IMAP.parseID(id)?.account, let s = service(forAccount: owner) { return s }
         return try activeService()
     }
 
     private func forFolder(_ id: String) throws -> any MailService {
         if let owner = folderOwner[id], let s = service(forAccount: owner) { return s }
+        if let owner = IMAP.parseID(id)?.account, let s = service(forAccount: owner) { return s }
         return try activeService()
     }
 

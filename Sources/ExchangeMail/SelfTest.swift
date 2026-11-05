@@ -1125,6 +1125,18 @@ enum SelfTest {
             waiting.cancel()
             gate.release(); gate.release()
 
+            // M24 iCloud·Gmail: IMAP 응답을 앱의 메일로, id로 계정을 찾는다 (서버 연결 없이)
+            let fetchLine = Data("* 1 FETCH (UID 5 FLAGS (\\Seen) ENVELOPE (NIL \"Hi\" ((\"A\" NIL \"a\" \"x.com\")) NIL NIL NIL NIL NIL NIL \"<m@x>\"))\r\n".utf8)  // l10n: data
+            if case .untagged(let values) = IMAP.parse(fetchLine), let items = IMAP.fetchItems(values),
+               let m = IMAP.summary(items, account: "icloud-test", path: "INBOX") {
+                check("M24 IMAP 목록 응답을 메일로 바꾼다 (제목, 보낸 사람, 읽음)",
+                      m.subject == "Hi" && m.from?.emailAddress.address == "a@x.com" && m.isRead == true, m.id)
+                check("M24 IMAP 메일 id로 계정을 찾는다", model.router.accountID(forMessage: m.id) == "icloud-test",
+                      model.router.accountID(forMessage: m.id) ?? "nil")
+            } else {
+                check("M24 IMAP 목록 응답을 메일로 바꾼다 (제목, 보낸 사람, 읽음)", false, "parse")
+            }
+
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }

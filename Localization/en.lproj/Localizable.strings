@@ -960,3 +960,25 @@
 "임시 보관함:" = "Drafts:";
 "정크 메일:" = "Junk:";
 "지운 편지함:" = "Trash:";
+
+/* M24 iCloud and Gmail (IMAP) */
+"메일 서버가 알려 준 폴더를 씁니다. 지운 메일은 휴지통 폴더로 옮깁니다." = "Uses the mailboxes the mail server reports. Deleted messages move to the Trash mailbox.";
+"받는 메일 서버:" = "Incoming Mail Server:";
+"보내는 메일 서버:" = "Outgoing Mail Server:";
+"암호:" = "Password:";
+"앱 암호 (키체인에 저장)" = "App-specific password (saved in Keychain)";
+"앱 암호를 바꿨으면 이 계정을 빼고(−) 새 앱 암호로 다시 추가하세요." = "If you changed the app-specific password, remove this account (−) and add it again with the new one.";
+"Gmail 계정 추가" = "Add Gmail Account";
+"iCloud 계정 추가" = "Add iCloud Account";
+"받는 사람에게 보일 이름" = "Name recipients see";
+"앱 암호" = "App-Specific Password";
+"Google 계정 암호가 아니라 앱 비밀번호를 넣습니다. 2단계 인증을 켠 뒤 Google 계정 > 보안 > 앱 비밀번호에서 만듭니다." = "Enter an app password, not your Google Account password. Turn on 2-Step Verification, then create one in Google Account > Security > App passwords.";
+"Apple 계정 암호가 아니라 앱 암호를 넣습니다. Apple 계정 > 로그인 및 보안 > 앱 암호에서 만듭니다." = "Enter an app-specific password, not your Apple Account password. Create one in Apple Account > Sign-In and Security > App-Specific Passwords.";
+"앱 비밀번호 만들기…" = "Create an App Password…";
+"앱 암호 만들기…" = "Create an App-Specific Password…";
+"iCloud 계정으로 시작…" = "Start with iCloud…";
+"Gmail 계정으로 시작…" = "Start with Gmail…";
+"메일 서버 오류: %@" = "Mail server error: %@";
+"로그인하지 못했습니다. 이메일 주소와 앱 암호를 확인하세요. (%@)" = "Couldn’t sign in. Check the email address and app-specific password. (%@)";
+"메일 서버와의 연결이 끊겼습니다." = "The connection to the mail server was lost.";
+"이 계정에서는 아직 할 수 없는 기능입니다." = "This isn’t available for this account yet.";
