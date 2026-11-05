@@ -69,3 +69,7 @@ details p { color: var(--muted); margin: 8px 0 0; }
 @media (min-width: 720px) { .help .keys { grid-template-columns: repeat(2, 1fr); } }
 kbd { font: 13px/1 -apple-system, BlinkMacSystemFont, sans-serif; padding: 3px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--card); white-space: nowrap; }
 code { font-size: 14px; padding: 1px 4px; border-radius: 4px; background: var(--card); }
+
+/* ---- 아래쪽 (FAKUKULAB 사이트들과 같은 모양) ---- */
+footer.site { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px;
+  border-top: 1px solid var(--line); padding-top: 24px; }
