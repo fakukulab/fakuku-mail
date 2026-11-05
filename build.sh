@@ -33,7 +33,8 @@ echo '["AppIntent","AppEntity","AppEnum","EntityQuery","AppShortcutsProvider","D
 # 출력 위치를 정해 준다: 위치가 없으면 swift build(전체 모듈 최적화)에서는 파일이 생기지 않았다.
 constvalues="$scratch/intents/ExchangeMail.swiftconstvalues"
 mkdir -p "$scratch/intents"
-rm -f "$constvalues" "$scratch/intents/ExchangeMail_dependency_info.dat"
+# 지우지 않는다: 바뀐 코드가 없으면 swift build가 다시 만들지 않아(0.1초 빌드) Siri 정보가 빠진다.
+# 이 파일은 빌드할 때마다 덮어쓴다.
 # 링커가 남기는 "무엇과 링크했나" 기록: appintentsmetadataprocessor가 AppIntents.framework를 쓰는지 여기서 본다.
 intent_flags=(-Xlinker -dependency_info -Xlinker "$scratch/intents/ExchangeMail_dependency_info.dat"
               -Xswiftc -emit-const-values -Xswiftc -emit-const-values-path -Xswiftc "$constvalues"

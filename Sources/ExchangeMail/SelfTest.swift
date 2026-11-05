@@ -13,8 +13,22 @@ enum SelfTest {
     private static var failures = 0
     private static var count = 0
 
+    /// 마지막으로 끝난 검사 (멈추면 어디서 멈췄는지 알린다)
+    private static var lastCheck = "(아직 없음)"  // l10n: data
+
+    /// 앱이 뜨자마자: 시작을 알리고, 4분 안에 끝나지 않으면 마지막 검사 이름을 찍고 끝낸다 (터미널이 하염없이 기다리지 않게)
+    static func started() {
+        setvbuf(stdout, nil, _IOLBF, 0)
+        print("SELFTEST start (메인 창을 기다립니다)")  // l10n: data
+        DispatchQueue.main.asyncAfter(deadline: .now() + 240) {
+            print("SELFTEST TIMEOUT: 4분 안에 끝나지 않았습니다. 마지막으로 끝난 검사: \(lastCheck), 검사 \(count)개")  // l10n: data
+            exit(2)
+        }
+    }
+
     static func runIfRequested(model: AppModel) {
         guard requested else { return }
+        print("SELFTEST 메인 창이 떴습니다")  // l10n: data
         // Print each line at once, so a crash keeps the lines before it.
         setvbuf(stdout, nil, _IOLBF, 0)
         guard Store.isDemo, let demo = model.demoService else {
@@ -1156,6 +1170,7 @@ enum SelfTest {
 
     private static func check(_ name: String, _ ok: Bool, _ detail: String = "") {
         count += 1
+        lastCheck = name
         if !ok { failures += 1 }
         print(ok ? "PASS \(name)" : "FAIL \(name)\(detail.isEmpty ? "" : ": \(detail)")")
     }
