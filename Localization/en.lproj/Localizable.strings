@@ -993,3 +993,15 @@
 "주소 편집" = "Edit Address";
 "접기" = "Collapse";
 "펼치기" = "Expand";
+"접근: %@" = "Access: %@";
+"시험 일정 넣기" = "Add Test Event";
+"허용됨" = "Allowed";
+"아직 묻지 않음" = "Not asked yet";
+"추가만 허용됨: 같은 회의를 찾으려면 전체 접근이 필요합니다" = "Add only: full access is needed to find the same meeting";
+"거부됨: 시스템 설정 > 개인정보 보호 및 보안 > 캘린더에서 켜 주세요" = "Denied: turn it on in System Settings > Privacy & Security > Calendars";
+"이 Mac에서 제한됨" = "Restricted on this Mac";
+"알 수 없음" = "Unknown";
+"권한이 없습니다: %@" = "No permission: %@";
+"FAKUKU Mail 시험 일정" = "FAKUKU Mail Test Event";
+"넣고 지우기 성공 (%@, 캘린더 %@개)" = "Added and removed (%1$@, %2$@ calendars)";
+"넣지 못했습니다: %@" = "Couldn’t add: %@";

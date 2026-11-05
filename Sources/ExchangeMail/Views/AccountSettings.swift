@@ -326,6 +326,9 @@ private struct MacCalendarSettings: View {
     @AppStorage(Prefs.calendarTarget) private var calendarTarget = ""
     @State private var calendars: [(id: String, title: String)] = []
     @State private var calendarAccess = MacCalendar.shared.hasAccess
+    @State private var status = MacCalendar.shared.statusText
+    @State private var checkResult: String?
+    @State private var checking = false
 
     var body: some View {
         LabeledContent(L("맥 캘린더:")) {
@@ -349,6 +352,28 @@ private struct MacCalendarSettings: View {
                     }
                     .controlSize(.small)
                 }
+                // 어디서 막혔는지 보이게: 권한 상태와 시험 일정
+                HStack(spacing: Space.sm) {
+                    Text(L("접근: \(status)"))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Button(L("시험 일정 넣기")) {
+                        checking = true
+                        Task {
+                            checkResult = await MacCalendar.shared.selfCheck(calendarID: calendarTarget)
+                            checking = false
+                            load()
+                        }
+                    }
+                    .controlSize(.small)
+                    .disabled(checking)
+                }
+                if let checkResult {
+                    Text(checkResult)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
                 SettingsNote(L("수락·미정으로 답한 회의를 넣고, 거절하면 앱이 넣은 일정을 지웁니다. ")
                              + L("같은 시각에 같은 제목의 일정이 이미 있으면(Exchange 동기화 등) 넣지 않습니다."))
             }
@@ -358,6 +383,7 @@ private struct MacCalendarSettings: View {
 
     private func load() {
         calendarAccess = MacCalendar.shared.hasAccess
+        status = MacCalendar.shared.statusText
         calendars = MacCalendar.shared.writableCalendars().map { (id: $0.calendarIdentifier, title: "\($0.title) — \($0.source.title)") }
     }
 }

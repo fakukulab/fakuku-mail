@@ -32,6 +32,39 @@ final class MacCalendar {
 
     var hasAccess: Bool { EKEventStore.authorizationStatus(for: .event) == .fullAccess }
 
+    /// 설정에 보일 권한 상태 (어디서 막혔는지 알 수 있게)
+    var statusText: String {
+        switch EKEventStore.authorizationStatus(for: .event) {
+        case .fullAccess: L("허용됨")
+        case .notDetermined: L("아직 묻지 않음")
+        case .writeOnly: L("추가만 허용됨: 같은 회의를 찾으려면 전체 접근이 필요합니다")
+        case .denied: L("거부됨: 시스템 설정 > 개인정보 보호 및 보안 > 캘린더에서 켜 주세요")
+        case .restricted: L("이 Mac에서 제한됨")
+        @unknown default: L("알 수 없음")
+        }
+    }
+
+    /// 시험: 1시간 뒤 5분짜리 일정을 넣었다가 바로 지운다. 결과 글.
+    func selfCheck(calendarID: String) async -> String {
+        guard await requestAccess() else { return L("권한이 없습니다: \(statusText)") }
+        let calendars = writableCalendars()
+        guard !calendars.isEmpty else { return L("일정을 넣을 수 있는 캘린더가 없습니다.") }
+        let target = store.calendar(withIdentifier: calendarID).flatMap { $0.source.sourceType == .exchange ? nil : $0 }
+            ?? store.defaultCalendarForNewEvents.flatMap { $0.source.sourceType == .exchange ? nil : $0 } ?? calendars[0]
+        let event = EKEvent(eventStore: store)
+        event.title = L("FAKUKU Mail 시험 일정")
+        event.startDate = Date().addingTimeInterval(3_600)
+        event.endDate = event.startDate.addingTimeInterval(300)
+        event.calendar = target
+        do {
+            try store.save(event, span: .thisEvent, commit: true)
+            try store.remove(event, span: .thisEvent, commit: true)
+            return L("넣고 지우기 성공 (\(target.title), 캘린더 \(calendars.count)개)")
+        } catch {
+            return L("넣지 못했습니다: \(error.localizedDescription)")
+        }
+    }
+
     /// 처음이면 권한을 묻는다.
     func requestAccess() async -> Bool {
         switch EKEventStore.authorizationStatus(for: .event) {
@@ -39,7 +72,8 @@ final class MacCalendar {
         case .notDetermined:
             // 완료 콜백 방식: 일정 저장소(EKEventStore)를 다른 스레드로 넘기지 않는다 (Swift 6 경합 검사).
             let granted = await withCheckedContinuation { continuation in
-                store.requestFullAccessToEvents { granted, _ in continuation.resume(returning: granted) }
+                // @Sendable: 응답은 다른 스레드에서 온다. 메인 액터 클로저로 받으면 Swift 6 실행 검사에 걸린다
+                store.requestFullAccessToEvents { @Sendable granted, _ in continuation.resume(returning: granted) }
             }
             if granted { store.reset() }   // 권한 전에 만든 저장소는 캘린더가 비어 보일 수 있다
             return granted
