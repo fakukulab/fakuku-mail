@@ -2,6 +2,21 @@ import AppKit
 import ExchangeMailKit
 import QuickLook
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// 끌어다 놓은 것에서 파일 주소를 꺼낸다 (Finder의 파일, 받은 메일의 첨부 카드). 꺼내는 대로 `add`에 넘긴다.
+extension ComposeView {
+    static func receiveFiles(_ providers: [NSItemProvider], add: @escaping @Sendable @MainActor ([URL]) -> Void) -> Bool {
+        let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        for p in files {
+            _ = p.loadObject(ofClass: URL.self) { url, _ in
+                guard let url, url.isFileURL else { return }
+                Task { @MainActor in add([url]) }
+            }
+        }
+        return !files.isEmpty
+    }
+}
 
 /// 작성 창: 새 메시지, 답장, 전체 답장, 전달. 상태와 동작은 ComposeModel에 있다.
 struct ComposeView: View {
@@ -87,10 +102,11 @@ struct ComposeView: View {
             Text(compose.error ?? "")
         }
         // 창 어디에 놓아도 첨부가 된다 (S-017). 편집기 위도 여기로 온다 (RichTextController.makeWebView).
-        .dropDestination(for: URL.self) { urls, _ in
-            compose.addFiles(urls.filter(\.isFileURL))
-            return true
-        } isTargeted: { dropTargeted = $0 }
+        // 파일 주소를 직접 꺼낸다: SwiftUI의 dropDestination(for: URL)은 Finder에서 끈 파일은 받지만
+        // 받은 메일의 첨부 카드(앱 안에서 끈 것)는 꺼내지 못했다.
+        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
+            Self.receiveFiles(providers) { compose.addFiles($0) }
+        }
         .overlay {
             if dropTargeted {
                 RoundedRectangle(cornerRadius: 8)

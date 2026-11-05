@@ -208,3 +208,7 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   남아 있어 "installed"까지 진행됐다.
 - 고침: 이 오류가 나면 위치 지정만 빼고 다시 빌드하고, make_intents.sh는 빌드 시스템이 남긴 기록을 찾아 쓴다. 빌드 로그에
   "Build failed"가 있으면 설치하지 않고 멈춘다.
+- 다시 (같은 날): 보라색 테두리는 뜨지만 첨부가 들어가지 않았다. 작성 창의 `.dropDestination(for: URL.self)`가 앱 안에서 끈
+  첨부 카드의 파일 주소를 꺼내지 못했다(Finder 파일은 받음). `.onDrop(of: [.fileURL])` + `loadObject(ofClass: URL.self)`로
+  직접 꺼낸다 (`ComposeView.receiveFiles`). 끄는 쪽은 파일 주소(NSURL)와 파일 내용을 둘 다 바로 내준다 (`fileDragProvider`).
+  셀프 테스트가 같은 receiveFiles 길로 첨부까지 확인한다.
