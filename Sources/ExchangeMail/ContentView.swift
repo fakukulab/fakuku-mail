@@ -133,7 +133,8 @@ struct FolderSidebar: View {
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedFolderID) {
-            Section(isExpanded: expanded("smart")) {
+            Section {
+                if expanded("smart").wrappedValue {
                 // 계정이 둘 이상이면 모든 계정의 받은 편지함을 한곳에 (M23)
                 if model.showsAllInboxes {
                     Label(L("모든 받은 편지함"), systemImage: "tray.2")
@@ -166,12 +167,14 @@ struct FolderSidebar: View {
                             }
                         }
                 }
+            }
             } header: {
-                SidebarSectionHeader(title: L("스마트 메일상자"), isExpanded: expanded("smart").wrappedValue)
+                SidebarSectionHeader(title: L("스마트 메일상자"), isExpanded: expanded("smart"))
             }
             // VIP (S-045): 사람마다 이름과 아이콘
             if !model.mailboxes.vips.isEmpty {
-                Section(isExpanded: expanded("vip")) {
+                Section {
+                if expanded("vip").wrappedValue {
                     Label(L("모든 VIP"), systemImage: "star")
                         .tag(VirtualMailbox.allVIPsID)
                     ForEach(model.mailboxes.vips) { vip in
@@ -183,13 +186,15 @@ struct FolderSidebar: View {
                                 Button(L("VIP에서 빼기")) { model.removeVIP(address: vip.address) }
                             }
                     }
-                } header: {
-                    SidebarSectionHeader(title: "VIP", isExpanded: expanded("vip").wrappedValue)  // l10n: data
+                }
+            } header: {
+                    SidebarSectionHeader(title: "VIP", isExpanded: expanded("vip"))  // l10n: data
                 }
             }
             // 계정마다 구역 (M23). 계정이 하나면 예전과 같다.
             ForEach(model.accounts.accounts) { account in
-            Section(isExpanded: expanded("account.\(account.id)")) {
+            Section {
+                if expanded("account.\(account.id)").wrappedValue {
                 ForEach(model.accountFolders[account.id] ?? []) { folder in
                     FolderRow(folder: folder)
                         .tag(folder.id)
@@ -200,16 +205,18 @@ struct FolderSidebar: View {
                         }
                         .contextMenu { folderMenu(folder) }
                 }
+            }
             } header: {
                 SidebarSectionHeader(title: model.accounts.title(for: account),
-                                     isExpanded: expanded("account.\(account.id)").wrappedValue,
+                                     isExpanded: expanded("account.\(account.id)"),
                                      unread: inboxUnread(account),
                                      newFolder: { newFolder(parent: nil, account: account) })
             }
             }
             // 나의 Mac에 (S-055): 가져온 메일상자. 서버와 상관없이 이 Mac에 저장되어 있다.
             if !model.localBoxes.boxes.isEmpty {
-                Section(isExpanded: expanded("local")) {
+                Section {
+                if expanded("local").wrappedValue {
                     ForEach(model.localBoxes.boxes) { box in
                         Label(box.name, systemImage: "tray.full")
                             .tag(box.sidebarID)
@@ -224,8 +231,9 @@ struct FolderSidebar: View {
                                 Button(L("메일상자 지우기…"), role: .destructive) { model.removeLocal(box) }
                             }
                     }
-                } header: {
-                    SidebarSectionHeader(title: L("나의 Mac에"), isExpanded: expanded("local").wrappedValue)
+                }
+            } header: {
+                    SidebarSectionHeader(title: L("나의 Mac에"), isExpanded: expanded("local"))
                 }
             }
         }
@@ -290,11 +298,11 @@ struct FolderRow: View {
     }
 }
 
-/// 사이드바 구역 이름 (맥 Mail): 접혀 있으면 읽지 않은 수, 마우스를 올리면 새 폴더 단추.
-/// 펼치기·접기(⌄ ›)는 시스템이 마우스를 올렸을 때 보여 준다.
+/// 사이드바 구역 이름 (맥 Mail): 접혀 있으면 읽지 않은 수, 마우스를 올리면 새 폴더 단추와 ⌄·›.
+/// 시스템의 접기 화살표는 마우스를 올릴 때 생겨 옆 내용을 밀어내므로, 화살표를 직접 그리고 자리를 늘 비워 둔다.
 struct SidebarSectionHeader: View {
     let title: String
-    let isExpanded: Bool
+    @Binding var isExpanded: Bool
     var unread = 0
     var newFolder: (() -> Void)?
     @State private var hovering = false
@@ -319,6 +327,17 @@ struct SidebarSectionHeader: View {
                 .opacity(hovering ? 1 : 0)
                 .allowsHitTesting(hovering)
             }
+            Button {
+                isExpanded.toggle()
+            } label: {
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .frame(width: Space.lg)
+            }
+            .buttonStyle(.borderless)
+            .help(isExpanded ? L("접기") : L("펼치기"))
+            .accessibilityLabel(isExpanded ? L("접기") : L("펼치기"))
+            .opacity(hovering ? 1 : 0)
         }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }

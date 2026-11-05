@@ -102,11 +102,11 @@ struct ComposeAddressToken: View {
         } label: {
             HStack(spacing: 2) {
                 Text(address?.display ?? token)
-                if hovering {
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.semibold))
-                        .accessibilityHidden(true)
-                }
+                // ⌄ 자리는 늘 비워 둔다: 마우스를 올릴 때 토큰 폭이 바뀌면 줄이 다시 놓여 옆 토큰이 밀린다
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .opacity(hovering ? 1 : 0)
+                    .accessibilityHidden(true)
             }
             .foregroundStyle(hovering ? AnyShapeStyle(Palette.onAccent)
                              : address == nil ? AnyShapeStyle(.red) : AnyShapeStyle(Palette.accentText))
