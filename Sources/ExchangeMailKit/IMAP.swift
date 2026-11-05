@@ -49,23 +49,50 @@ public enum IMAP {
     /// 버퍼에서 완성된 응답 하나를 꺼낸다. 줄 끝이 {n}이면 n바이트 덩어리와 그 뒤 줄까지가 한 응답이다.
     /// 아직 다 오지 않았으면 nil.
     public static func nextResponse(in buffer: Data) -> (response: Data, rest: Data)? {
-        let bytes = [UInt8](buffer)
-        var i = 0
-        while true {
-            // 다음 CRLF
-            guard let lf = bytes[i...].firstIndex(of: 10) else { return nil }
-            let lineEnd = lf > 0 && bytes[lf - 1] == 13 ? lf - 1 : lf
-            // 줄 끝이 {n} 이면 덩어리
-            if lineEnd > 0, bytes[lineEnd - 1] == UInt8(ascii: "}"),
-               let open = bytes[i..<lineEnd].lastIndex(of: UInt8(ascii: "{")),
-               let n = Int(String(decoding: bytes[(open + 1)..<(lineEnd - 1)].filter { $0 != UInt8(ascii: "+") }, as: UTF8.self)) {
-                let start = lf + 1
-                guard bytes.count >= start + n else { return nil }
-                i = start + n
-                continue
+        guard case .complete(let end) = scan(buffer, from: 0) else { return nil }
+        return (buffer.subdata(in: 0..<end), buffer.subdata(in: end..<buffer.count))
+    }
+
+    /// 버퍼 훑기 결과: 응답이 `end` 바로 앞에서 끝났다, 또는 버퍼가 `needed` 바이트가 될 때까지 기다려야 한다.
+    public enum Scan: Equatable, Sendable {
+        case complete(end: Int)
+        case incomplete(needed: Int)
+    }
+
+    /// `start`(0부터 세는 위치)에서 시작하는 응답이 어디서 끝나는지. 복사 없이 훑는다 (큰 메일이 조각으로 와도
+    /// 조각마다 버퍼 전체를 복사하지 않게). {n} 덩어리를 기다릴 때는 필요한 크기를 알려 그때까지 다시 훑지 않는다.
+    public static func scan(_ buffer: Data, from start: Int) -> Scan {
+        buffer.withUnsafeBytes { raw -> Scan in
+            let b = raw.bindMemory(to: UInt8.self)
+            let n = b.count
+            var i = start
+            while true {
+                var lf = i
+                while lf < n && b[lf] != 10 { lf += 1 }
+                guard lf < n else { return .incomplete(needed: n + 1) }
+                let lineEnd = lf > i && b[lf - 1] == 13 ? lf - 1 : lf
+                if lineEnd > i, b[lineEnd - 1] == UInt8(ascii: "}") {
+                    var open = lineEnd - 2
+                    while open >= i && b[open] != UInt8(ascii: "{") { open -= 1 }
+                    if open >= i {
+                        var size = 0
+                        var digits = 0
+                        var k = open + 1
+                        while k < lineEnd - 1 {
+                            let c = b[k]
+                            if c >= 48 && c <= 57 { size = size * 10 + Int(c - 48); digits += 1 } else if c != UInt8(ascii: "+") { digits = 0; break }
+                            k += 1
+                        }
+                        if digits > 0 {
+                            let literalEnd = lf + 1 + size
+                            guard n >= literalEnd else { return .incomplete(needed: literalEnd) }
+                            i = literalEnd
+                            continue
+                        }
+                    }
+                }
+                return .complete(end: lf + 1)
             }
-            let end = lf + 1
-            return (Data(bytes[0..<end]), Data(bytes[end...]))
         }
     }
 

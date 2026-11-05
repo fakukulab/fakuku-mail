@@ -16,6 +16,8 @@ final class IMAPMailService: MailService {
     private static let poolSize = 3
     /// 목록에서 본 메일의 Message-ID (옮긴 뒤 새 UID를 찾는 데 쓴다. 서버에 다시 묻지 않게)
     private var headerMemo: [String: String] = [:]
+    /// 옮긴 메일의 임시 UID (음수, 겹치지 않게)
+    private var pendingCounter = 0
     /// 폴더 경로 → 종류 (inbox, sentitems …). folders()가 채운다.
     private var kinds: [String: String] = [:]
     /// 지운 메일을 옮길 휴지통 경로
@@ -39,15 +41,26 @@ final class IMAPMailService: MailService {
 
     // MARK: 연결 고르기
 
-    private func leastBusy() -> Int {
-        load.indices.min { load[$0] < load[$1] } ?? 0
+    /// 연결마다 마지막으로 고른 폴더 (같은 폴더를 고른 한가한 연결이 있으면 그리로: SELECT를 아낀다)
+    private var selectedOn: [String?] = Array(repeating: nil, count: poolSize)
+
+    private func pick(for path: String?) -> Int {
+        if let path, let i = load.indices.first(where: { load[$0] == 0 && selectedOn[$0] == path }) { return i }
+        // 한가한 연결 가운데, 될 수 있으면 다른 폴더를 붙들고 있지 않은 것
+        return load.indices.min { (load[$0], selectedOn[$0] == nil ? 0 : 1) < (load[$1], selectedOn[$1] == nil ? 0 : 1) } ?? 0
     }
 
     private func run(select path: String? = nil, _ parts: [IMAPPart]) async throws -> IMAPReply {
-        let i = leastBusy()
+        let i = pick(for: path)
         load[i] += 1
+        if let path { selectedOn[i] = path }
         defer { load[i] -= 1 }
         return try await pool[i].run(select: path, parts)
+    }
+
+    /// 연결을 미리 열어 둔다 (첫 클릭이 TLS·로그인을 기다리지 않게)
+    func warmUp() {
+        for c in pool { Task { try? await c.connectIfNeeded() } }
     }
 
     private func run(select path: String? = nil, _ command: String) async throws -> IMAPReply {
@@ -55,8 +68,9 @@ final class IMAPMailService: MailService {
     }
 
     private func exists(in path: String) async throws -> Int {
-        let i = leastBusy()
+        let i = pick(for: path)
         load[i] += 1
+        selectedOn[i] = path
         defer { load[i] -= 1 }
         return try await pool[i].exists(in: path)
     }
@@ -318,7 +332,15 @@ final class IMAPMailService: MailService {
     // MARK: 옮기기·복사·지우기
 
     func move(id: String, to destination: String) async throws -> String {
-        let (path, uid) = try parts(id)
+        let (path, givenUID) = try parts(id)
+        var uid = givenUID
+        // 옮긴 뒤 아직 UID를 찾지 않은 메일 (⌘Z): 그 폴더에서 Message-ID로 찾는다
+        if uid < 0 {
+            guard let header = headerMemo[id], let found = await findUID(path: path, messageID: header) else { throw Self.notFound }
+            uid = found
+            headerMemo[IMAP.messageID(account: accountID, path: path, uid: found)] = header
+        }
+        let currentID = IMAP.messageID(account: accountID, path: path, uid: uid)
         let target = try await folderPath(destination)
         if target == path {
             // 휴지통 안에서 지우기: 아주 지운다
@@ -326,10 +348,10 @@ final class IMAPMailService: MailService {
                 _ = try await run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
                 _ = try? await run(select: path, "UID EXPUNGE \(uid)")
             }
-            return id
+            return currentID
         }
         // 옮긴 뒤 새 UID를 찾으려고 Message-ID를 먼저 읽는다 (서버의 COPYUID는 없거나 믿기 어려울 때가 있다)
-        var header = headerMemo[id]
+        var header = headerMemo[currentID]
         if header == nil { header = await headerMessageID(path: path, uid: uid) }
         let reply: IMAPReply
         do {
@@ -340,10 +362,12 @@ final class IMAPMailService: MailService {
             _ = try await run(select: path, "UID STORE \(uid) +FLAGS.SILENT (\\Deleted)")
             _ = try? await run(select: path, "UID EXPUNGE \(uid)")
         }
-        if let header, let found = await findUID(path: target, messageID: header) {
-            let newID = IMAP.messageID(account: accountID, path: target, uid: found)
-            headerMemo[newID] = header
-            return newID
+        // 새 UID는 지금 찾지 않는다 (지우기가 서버를 한 번 더 기다리지 않게): 임시 id를 주고 ⌘Z 때 Message-ID로 찾는다
+        if let header {
+            pendingCounter -= 1
+            let placeholder = IMAP.messageID(account: accountID, path: target, uid: pendingCounter)
+            headerMemo[placeholder] = header
+            return placeholder
         }
         return newID(reply, target: target) ?? IMAP.folderID(account: accountID, path: target)
     }

@@ -289,7 +289,10 @@ final class AppModel {
                 remote = DemoMailService()
             } else if let imap {
                 // iCloud·Gmail (M24): 앱 암호는 키체인에
-                remote = IMAPMailService(accountID: auth.accountKey, config: imap, password: AccountStore.password(for: auth.accountKey))
+                let imapService = IMAPMailService(accountID: auth.accountKey, config: imap,
+                                                  password: AccountStore.password(for: auth.accountKey))
+                imapService.warmUp()
+                remote = imapService
             } else {
                 remote = GraphMailService(auth: auth)
             }

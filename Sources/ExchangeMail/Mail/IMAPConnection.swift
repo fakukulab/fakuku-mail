@@ -60,6 +60,10 @@ actor IMAPConnection {
 
     private var task: URLSessionStreamTask?
     private var buffer = Data()
+    /// 버퍼에서 아직 읽지 않은 첫 바이트
+    private var start = 0
+    /// 다시 훑기 전에 버퍼가 가져야 할 크기
+    private var needed = 0
     private var counter = 0
     /// 지금 고른 폴더 (같은 폴더면 SELECT를 다시 하지 않는다)
     private var selected: String?
@@ -141,6 +145,8 @@ actor IMAPConnection {
         t.startSecureConnection()
         task = t
         buffer = Data()
+        start = 0
+        needed = 0
         selected = nil
         do {
             // 인사말 "* OK …"
@@ -163,6 +169,8 @@ actor IMAPConnection {
         task = nil
         selected = nil
         buffer = Data()
+        start = 0
+        needed = 0
     }
 
     func logout() async {
@@ -221,12 +229,28 @@ actor IMAPConnection {
 
     private func readResponse() async throws -> IMAPResponse {
         while true {
-            if let next = IMAP.nextResponse(in: buffer) {
-                buffer = next.rest
-                return IMAP.parse(next.response)
+            // 버퍼가 필요한 크기가 되기 전에는 다시 훑지 않는다 (큰 메일의 {n} 덩어리)
+            if buffer.count >= needed {
+                switch IMAP.scan(buffer, from: start) {
+                case .complete(let end):
+                    let response = buffer.subdata(in: start..<end)
+                    start = end
+                    needed = 0
+                    // 읽은 앞부분은 가끔 한꺼번에 버린다 (응답마다 남은 버퍼를 복사하지 않게)
+                    if start == buffer.count {
+                        buffer.removeAll(keepingCapacity: true)
+                        start = 0
+                    } else if start > 1 << 20 {
+                        buffer = buffer.subdata(in: start..<buffer.count)
+                        start = 0
+                    }
+                    return IMAP.parse(response)
+                case .incomplete(let n):
+                    needed = n
+                }
             }
             guard let task else { throw IMAPError.closed }
-            let (data, atEOF) = try await task.readData(ofMinLength: 1, maxLength: 256 * 1024, timeout: 120)
+            let (data, atEOF) = try await task.readData(ofMinLength: 1, maxLength: 1 << 20, timeout: 120)
             if let data, !data.isEmpty { buffer.append(data) } else if atEOF { disconnect(); throw IMAPError.closed }
         }
     }

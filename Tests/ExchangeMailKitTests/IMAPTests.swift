@@ -96,3 +96,12 @@ private func data(_ s: String) -> Data { Data(s.utf8) }
     #expect(c.smtpPort == 587 && c.smtpStartTLS)
     #expect(IMAPAccountConfig.icloud(email: "jane@custom.com", name: "J").username == "jane@custom.com")
 }
+
+@Test func imapScanWaitsForLiteralSize() {
+    let head = data("* 1 FETCH (BODY[] {10}\r\nabc")
+    // 덩어리가 다 오려면 줄 끝 뒤로 10바이트가 필요하다
+    #expect(IMAP.scan(head, from: 0) == .incomplete(needed: head.count - 3 + 10))
+    let full = head + data("defghij)\r\nA2 OK\r\n")
+    guard case .complete(let end) = IMAP.scan(full, from: 0) else { Issue.record("incomplete"); return }
+    #expect(IMAP.scan(full, from: end) == .complete(end: full.count))
+}
