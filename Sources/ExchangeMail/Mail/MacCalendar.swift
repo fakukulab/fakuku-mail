@@ -38,17 +38,26 @@ final class MacCalendar {
         case .fullAccess: return true
         case .notDetermined:
             // 완료 콜백 방식: 일정 저장소(EKEventStore)를 다른 스레드로 넘기지 않는다 (Swift 6 경합 검사).
-            return await withCheckedContinuation { continuation in
+            let granted = await withCheckedContinuation { continuation in
                 store.requestFullAccessToEvents { granted, _ in continuation.resume(returning: granted) }
             }
+            if granted { store.reset() }   // 권한 전에 만든 저장소는 캘린더가 비어 보일 수 있다
+            return granted
         default: return false
         }
     }
 
     /// 일정을 넣을 수 있는 캘린더 (설정의 고르기 목록)
+    /// Exchange 캘린더는 뺀다: 거기 넣으면 Exchange 서버에 회의가 하나 더 생긴다 (회의는 이미 서버 일정에 있다).
     func writableCalendars() -> [EKCalendar] {
         guard hasAccess else { return [] }
-        return store.calendars(for: .event).filter(\.allowsContentModifications)
+        var list = store.calendars(for: .event)
+        if list.isEmpty {
+            // 시스템 설정에서 방금 허용했으면 저장소가 아직 비어 있다
+            store.reset()
+            list = store.calendars(for: .event)
+        }
+        return list.filter { $0.allowsContentModifications && $0.source.sourceType != .exchange }
             .sorted { ($0.source.title, $0.title) < ($1.source.title, $1.title) }
     }
 
@@ -56,7 +65,9 @@ final class MacCalendar {
     func add(_ entry: CalendarEntry, calendarID: String) async -> Outcome {
         guard await requestAccess() else { return .denied }
         if let existing = find(entry) { return .alreadyThere(existing.calendar?.title ?? "") }
-        let target = store.calendar(withIdentifier: calendarID) ?? store.defaultCalendarForNewEvents
+        let chosen = store.calendar(withIdentifier: calendarID) ?? store.defaultCalendarForNewEvents
+        // Exchange 캘린더에는 넣지 않는다 (서버에 회의가 하나 더 생긴다): 넣을 수 있는 첫 캘린더로
+        let target = chosen.flatMap { $0.source.sourceType == .exchange ? nil : $0 } ?? writableCalendars().first
         guard let target, target.allowsContentModifications else {
             return .failed(L("일정을 넣을 수 있는 캘린더가 없습니다."))
         }
@@ -96,6 +107,28 @@ final class MacCalendar {
     /// 이 회의가 맥 캘린더에 있는가 (MeetingBar의 표시)
     func contains(_ entry: CalendarEntry) -> Bool {
         hasAccess && find(entry) != nil
+    }
+
+    /// 앱이 넣은 일정 가운데, 그 뒤 Exchange 동기화로 같은 회의(같은 제목·시각)가 들어온 것은 지운다.
+    /// 새 메일을 확인할 때(2분마다) 부른다. 지운 수.
+    @discardableResult
+    func removeSyncedDuplicates(now: Date = Date()) -> Int {
+        guard hasAccess else { return 0 }
+        let window = store.predicateForEvents(withStart: now.addingTimeInterval(-86_400),
+                                              end: now.addingTimeInterval(180 * 86_400), calendars: nil)
+        let events = store.events(matching: window)
+        let isMine = { (e: EKEvent) in e.url?.scheme == CalendarEntry.markerScheme }
+        var removed = 0
+        for e in events where isMine(e) {
+            let title = (e.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let twin = events.contains { o in
+                !isMine(o) && o.isAllDay == e.isAllDay && abs(o.startDate.timeIntervalSince(e.startDate)) < 60
+                    && (o.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == title
+            }
+            if twin, (try? store.remove(e, span: .thisEvent, commit: false)) != nil { removed += 1 }
+        }
+        if removed > 0 { try? store.commit() }
+        return removed
     }
 
     private func find(_ entry: CalendarEntry) -> EKEvent? {

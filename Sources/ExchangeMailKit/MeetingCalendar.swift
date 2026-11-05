@@ -35,6 +35,9 @@ public struct CalendarEntry: Equatable, Sendable {
     }
 
     /// fakuku-meeting://event/<일정 id>
+    /// 앱이 넣은 일정의 표시 주소 앞부분
+    public static let markerScheme = "fakuku-meeting"
+
     public static func marker(eventID: String) -> URL {
         let encoded = eventID.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "event"
         return URL(string: "fakuku-meeting://event/\(encoded)") ?? URL(string: "fakuku-meeting://event")!

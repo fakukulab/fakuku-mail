@@ -47,6 +47,10 @@ extension AppModel {
     @discardableResult
     func checkNewMail(only: String? = nil) async -> Bool {
         guard isSignedIn else { return false }
+        // S-056: 앱이 맥 캘린더에 넣은 회의가 Exchange 동기화로 또 들어왔으면 앱이 넣은 것을 지운다
+        if only == nil, !Store.isDemo, Prefs.bool(Prefs.calendarAddAccepted, true) {
+            MacCalendar.shared.removeSyncedDuplicates()
+        }
         var anyFresh = false
         for account in accounts.accounts where only == nil || account.id == only {
             let key = account.email.lowercased()
