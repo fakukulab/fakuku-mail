@@ -111,12 +111,15 @@ actor IMAPConnection {
         try await run(select: path, [.text(command)])
     }
 
-    /// 고른 폴더의 메일 수 (SELECT의 EXISTS)
-    /// 이미 고른 폴더면 NOOP로 새로 세고, 아니면 SELECT만 한다 (서버에 한 번만 묻는다)
-    func exists(in path: String) async throws -> Int {
-        let alreadySelected = selected == path && task != nil
-        _ = try await run(select: path, alreadySelected ? [.text("NOOP")] : [])
-        return selectedExists
+    /// 폴더의 최근 메일 `count`통. 폴더를 늘 새로 연다(SELECT): iCloud는 열어 둔 폴더에 다른 연결이 넣은 메일
+    /// (보낸 편지함 사본, 새 메일)을 NOOP로는 늦게 알려 준다. 돌려주는 `low`는 받은 가장 오래된 순번.
+    func latest(in path: String, count: Int, items: String) async throws -> (low: Int, reply: IMAPReply) {
+        if selected == path { selected = nil }
+        _ = try await run(select: path, [])
+        let top = selectedExists
+        guard top > 0 else { return (1, IMAPReply(untagged: [], text: "")) }
+        let low = max(1, top - count + 1)
+        return (low, try await run(select: path, "FETCH \(low):\(top) (\(items))"))
     }
 
     private func runLocked(select path: String?, _ parts: [IMAPPart]) async throws -> IMAPReply {

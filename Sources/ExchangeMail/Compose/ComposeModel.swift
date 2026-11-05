@@ -225,6 +225,8 @@ final class ComposeModel {
         finished = true
         let sentTo = [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
         app.addressBook.noteSent(sentTo, me: account(app)?.email)
+        // 보낸 편지함을 보고 있으면 바로 새로 고쳐 방금 보낸 메일이 보이게
+        if app.selectedFolder?.kind == "sentitems" { Task { await app.refresh() } }
         if let id = savedDraftID {
             try? await service(app).deleteMessage(id: id)
             savedDraftID = nil

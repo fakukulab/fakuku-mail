@@ -70,12 +70,13 @@ final class IMAPMailService: MailService {
         try await run(select: path, [.text(command)])
     }
 
-    private func exists(in path: String) async throws -> Int {
+    /// 폴더의 첫 쪽 (늘 새로 연 폴더에서, 한 연결로)
+    private func latest(in path: String) async throws -> (low: Int, reply: IMAPReply) {
         let i = pick(for: path)
         load[i] += 1
         selectedOn[i] = path
         defer { load[i] -= 1 }
-        return try await pool[i].exists(in: path)
+        return try await pool[i].latest(in: path, count: Self.pageSize, items: IMAP.summaryItems)
     }
 
     /// 계정 추가 때: 연결해서 로그인되는지 본다
@@ -200,8 +201,9 @@ final class IMAPMailService: MailService {
             return MessagePage(messages: try await fetch(path: path, uids: Array(uids.suffix(Self.pageSize))),
                                nextLink: nil, serverFiltered: false)
         }
-        let count = try await exists(in: path)
-        return try await page(folderID: folderID, path: path, top: count)
+        let (low, reply) = try await latest(in: path)
+        return MessagePage(messages: summaries(reply, path: path), nextLink: pageLink(folderID: folderID, below: low - 1),
+                           serverFiltered: false)
     }
 
     func nextPage(_ link: String) async throws -> MessagePage {
