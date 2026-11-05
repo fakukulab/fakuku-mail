@@ -212,6 +212,8 @@ struct MessageHeader: View {
                                        open: { Task { await model.openAttachment(a, messageID: message.id) } },
                                        save: { Task { await model.save(attachment: a, messageID: message.id) } })
                             .onDrag { model.dragProvider(for: a, messageID: message.id) }
+                            // 끌기 전에 내용을 받아 둔다 (끌 때 받으면 놓는 쪽과 서로 기다려 멈춘다)
+                            .onHover { if $0 { model.warmAttachment(a, messageID: message.id) } }
                     }
                 }
                 if attachments.count > 1 {

@@ -45,25 +45,42 @@ extension AppModel {
         NSWorkspace.shared.open(url)
     }
 
-    /// 첨부 칩을 Finder로 끌 때 (S-035): NFC 이름의 파일을 넘긴다.
+    /// 첨부 칩을 끌 때 (S-035): NFC 이름의 파일을 넘긴다. Finder에 놓으면 저장, 작성 창에 놓으면 첨부.
+    /// 놓는 쪽은 메인 스레드를 멈추고 파일을 기다리므로, 여기서 서버에 물으면 서로 기다리며 앱이 멈춘다(무지개 휠).
+    /// 그래서 이미 받아 둔 내용만 넘긴다: 메일을 열 때(`warmAttachments`)와 카드에 마우스를 올릴 때 미리 받는다.
     func dragProvider(for attachment: FileAttachment, messageID: String? = nil) -> NSItemProvider {
-        // 파일 주소를 놓는 순간에 만든다: 내용이 아직 없으면(큰 첨부, 처음 끌기) 그때 서버에서 받아 임시 파일로 쓴다.
-        // 작성 창에 놓으면 첨부가 되고(새 메시지, 답장), Finder·데스크톱에 놓으면 파일로 저장된다.
-        let provider = NSItemProvider()
-        provider.suggestedName = FilenameEncoder.normalize(attachment.name)
-        let messageID = messageID ?? detail?.id
-        provider.registerObject(ofClass: NSURL.self, visibility: .all) { [weak self] completion in
-            Task { @MainActor in
-                guard let self, let full = await self.loadedAttachment(attachment, messageID: messageID),
-                      let url = self.previewFile(for: full) else {
-                    completion(nil, CocoaError(.fileReadUnknown))
-                    return
-                }
-                completion(url as NSURL, nil)
-            }
-            return nil
+        // 카드가 가진 것보다 본문 목록에 이미 받아 둔 내용이 있으면 그것을
+        let current = detailAttachments.first { $0.id == attachment.id && $0.data != nil } ?? attachment
+        guard current.data != nil, let url = previewFile(for: current), let provider = NSItemProvider(contentsOf: url) else {
+            warmAttachment(attachment, messageID: messageID)
+            noticeMessage = L("\(attachment.name)을(를) 받는 중입니다. 잠시 뒤 다시 끌어 주세요.")
+            return NSItemProvider()
         }
+        provider.suggestedName = FilenameEncoder.normalize(attachment.name)
         return provider
+    }
+
+    /// 첨부 내용을 뒤에서 조용히 받아 둔다 (끌기를 바로 할 수 있게). 이미 있거나 받는 중이면 하지 않는다.
+    func warmAttachment(_ attachment: FileAttachment, messageID: String? = nil) {
+        guard attachment.data == nil, !(attachment.odataType ?? "").hasSuffix("referenceAttachment"),
+              !detailAttachments.contains(where: { $0.id == attachment.id && $0.data != nil }),
+              !warmingAttachments.contains(attachment.id) else { return }
+        warmingAttachments.insert(attachment.id)
+        Task {
+            _ = await loadedAttachment(attachment, messageID: messageID, quiet: true)
+            warmingAttachments.remove(attachment.id)
+        }
+    }
+
+    /// 메일을 열면 작은 첨부(하나 10MB, 모두 30MB까지)를 차례로 받아 둔다
+    func warmAttachments(_ list: [FileAttachment], messageID: String) {
+        var budget = 30 * 1024 * 1024
+        for a in list where a.isInline != true && a.data == nil {
+            let size = a.size ?? Int.max
+            guard size <= 10 * 1024 * 1024, size <= budget else { continue }
+            budget -= size
+            warmAttachment(a, messageID: messageID)
+        }
     }
 
     /// 메시지 > 첨부 훑어보기 (⌘Y): 첫 첨부

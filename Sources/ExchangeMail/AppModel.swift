@@ -251,6 +251,8 @@ final class AppModel {
     var errorMessage: String?
     /// 오류가 아닌 알림 (구독 취소 완료 등)
     var noticeMessage: String?
+    /// 뒤에서 받는 중인 첨부 id (끌기용 미리 받기)
+    @ObservationIgnored var warmingAttachments = Set<String>()
     /// 마지막 회의 응답 뒤 일정 확인 결과 (회의 막대의 '일정에서 보기')
     var meetingCheck: MeetingCheck?
     /// Siri·단축어가 연 새 메일 (ContentView가 작성 창을 연다)
@@ -606,6 +608,7 @@ final class AppModel {
                 detailAttachments = list
                 detailBody = MailContent.displayBody(m.body, attachments: list)
                 updateMenu()
+                warmAttachments(list, messageID: id)   // 끌어서 첨부·저장이 바로 되게
             }
         } catch let error as GraphError where error.status == 404 {
             // 목록에는 있지만 서버에는 없다: 다른 기기·Outlook·규칙이 옮겼거나(옮기면 id가 바뀐다) 지웠다.
@@ -842,7 +845,8 @@ final class AppModel {
 
     /// 내용이 있는 첨부. Graph 첨부 목록은 큰 파일과 첨부된 메일(itemAttachment)의 내용을 빼고 주므로,
     /// 열기·저장·전달할 때 `$value`로 받아 채운다. 받은 내용은 본문 첨부 목록에도 넣어 다시 받지 않는다.
-    func loadedAttachment(_ a: FileAttachment, messageID: String? = nil) async -> FileAttachment? {
+    /// `quiet`: 뒤에서 미리 받을 때는 실패해도 오류 창을 띄우지 않는다.
+    func loadedAttachment(_ a: FileAttachment, messageID: String? = nil, quiet: Bool = false) async -> FileAttachment? {
         if a.data != nil { return a }
         if (a.odataType ?? "").hasSuffix("referenceAttachment") {
             errorMessage = L("\(a.name)은(는) OneDrive·SharePoint 링크로 붙인 파일입니다. Outlook 웹에서 열어 주세요.")
@@ -859,6 +863,8 @@ final class AppModel {
                                       contentBytes: data.base64EncodedString(), odataType: a.odataType)
             if let i = detailAttachments.firstIndex(where: { $0.id == a.id }) { detailAttachments[i] = full }
             return full
+        } catch where quiet {
+            return nil
         } catch let error as GraphError where error.status == 404 {
             // 메일이 다른 기기·규칙으로 옮겨졌거나 지워졌다: 서버 오류 원문 대신 알기 쉽게, 목록은 새로 고친다
             errorMessage = L("\(a.name)을(를) 찾을 수 없습니다. 메일이 다른 곳에서 옮겨졌거나 지워졌을 수 있어 목록을 새로 고칩니다.")
