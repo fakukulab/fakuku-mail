@@ -181,3 +181,8 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: 받는 사람 칸은 시스템 토큰 칸 NSTokenField (`Compose/RecipientField.swift`). 토큰 모양·⌄ 메뉴·자동완성·줄 바꿈을
   시스템이 한다. 높이는 `sizeThatFits`에서 셀 크기로만 알려 준다.
 - 규칙: 입력 칸과 AppKit 기반 컨트롤을 섞는 사용자 Layout은 만들지 않는다. 토큰 입력은 NSTokenField.
+
+## 2026-11-05 사이드바 구역 이름의 ⌄·새 폴더 단추가 펼치고 접을 때 좌우로 움직임
+- 원인: 시스템 설정 "스크롤 막대 보기: 항상"이면, 구역을 펼쳐 목록이 길어질 때만 스크롤 막대가 생기고 그 폭만큼 줄이 좁아진다.
+  줄 오른쪽 끝에 붙은 단추가 그만큼 왼쪽으로 밀렸다. `.scrollIndicators(.visible)`은 사이드바 List에 듣지 않았다.
+- 고침: 사이드바의 NSScrollView 막대를 오버레이로 (`overlayScrollers()`, UI/WindowBehavior.swift). 막대가 내용 위에 겹쳐 폭이 바뀌지 않는다.
