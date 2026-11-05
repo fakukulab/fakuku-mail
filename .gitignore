@@ -7,3 +7,4 @@ xcuserdata/
 .env*
 /shots/
 ExchangeMail-source.zip
+/dist/

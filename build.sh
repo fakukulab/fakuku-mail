@@ -83,7 +83,10 @@ if [[ -z "$client_id" && -f "$here/Config/azure-client-id.txt" ]]; then
 fi
 [[ "$client_id" =~ ^[0-9A-Fa-f-]*$ ]] || { echo "Config/azure-client-id.txt: 클라이언트 ID 형식이 아닙니다"; exit 1; }
 [[ -n "$client_id" ]] || echo "warning: Azure 클라이언트 ID가 없습니다 (Config/azure-client-id.txt). 사용자가 직접 넣어야 로그인할 수 있습니다."
-sed -e "s/__BUILD__/$(date +%Y%m%d%H%M)/" -e "s/__AZURE_CLIENT_ID__/$client_id/" "$here/Info.plist.in" > "$app/Contents/Info.plist"
+# 버전: 저장소의 VERSION 파일 (배포할 때 tools/release.sh가 같은 값을 쓴다)
+version=$(tr -d '[:space:]' < "$here/VERSION" 2>/dev/null || echo 0.0.0)
+sed -e "s/__BUILD__/$(date +%Y%m%d%H%M)/" -e "s/__VERSION__/$version/" -e "s/__AZURE_CLIENT_ID__/$client_id/" \
+  "$here/Info.plist.in" > "$app/Contents/Info.plist"
 # The icon: Icon/AppIcon.icon -> Resources/Assets.car + AppIcon.icns, rebuilt when it changed.
 if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   car="$here/Resources/Assets.car"

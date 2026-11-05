@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 배포용(Developer ID + 강화된 런타임) 권한. 강화된 런타임에서는 개인 정보 접근을 여기 적어야 묻는 창이 뜬다.
+     샌드박스는 쓰지 않는다 (Exchange·iCloud·Gmail 서버와 바로 통신, 사용자가 고른 파일 가져오기·내보내기). -->
+<plist version="1.0">
+<dict>
+  <!-- 수락한 회의를 맥 캘린더에 (S-056) -->
+  <key>com.apple.security.personal-information.calendars</key><true/>
+  <!-- 메일 머리글 주소의 연락처 카드, 보낸 사람을 연락처에 -->
+  <key>com.apple.security.personal-information.addressbook</key><true/>
+</dict>
+</plist>
