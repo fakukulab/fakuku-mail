@@ -253,6 +253,8 @@ final class AppModel {
     var noticeMessage: String?
     /// 뒤에서 받는 중인 첨부 id (끌기용 미리 받기)
     @ObservationIgnored var warmingAttachments = Set<String>()
+    /// 마지막으로 마우스를 올린 첨부 카드 (첨부, 메일 id, 때). 작성 창이 빈 끌기를 받으면 이것을 넣는다.
+    @ObservationIgnored var dragCandidate: (attachment: FileAttachment, messageID: String, at: Date)?
     /// 마지막 회의 응답 뒤 일정 확인 결과 (회의 막대의 '일정에서 보기')
     var meetingCheck: MeetingCheck?
     /// Siri·단축어가 연 새 메일 (ContentView가 작성 창을 연다)

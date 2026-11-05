@@ -108,7 +108,15 @@ struct ComposeView: View {
         // 파일 주소를 직접 꺼낸다: SwiftUI의 dropDestination(for: URL)은 Finder에서 끈 파일은 받지만
         // 받은 메일의 첨부 카드(앱 안에서 끈 것)는 꺼내지 못했다.
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
-            Self.receiveFiles(providers) { compose.addFiles($0) }
+            if Self.receiveFiles(providers, add: { compose.addFiles($0) }) { return true }
+            // 내용이 하나도 없는 끌기: 받은 메일의 첨부 카드를 끌면 그렇게 올 때가 있다. 마우스를 올렸던 그 첨부를 넣는다.
+            // (글자나 다른 앱의 끌기처럼 내용이 있는 것에는 쓰지 않는다)
+            guard !providers.isEmpty, providers.allSatisfy({ $0.registeredTypeIdentifiers.isEmpty }) else { return false }
+            let app = model
+            Task {
+                if let url = await app.droppedAttachmentFile() { compose.addFiles([url]) }
+            }
+            return !providers.isEmpty
         }
         .overlay {
             if dropTargeted {

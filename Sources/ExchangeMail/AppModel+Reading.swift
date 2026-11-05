@@ -91,6 +91,15 @@ extension AppModel {
         return provider
     }
 
+    /// 작성 창에 파일 없는 끌기가 놓였을 때: 방금(1분 안) 마우스를 올린 받은 메일의 첨부를 받아 파일로 돌려준다.
+    /// 놓기가 끝난 뒤에 부르므로 서버를 기다려도 멈추지 않는다.
+    func droppedAttachmentFile() async -> URL? {
+        guard let c = dragCandidate, Date().timeIntervalSince(c.at) < 60 else { return nil }
+        NSLog("FAKUKU drop: 끌기에 파일이 없어 마우스를 올린 첨부를 넣는다 %@", c.attachment.name)  // l10n: data
+        guard let full = await loadedAttachment(c.attachment, messageID: c.messageID) else { return nil }
+        return previewFile(for: full)
+    }
+
     /// 첨부 내용을 뒤에서 조용히 받아 둔다 (끌기를 바로 할 수 있게). 이미 있거나 받는 중이면 하지 않는다.
     func warmAttachment(_ attachment: FileAttachment, messageID: String? = nil) {
         guard attachment.data == nil, !(attachment.odataType ?? "").hasSuffix("referenceAttachment"),
