@@ -237,6 +237,9 @@ struct FolderSidebar: View {
                 }
             }
         }
+        // 스크롤 막대 자리를 늘 잡아 둔다: 구역을 펼쳐 목록이 길어질 때만 막대가 생기면 그 폭만큼 구역 이름의 단추가 밀린다
+        // (시스템 설정 > 스크롤 막대 보기: 항상)
+        .scrollIndicators(.visible, axes: .vertical)
         .contextMenu {
             Button(L("새 폴더…")) { newFolder(parent: nil) }
             Button(L("메일상자 가져오기…")) { model.importLocalMailbox() }
@@ -298,13 +301,14 @@ struct FolderRow: View {
     }
 }
 
-/// 사이드바 구역 이름 (맥 Mail): 오른쪽에 새 폴더 단추(계정만)와 ⌄·›. 접혀 있으면 읽지 않은 수.
-/// 마우스를 올릴 때 나타나게 하면 구역 머리글의 마우스 추적이 들락날락해 깜빡이므로 늘 보인다.
+/// 사이드바 구역 이름 (맥 Mail): 접혀 있으면 읽지 않은 수. 마우스를 올리면 새 폴더 단추(계정만)와 ⌄·›.
+/// 단추 자리는 늘 잡아 두고 보이기만 바꾼다 (자리가 바뀌면 옆 내용이 밀려 흔들린다).
 struct SidebarSectionHeader: View {
     let title: String
     @Binding var isExpanded: Bool
     var unread = 0
     var newFolder: (() -> Void)?
+    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: Space.sm) {
@@ -322,6 +326,7 @@ struct SidebarSectionHeader: View {
                 .buttonStyle(.borderless)
                 .help(L("새 폴더…"))
                 .accessibilityLabel(L("새 폴더…"))
+                .opacity(hovering ? 1 : 0)
             }
             Button {
                 isExpanded.toggle()
@@ -334,8 +339,10 @@ struct SidebarSectionHeader: View {
             .buttonStyle(.borderless)
             .help(isExpanded ? L("접기") : L("펼치기"))
             .accessibilityLabel(isExpanded ? L("접기") : L("펼치기"))
+            .opacity(hovering ? 1 : 0)
         }
         .foregroundStyle(.secondary)
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
     }
 }
