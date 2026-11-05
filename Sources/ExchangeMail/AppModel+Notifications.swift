@@ -27,12 +27,28 @@ extension AppModel {
         notificationPermission = await notifier.permission()
     }
 
-    /// 모든 계정의 받은 편지함을 보고 새 메일을 알린다 (M23: 계정마다 기준을 따로 둔다).
-    /// 앱이 뒤에 있어도 2분마다 불린다. 오류는 조용히 넘긴다.
-    func checkNewMail() async {
+    /// iCloud·Gmail 받은 편지함이 바뀌었다고 서버가 알렸다 (IDLE). 새 메일이면 알리고,
+    /// 다른 기기에서 읽거나 지운 것이면 사이드바 수와 보고 있는 목록을 고친다.
+    func mailboxChanged(accountID: String) {
         guard isSignedIn else { return }
+        Task {
+            let fresh = await checkNewMail(only: accountID)
+            guard !fresh else { return }   // 새 메일이면 checkNewMail이 이미 고쳤다
+            await loadFolders()
+            let ownerShowing = selectedFolderID.map { router.accountID(forFolder: $0) == accountID } ?? false
+            let showingInbox = (selectedFolder?.kind == "inbox" && ownerShowing) || selectedVirtual == .allInboxes
+            if showingInbox && searchText.isEmpty { await loadMessages(keepSelection: true) }
+        }
+    }
+
+    /// 모든 계정(또는 `only` 계정)의 받은 편지함을 보고 새 메일을 알린다 (M23: 계정마다 기준을 따로 둔다).
+    /// 앱이 뒤에 있어도 2분마다 불린다. iCloud·Gmail은 서버가 알릴 때도(IDLE). 오류는 조용히 넘긴다.
+    /// 새 메일이 있었으면 true.
+    @discardableResult
+    func checkNewMail(only: String? = nil) async -> Bool {
+        guard isSignedIn else { return false }
         var anyFresh = false
-        for account in accounts.accounts {
+        for account in accounts.accounts where only == nil || account.id == only {
             let key = account.email.lowercased()
             var tracker = loadTracker(key)
             let inboxID = accountFolders[account.id]?.first { $0.kind == "inbox" }?.id ?? "inbox"
@@ -53,6 +69,7 @@ extension AppModel {
             let showingInbox = selectedFolder?.kind == "inbox" || selectedVirtual == .allInboxes
             if showingInbox && searchText.isEmpty { await loadMessages(keepSelection: true) }
         }
+        return anyFresh
     }
 
     /// Dock 배지 = 모든 계정의 받은 편지함 읽지 않은 수의 합. 설정에서 끄면 지운다.

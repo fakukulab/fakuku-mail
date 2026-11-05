@@ -167,6 +167,55 @@ actor IMAPConnection {
         }
     }
 
+    // MARK: 새 메일 기다리기 (IDLE, RFC 2177)
+
+    /// 폴더를 고르고 IDLE로 서버의 알림을 기다린다. 새 메일·지움·표시 바뀜이 오면 true,
+    /// `wait`초 동안 아무 일도 없으면 false (서버가 30분 안에 끊으므로 그 전에 돌아와 다시 부른다).
+    /// 이 연결은 IDLE 전용으로 쓴다 (기다리는 동안 다른 명령을 보낼 수 없다).
+    func idle(in path: String, wait: TimeInterval) async throws -> Bool {
+        await acquire()
+        defer { release() }
+        try await connectIfNeeded()
+        // 늘 새로 연다: 이미 고른 폴더에는 다른 연결이 넣은 메일을 늦게 알려 주는 서버가 있다 (iCloud)
+        selected = nil
+        _ = try await runLocked(select: path, [])
+        guard let task else { throw IMAPError.closed }
+        let tag = nextTag()
+        try await task.write(Data("\(tag) IDLE\r\n".utf8), timeout: 60)
+        // "+ idling"
+        waitPlus: while true {
+            switch try await readResponse() {
+            case .continuation: break waitPlus
+            case .untagged: continue
+            case .tagged(_, let status, let text):
+                // IDLE을 모르는 서버
+                throw status == "OK" ? IMAPError.unsupported : IMAPError.server(text)
+            }
+        }
+        var changed = false
+        do {
+            waiting: while true {
+                guard case .untagged(let values) = try await readResponse(timeout: wait) else { continue }
+                let word = values.count >= 2 ? values[1].text?.uppercased() : nil
+                if ["EXISTS", "EXPUNGE", "FETCH", "RECENT"].contains(word ?? "") {
+                    changed = true
+                    break waiting
+                }
+                if values.first?.text?.uppercased() == "BYE" { disconnect(); throw IMAPError.closed }
+            }
+        } catch let error as URLError where error.code == .timedOut {
+            // 기다린 시간이 다 됐다: 연결을 새로 해서 다시 기다린다 (시간이 다 된 연결은 믿지 않는다)
+            disconnect()
+            return false
+        }
+        // 알림을 받았다: DONE을 보내고 IDLE을 끝낸다
+        try await task.write(Data("DONE\r\n".utf8), timeout: 60)
+        while true {
+            if case .tagged(let t, _, _) = try await readResponse(), t == tag { break }
+        }
+        return changed
+    }
+
     func disconnect() {
         task?.cancel()
         task = nil
@@ -230,7 +279,7 @@ actor IMAPConnection {
         }
     }
 
-    private func readResponse() async throws -> IMAPResponse {
+    private func readResponse(timeout: TimeInterval = 120) async throws -> IMAPResponse {
         while true {
             // 버퍼가 필요한 크기가 되기 전에는 다시 훑지 않는다 (큰 메일의 {n} 덩어리)
             if buffer.count >= needed {
@@ -253,7 +302,7 @@ actor IMAPConnection {
                 }
             }
             guard let task else { throw IMAPError.closed }
-            let (data, atEOF) = try await task.readData(ofMinLength: 1, maxLength: 1 << 20, timeout: 120)
+            let (data, atEOF) = try await task.readData(ofMinLength: 1, maxLength: 1 << 20, timeout: timeout)
             if let data, !data.isEmpty { buffer.append(data) } else if atEOF { disconnect(); throw IMAPError.closed }
         }
     }

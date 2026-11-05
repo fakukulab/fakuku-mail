@@ -16,6 +16,7 @@ final class IMAPMailService: MailService {
     private static let poolSize = 3
     /// 보내기 (SMTP)
     private let smtp: SMTPClient
+    private let password: String
     /// 목록에서 본 메일의 Message-ID (옮긴 뒤 새 UID를 찾는 데 쓴다. 서버에 다시 묻지 않게)
     private var headerMemo: [String: String] = [:]
     /// 옮긴 메일의 임시 UID (음수, 겹치지 않게)
@@ -40,6 +41,7 @@ final class IMAPMailService: MailService {
         }
         load = Array(repeating: 0, count: Self.poolSize)
         smtp = SMTPClient(config: config, password: password)
+        self.password = password
     }
 
     // MARK: 연결 고르기
@@ -87,7 +89,42 @@ final class IMAPMailService: MailService {
     }
 
     func close() async {
+        watchTask?.cancel()
+        watchTask = nil
+        await idleConnection.logout()
         for c in pool { await c.logout() }
+    }
+
+    // MARK: 새 메일 즉시 알림 (IDLE)
+
+    /// 받은 편지함을 지켜보는 연결 (IDLE 전용)
+    private lazy var idleConnection = IMAPConnection(host: config.imapHost, port: config.imapPort,
+                                                      username: config.username, password: password)
+    private var watchTask: Task<Void, Never>?
+
+    /// 받은 편지함에 새 메일이 오거나(다른 기기에서 읽거나 지워도) 바뀌면 `onChange`를 부른다.
+    /// 서버가 IDLE을 모르면 그만둔다 (앱의 2분 확인이 대신한다). 연결이 끊기면 조금 기다렸다 다시 붙는다.
+    func startWatching(onChange: @escaping @MainActor () -> Void) {
+        guard watchTask == nil else { return }
+        let connection = idleConnection
+        watchTask = Task { @MainActor in
+            var failures = 0
+            while !Task.isCancelled {
+                do {
+                    // 서버는 30분 안에 IDLE을 끊는다: 25분마다 새로 건다
+                    if try await connection.idle(in: "INBOX", wait: 25 * 60) { onChange() }  // l10n: data
+                    failures = 0
+                } catch IMAPError.unsupported {
+                    return
+                } catch {
+                    if Task.isCancelled { return }
+                    failures += 1
+                    // 오프라인·서버 오류: 30초, 1분, 2분 … 최대 5분 기다렸다 다시
+                    let delay = min(300, 30 * (1 << min(failures - 1, 4)))
+                    try? await Task.sleep(for: .seconds(delay))
+                }
+            }
+        }
     }
 
     // MARK: id

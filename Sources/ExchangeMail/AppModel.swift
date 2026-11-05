@@ -292,6 +292,9 @@ final class AppModel {
                 let imapService = IMAPMailService(accountID: auth.accountKey, config: imap,
                                                   password: AccountStore.password(for: auth.accountKey))
                 imapService.warmUp()
+                // 새 메일 즉시 알림 (IDLE): 받은 편지함이 바뀌면 바로 확인한다
+                let accountID = auth.accountKey
+                imapService.startWatching { box.model?.mailboxChanged(accountID: accountID) }
                 remote = imapService
             } else {
                 remote = GraphMailService(auth: auth)
