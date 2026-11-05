@@ -72,6 +72,13 @@ extension AppModel {
             thread = []
             return
         }
+        // 서버에 묻기 전에 목록에 있는 같은 대화의 메일로 먼저 그린다 (서버 답이 오면 보낸 답장 등이 채워진다)
+        let cached = conversationIDs.allSatisfy { threadCache[$0].map { Date().timeIntervalSince($0.at) < 60 } ?? false }
+        if !cached {
+            let local = messages.filter { m in m.conversationId.map(conversationIDs.contains) ?? false }
+            let fresh = Conversations.chronological(local)
+            if fresh.count > 1, !thread.contains(where: { $0.id == id }) || thread.count < fresh.count { thread = fresh }
+        }
         do {
             var list: [MailMessage] = []
             var seen = Set<String>()

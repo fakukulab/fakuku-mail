@@ -115,12 +115,15 @@ final class IMAPMailService: MailService {
     func startWatching(onChange: @escaping @MainActor () -> Void) {
         guard watchTask == nil else { return }
         let connection = idleConnection
-        watchTask = Task { @MainActor in
+        watchTask = Task { @MainActor [weak self] in
             var failures = 0
             while !Task.isCancelled {
                 do {
                     // 서버는 30분 안에 IDLE을 끊는다: 25분마다 새로 건다
-                    if try await connection.idle(in: "INBOX", wait: 25 * 60) { onChange() }  // l10n: data
+                    if try await connection.idle(in: "INBOX", wait: 25 * 60) {  // l10n: data
+                        self?.recentMemo["INBOX"] = nil   // l10n: data
+                        onChange()
+                    }
                     failures = 0
                 } catch IMAPError.unsupported {
                     return
@@ -188,6 +191,7 @@ final class IMAPMailService: MailService {
         }
         kinds = newKinds
         allMailPath = newAllMail
+        warmRecent()
         // 읽지 않은 수와 전체 수: 폴더마다 STATUS 한 번, 연결 여러 개로 나눠 동시에
         let paths = out.map { IMAP.parseID($0.id)?.path }
         // (작업 그룹은 Swift 6.2 영역 검사기가 해석하지 못해 빌드가 멈춘다: 폴더마다 Task를 띄우고 차례로 기다린다)
@@ -396,45 +400,35 @@ final class IMAPMailService: MailService {
     func conversation(id: String) async throws -> [MailMessage] {
         guard let conv = IMAP.parseConversationID(id), conv.account == accountID else { return [] }
         if kinds.isEmpty { _ = try await folders() }
-        // Gmail: 대화 번호로 받은 편지함·보낸 편지함·전체 보관함에서 찾는다. 같은 메일이 여러 라벨에 있으면 앞의 것만.
-        if conv.root.hasPrefix("gm-"), let thread = Int(conv.root.dropFirst(3)) {
-            let sent = kinds.first { $0.value == "sentitems" }?.key
-            let paths = (["INBOX", sent, allMailPath] as [String?]).compactMap { $0 }  // l10n: data
-            let tasks = paths.map { path in
-                Task { () -> [MailMessage] in
-                    guard let uids = try? await self.searchUIDs(path: path, criteria: [.text("X-GM-THRID \(thread)")]),
-                          !uids.isEmpty else { return [] }
-                    return (try? await self.fetch(path: path, uids: Array(uids.suffix(200)))) ?? []
-                }
-            }
-            var all: [MailMessage] = []
-            for task in tasks { all += await task.value }
-            return Self.uniqueByMessageID(all)
-        }
+        // 받은 편지함·보낸 편지함·보관의 최근 메일 머리글(미리 받아 5분 기억)에서 같은 대화를 고른다: 대개 서버에 묻지 않는다
         var paths = ["INBOX"] + kinds.filter { ["sentitems", "archive"].contains($0.value) }.map(\.key)  // l10n: data
         for path in recentMemo.keys where !paths.contains(path) && recentMemo[path]?.list.contains(where: { $0.conversationId == id }) == true {
             paths.append(path)   // 목록에서 이 대화를 본 다른 폴더
         }
-        let root = conv.root
-        let criteria: [IMAPPart] = [.text("OR OR HEADER Message-ID "), .literalOrQuoted(root),
-                                    .text(" HEADER References "), .literalOrQuoted(root),
-                                    .text(" HEADER In-Reply-To "), .literalOrQuoted(root)]
-        let searched = Task { (try? await self.searchFolders(criteria, limit: 200).messages) ?? [] }
         let scans = paths.map { path in Task { await self.recent(path) } }
-        var seen = Set<String>()
-        var out: [MailMessage] = []
-        for task in scans {
-            for m in await task.value where m.conversationId == id && seen.insert(m.id).inserted { out.append(m) }
+        var all: [MailMessage] = []
+        for task in scans { all += await task.value.filter { $0.conversationId == id } }
+        // Gmail: 전체 보관함에서 대화 번호로 더 오래된 메일도 (한 번 묻는다). 같은 메일은 받은·보낸 편지함 것을 남긴다.
+        if conv.root.hasPrefix("gm-"), let thread = Int(conv.root.dropFirst(3)), let allMailPath,
+           let uids = try? await searchUIDs(path: allMailPath, criteria: [.text("X-GM-THRID \(thread)")]), !uids.isEmpty {
+            all += (try? await fetch(path: allMailPath, uids: Array(uids.suffix(200)))) ?? []
         }
-        for m in await searched.value where m.conversationId == id && seen.insert(m.id).inserted { out.append(m) }
-        return out
+        return Self.uniqueByMessageID(all)
     }
 
-    /// 폴더의 최근 메일 요약 300통 (대화 찾기용, 1분 기억)
+    /// 폴더의 최근 메일 요약 300통 (대화 찾기용). 5분 기억하고, 새 메일 알림(IDLE)·보내기 때 지운다.
     private var recentMemo: [String: (at: Date, list: [MailMessage])] = [:]
 
+    /// 대화 찾기에 쓸 머리글을 미리 받아 둔다 (메일을 처음 열 때 기다리지 않게)
+    private func warmRecent() {
+        let paths = ["INBOX"] + kinds.filter { ["sentitems", "archive"].contains($0.value) }.map(\.key)  // l10n: data
+        for path in paths where recentMemo[path].map({ Date().timeIntervalSince($0.at) > 240 }) ?? true {
+            Task { _ = await self.recent(path) }
+        }
+    }
+
     private func recent(_ path: String) async -> [MailMessage] {
-        if let m = recentMemo[path], Date().timeIntervalSince(m.at) < 60 { return m.list }
+        if let m = recentMemo[path], Date().timeIntervalSince(m.at) < 300 { return m.list }
         guard let result = try? await latest(in: path, count: 300) else { return recentMemo[path]?.list ?? [] }
         let list = summaries(result.reply, path: path)
         recentMemo[path] = (Date(), list)
