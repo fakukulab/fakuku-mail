@@ -859,6 +859,11 @@ final class AppModel {
                                       contentBytes: data.base64EncodedString(), odataType: a.odataType)
             if let i = detailAttachments.firstIndex(where: { $0.id == a.id }) { detailAttachments[i] = full }
             return full
+        } catch let error as GraphError where error.status == 404 {
+            // 메일이 다른 기기·규칙으로 옮겨졌거나 지워졌다: 서버 오류 원문 대신 알기 쉽게, 목록은 새로 고친다
+            errorMessage = L("\(a.name)을(를) 찾을 수 없습니다. 메일이 다른 곳에서 옮겨졌거나 지워졌을 수 있어 목록을 새로 고칩니다.")
+            refreshAfterNotFound()
+            return nil
         } catch {
             report(error, quietIfOffline: false)
             if errorMessage == nil { errorMessage = L("첨부를 받지 못했습니다: \(error.localizedDescription)") }

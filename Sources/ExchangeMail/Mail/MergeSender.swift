@@ -92,7 +92,9 @@ final class MergeSender {
             listUnsubscribe: options.unsubscribeHeader && !me.isEmpty
                 ? "mailto:\(me)?subject=\((L("구독 취소 Unsubscribe")).addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unsubscribe")"
                 : nil)
-        let plan = try ComposeSender.prepare(input, options: ComposeSender.defaultOptions(), forDraft: false)
+        // iCloud·Gmail(SMTP)은 나눠 올리는 길이 없으니 MIME 하나에 다 넣는다 (Graph만 4MB 한도)
+        let limit = app.accounts.active?.imap != nil ? Int.max : MIMEBuilder.graphRequestLimit
+        let plan = try ComposeSender.prepare(input, options: ComposeSender.defaultOptions(), forDraft: false, requestLimit: limit)
         guard plan.uploads.isEmpty else { throw MergeProblem.tooLarge }
         return plan.mime
     }

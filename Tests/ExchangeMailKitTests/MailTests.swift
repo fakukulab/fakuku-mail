@@ -1015,3 +1015,12 @@ func adminConsent() throws {
     #expect(OAuth.needsAdminConsent("AADSTS90094: Admin approval required"))
     #expect(!OAuth.needsAdminConsent("AADSTS50126: Invalid username or password"))
 }
+
+// 배포 전 점검: 첨부 id의 / + 를 경로에서 깨지지 않게
+@Test func graphPathEncodesSlashAndPlus() {
+    #expect(GraphPath.segment("AAMkAD/x+y=") == "AAMkAD%2Fx%2By=")
+    #expect(GraphPath.segment("inbox") == "inbox")
+    #expect(URLComponents(string: "https://graph.microsoft.com/v1.0/me/messages/" + GraphPath.segment("a/b") + "/$value")?.percentEncodedPath
+            == "/v1.0/me/messages/a%2Fb/$value")
+    #expect(GraphPath.segment("받은") == "%EB%B0%9B%EC%9D%80")
+}

@@ -108,7 +108,7 @@ final class AccountRouter: MailService {
         return page
     }
 
-    func categories() async throws -> [String] { try await activeService().categories() }
+    func categories() async throws -> [String] { (try? await exchangeService().categories()) ?? [] }
 
     /// 모든 계정에 묻는 질문. 계정 서비스를 클로저에 넘기면 Swift 6가 경합 위험으로 막으므로 질문을 값으로 넘긴다.
     private enum Query {
@@ -272,15 +272,23 @@ final class AccountRouter: MailService {
     func event(id: String) async throws -> MailEvent { try await forEvent(id).event(id: id) }
     func meetingCheck(eventID: String) async throws -> MeetingCheck { try await forEvent(eventID).meetingCheck(eventID: eventID) }
 
-    // MARK: 사서함 설정 (지금 계정)
+    // MARK: 사서함 설정 (Exchange 계정)
 
-    func rules() async throws -> [MessageRule] { try await activeService().rules() }
-    func createRule(_ rule: MessageRule) async throws -> MessageRule { try await activeService().createRule(rule) }
-    func setRule(id: String, enabled: Bool) async throws { try await activeService().setRule(id: id, enabled: enabled) }
-    func deleteRule(id: String) async throws { try await activeService().deleteRule(id: id) }
-    func automaticReplies() async throws -> AutomaticReplies { try await activeService().automaticReplies() }
+    /// 규칙·자동 응답은 Exchange에만 있다: 지금 계정이 Exchange면 그 계정, 아니면 첫 Exchange 계정
+    /// (지금 계정이 iCloud·Gmail이면 설정의 규칙·자동 응답 탭이 비거나 오류가 나지 않게).
+    private func exchangeService() throws -> any MailService {
+        if let a = store.active, a.imap == nil { return a.service }
+        if let a = store.accounts.first(where: { $0.imap == nil }) { return a.service }
+        throw IMAPError.unsupported
+    }
+
+    func rules() async throws -> [MessageRule] { try await exchangeService().rules() }
+    func createRule(_ rule: MessageRule) async throws -> MessageRule { try await exchangeService().createRule(rule) }
+    func setRule(id: String, enabled: Bool) async throws { try await exchangeService().setRule(id: id, enabled: enabled) }
+    func deleteRule(id: String) async throws { try await exchangeService().deleteRule(id: id) }
+    func automaticReplies() async throws -> AutomaticReplies { try await exchangeService().automaticReplies() }
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws {
-        try await activeService().setAutomaticReplies(settings)
+        try await exchangeService().setAutomaticReplies(settings)
     }
 }
 

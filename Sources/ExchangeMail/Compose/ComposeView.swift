@@ -360,10 +360,12 @@ struct ComposeView: View {
             Button(L("파일 첨부"), systemImage: "paperclip") { attach() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .help(L("파일 첨부 (⇧⌘A)"))
+            // 나중에 보내기는 Exchange 서버가 한다: iCloud·Gmail 계정으로 쓸 때는 끈다
+            let canSchedule = compose.account(model)?.imap == nil
             Button(L("나중에 보내기…"), systemImage: "clock") { showSchedule = true }
                 .keyboardShortcut("d", modifiers: [.command, .shift, .option])
-                .disabled(compose.sending)
-                .help(L("나중에 보내기 (⌥⇧⌘D)"))
+                .disabled(compose.sending || !canSchedule)
+                .help(canSchedule ? L("나중에 보내기 (⌥⇧⌘D)") : L("나중에 보내기는 Exchange 계정에서만 할 수 있습니다"))
         }
         ToolbarItem(placement: .primaryAction) {
             Button {

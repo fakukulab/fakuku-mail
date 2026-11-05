@@ -188,3 +188,9 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 고침: 사이드바의 NSScrollView 막대를 오버레이로 (`overlayScrollers()`, UI/WindowBehavior.swift). 막대가 내용 위에 겹쳐 폭이 바뀌지 않는다.
 - 다시 (같은 날): 오버레이로 바꿔도 SwiftUI List가 줄 수가 바뀔 때 막대 모양을 되돌렸다 (녹화에서 굵은 막대가 그대로).
   사이드바는 `.scrollIndicators(.never)`로 막대를 그리지 않는다. 오버레이 고리는 목록 크기가 바뀔 때마다 다시 건다.
+
+## 2026-11-05 첨부를 열면 "메일 서버 오류 (404): The specified object was not found in the store."
+- 원인(가장 유력): Graph 주소에 메일·첨부 id를 그대로 넣었다. 첨부 id에는 `/`, `+`가 들어 있을 때가 있어 `/`가 경로를 나눴고,
+  서버는 없는 개체로 보고 404를 돌려줬다.
+- 고침: 경로에 넣는 모든 id를 `GraphPath.segment`로 퍼센트 인코딩 (MailService.swift). 첨부를 정말 못 찾으면
+  오류 원문 대신 "찾을 수 없습니다… 목록을 새로 고칩니다". GraphError 404의 문구도 한국어 안내로.

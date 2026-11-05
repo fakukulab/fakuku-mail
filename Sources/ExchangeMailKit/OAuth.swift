@@ -200,3 +200,16 @@ public enum GraphQuery {
         return Request(query: q, headers: h)
     }
 }
+
+/// Graph 주소의 경로 한 칸. 메일·첨부·폴더 id에는 `/`, `+`가 들어 있을 때가 있다:
+/// 그대로 넣으면 `/`가 경로를 나눠 서버가 404("The specified object was not found in the store")로 답한다.
+public enum GraphPath {
+    private static let allowed: CharacterSet = {
+        // ASCII만 (CharacterSet.alphanumerics는 한글도 넣는다)
+        CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~=")
+    }()
+
+    public static func segment(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    }
+}

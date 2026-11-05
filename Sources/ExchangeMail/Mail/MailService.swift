@@ -99,6 +99,7 @@ struct GraphError: LocalizedError {
         switch status {
         case 401: L("Microsoft 계정 인증이 거절되었습니다. 다시 로그인하세요.")
         case 403: L("이 작업에 필요한 권한이 없습니다 (Mail.ReadWrite, Mail.Send). 관리자 동의가 필요할 수 있습니다.")
+        case 404: L("서버에서 찾을 수 없습니다. 다른 기기나 규칙이 메일을 옮기거나 지웠을 수 있습니다. 목록을 새로 고쳐 주세요.")
         case 413: L("메일이 너무 큽니다. 조직의 메일 크기 한도를 넘었을 수 있습니다.")
         case 429: L("요청이 너무 많습니다. 잠시 뒤 다시 시도하세요.")
         default:
@@ -203,7 +204,7 @@ final class GraphMailService: MailService {
         var queue = all.filter { ($0.childFolderCount ?? 0) > 0 }.map { ($0.id, 1) }
         while !queue.isEmpty {
             let (parentID, level) = queue.removeFirst()
-            let childData = try await request("GET", "/me/mailFolders/\(parentID)/childFolders",
+            let childData = try await request("GET", "/me/mailFolders/\(GraphPath.segment(parentID))/childFolders",
                                               query: ["$top": "100", "$select": GraphQuery.folderSelect])
             let children = try decoder.decode(GraphList<MailFolder>.self, from: childData).value
             all += children
@@ -222,7 +223,7 @@ final class GraphMailService: MailService {
         var map: [String: String] = [:]
         for name in FolderOrder.wellKnown {
             // 보관 폴더가 없는 사서함도 있다. 실패한 이름은 건너뛴다.
-            if let data = try? await request("GET", "/me/mailFolders/\(name)", query: ["$select": "id"]),
+            if let data = try? await request("GET", "/me/mailFolders/\(GraphPath.segment(name))", query: ["$select": "id"]),
                let f = try? decoder.decode(IDOnly.self, from: data) {
                 map[f.id] = name
             }
@@ -234,7 +235,7 @@ final class GraphMailService: MailService {
     func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage {
         let searching = !(search ?? "").trimmingCharacters(in: .whitespaces).isEmpty
         let r = GraphQuery.messageList(search: search, filter: filter?.graphFilter(), oldestFirst: oldestFirst)
-        let data = try await request("GET", "/me/mailFolders/\(folderID)/messages", query: r.query, headers: r.headers)
+        let data = try await request("GET", "/me/mailFolders/\(GraphPath.segment(folderID))/messages", query: r.query, headers: r.headers)
         let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         return MessagePage(messages: list.value, nextLink: list.nextLink, serverFiltered: !searching)
     }
@@ -252,12 +253,12 @@ final class GraphMailService: MailService {
     }
 
     func message(id: String) async throws -> MailMessage {
-        let data = try await request("GET", "/me/messages/\(id)", query: ["$select": GraphQuery.detailSelect],
+        let data = try await request("GET", "/me/messages/\(GraphPath.segment(id))", query: ["$select": GraphQuery.detailSelect],
                                      headers: ["Prefer": "outlook.body-content-type=\"html\""])
         var m = try await decodedOffMain(MailMessage.self, from: data)
         // 회의 초대면 일정도 가져온다 (S-038). 보통 메일에는 이 확장을 쓰지 않는다.
         if m.isMeetingRequest {
-            let eventData = try? await request("GET", "/me/messages/\(id)", query: [
+            let eventData = try? await request("GET", "/me/messages/\(GraphPath.segment(id))", query: [
                 "$select": "id",
                 "$expand": "microsoft.graph.eventMessage/event($select=id,subject,start,end,location,isAllDay,responseStatus)",
             ])
@@ -267,13 +268,13 @@ final class GraphMailService: MailService {
     }
 
     func attachmentContent(messageID: String, attachmentID: String) async throws -> Data {
-        try await request("GET", "/me/messages/\(messageID)/attachments/\(attachmentID)/$value")
+        try await request("GET", "/me/messages/\(GraphPath.segment(messageID))/attachments/\(GraphPath.segment(attachmentID))/$value")
     }
 
     /// 첨부 목록. 내용(contentBytes)은 받지 않는다: 큰 파일까지 다 받으면 메일 하나 여는 데 수 MB가 오간다.
     /// 본문에 들어가는 인라인 그림만 내용을 함께(병렬로) 받는다. 파일은 열거나 저장할 때 받는다 (loadedAttachment).
     func attachments(messageID: String) async throws -> [FileAttachment] {
-        let data = try await request("GET", "/me/messages/\(messageID)/attachments",
+        let data = try await request("GET", "/me/messages/\(GraphPath.segment(messageID))/attachments",
                                      query: ["$select": "id,name,contentType,size,isInline"])
         var list = try await decodedOffMain(GraphList<FileAttachment>.self, from: data).value
         let inline = list.indices.filter { i in
@@ -285,7 +286,7 @@ final class GraphMailService: MailService {
         // 요청을 한꺼번에 띄우고(네트워크는 동시에 진행), 받은 순서대로 해석한다.
         let downloads = inline.map { i in
             let id = list[i].id
-            return (i, Task { try? await self.request("GET", "/me/messages/\(messageID)/attachments/\(id)") })
+            return (i, Task { try? await self.request("GET", "/me/messages/\(GraphPath.segment(messageID))/attachments/\(GraphPath.segment(id))") })
         }
         for (i, task) in downloads {
             if let data = await task.value, let full = try? await decodedOffMain(FileAttachment.self, from: data) {
@@ -298,12 +299,12 @@ final class GraphMailService: MailService {
     // MARK: 바꾸기
 
     func setRead(id: String, read: Bool) async throws {
-        _ = try await request("PATCH", "/me/messages/\(id)", body: try json(["isRead": read]))
+        _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(["isRead": read]))
     }
 
     func move(id: String, to destination: String) async throws -> String {
         struct IDOnly: Decodable { let id: String }
-        let data = try await request("POST", "/me/messages/\(id)/move", body: try json(["destinationId": destination]))
+        let data = try await request("POST", "/me/messages/\(GraphPath.segment(id))/move", body: try json(["destinationId": destination]))
         return (try? decoder.decode(IDOnly.self, from: data).id) ?? id
     }
 
@@ -323,7 +324,7 @@ final class GraphMailService: MailService {
     }
 
     func deleteMessage(id: String) async throws {
-        _ = try await request("DELETE", "/me/messages/\(id)")
+        _ = try await request("DELETE", "/me/messages/\(GraphPath.segment(id))")
     }
 
     /// 업로드 세션: 세션을 만들고, 받은 uploadUrl에 조각을 PUT한다. uploadUrl은 미리 인증된 주소라
@@ -339,7 +340,7 @@ final class GraphMailService: MailService {
             "contentType": attachment.mimeType,
             "isInline": false,
         ]
-        let data = try await request("POST", "/me/messages/\(id)/attachments/createUploadSession",
+        let data = try await request("POST", "/me/messages/\(GraphPath.segment(id))/attachments/createUploadSession",
                                      body: try json(["AttachmentItem": item]))
         let session = try decoder.decode(Session.self, from: data)
         guard let url = URL(string: session.uploadUrl) else { throw URLError(.badURL) }
@@ -382,19 +383,19 @@ final class GraphMailService: MailService {
 
     func setFlag(id: String, flagged: Bool) async throws {
         let body = try JSONEncoder().encode(["flag": flagged ? FollowupFlag.flagged : FollowupFlag.notFlagged])
-        _ = try await request("PATCH", "/me/messages/\(id)", body: body)
+        _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: body)
     }
 
     func copy(id: String, to destination: String) async throws {
-        _ = try await request("POST", "/me/messages/\(id)/copy", body: try json(["destinationId": destination]))
+        _ = try await request("POST", "/me/messages/\(GraphPath.segment(id))/copy", body: try json(["destinationId": destination]))
     }
 
     func setImportance(id: String, importance: String) async throws {
-        _ = try await request("PATCH", "/me/messages/\(id)", body: try json(["importance": importance]))
+        _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(["importance": importance]))
     }
 
     func mimeContent(id: String) async throws -> Data {
-        try await request("GET", "/me/messages/\(id)/$value")
+        try await request("GET", "/me/messages/\(GraphPath.segment(id))/$value")
     }
 
     func searchAll(_ text: String) async throws -> MessagePage {
@@ -408,7 +409,7 @@ final class GraphMailService: MailService {
         let r = folderID == nil
             ? GraphQuery.collect(filter: filter)
             : GraphQuery.messageList(search: nil, filter: filter, oldestFirst: false, top: 100)
-        let path = folderID.map { "/me/mailFolders/\($0)/messages" } ?? "/me/messages"
+        let path = folderID.map { "/me/mailFolders/\(GraphPath.segment($0))/messages" } ?? "/me/messages"
         let data = try await request("GET", path, query: r.query, headers: r.headers)
         let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
         let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
@@ -432,7 +433,7 @@ final class GraphMailService: MailService {
     }
 
     func scheduleDraft(id: String, at date: Date) async throws {
-        _ = try await request("PATCH", "/me/messages/\(id)", body: try json(ScheduledSend.patchBody(sendAt: date)))
+        _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(ScheduledSend.patchBody(sendAt: date)))
     }
 
     private let rulesPath = "/me/mailFolders/inbox/messageRules"
@@ -449,11 +450,11 @@ final class GraphMailService: MailService {
     }
 
     func setRule(id: String, enabled: Bool) async throws {
-        _ = try await request("PATCH", "\(rulesPath)/\(id)", body: try json(["isEnabled": enabled]))
+        _ = try await request("PATCH", "\(rulesPath)/\(GraphPath.segment(id))", body: try json(["isEnabled": enabled]))
     }
 
     func deleteRule(id: String) async throws {
-        _ = try await request("DELETE", "\(rulesPath)/\(id)")
+        _ = try await request("DELETE", "\(rulesPath)/\(GraphPath.segment(id))")
     }
 
     func automaticReplies() async throws -> AutomaticReplies {
@@ -467,13 +468,13 @@ final class GraphMailService: MailService {
     }
 
     func event(id: String) async throws -> MailEvent {
-        let data = try await request("GET", "/me/events/\(id)",
+        let data = try await request("GET", "/me/events/\(GraphPath.segment(id))",
                                      query: ["$select": "id,subject,start,end,location,isAllDay,responseStatus"])
         return try decoder.decode(MailEvent.self, from: data)
     }
 
     func meetingCheck(eventID: String) async throws -> MeetingCheck {
-        let data = try await request("GET", "/me/events/\(eventID)", query: [
+        let data = try await request("GET", "/me/events/\(GraphPath.segment(eventID))", query: [
             "$select": "id,iCalUId,isCancelled,webLink,start,end,responseStatus",
             "$expand": "calendar($select=name)",
         ])
@@ -510,27 +511,27 @@ final class GraphMailService: MailService {
     }
 
     func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
-        _ = try await request("POST", "/me/events/\(eventID)/\(response.path)",
+        _ = try await request("POST", "/me/events/\(GraphPath.segment(eventID))/\(response.path)",
                               body: try json(["comment": "", "sendResponse": true]))
     }
 
     func createFolder(name: String, parentID: String?) async throws -> MailFolder {
-        let path = parentID.map { "/me/mailFolders/\($0)/childFolders" } ?? "/me/mailFolders"
+        let path = parentID.map { "/me/mailFolders/\(GraphPath.segment($0))/childFolders" } ?? "/me/mailFolders"
         let data = try await request("POST", path, body: try json(["displayName": name]))
         return try decoder.decode(MailFolder.self, from: data)
     }
 
     func renameFolder(id: String, name: String) async throws {
-        _ = try await request("PATCH", "/me/mailFolders/\(id)", body: try json(["displayName": name]))
+        _ = try await request("PATCH", "/me/mailFolders/\(GraphPath.segment(id))", body: try json(["displayName": name]))
     }
 
     /// 폴더를 지우면 Exchange가 지운 편지함으로 옮긴다.
     func deleteFolder(id: String) async throws {
-        _ = try await request("DELETE", "/me/mailFolders/\(id)")
+        _ = try await request("DELETE", "/me/mailFolders/\(GraphPath.segment(id))")
     }
 
     func sendDraft(id: String) async throws {
         // 본문이 없는 POST도 Content-Length: 0이 있어야 한다.
-        _ = try await request("POST", "/me/messages/\(id)/send", body: Data())
+        _ = try await request("POST", "/me/messages/\(GraphPath.segment(id))/send", body: Data())
     }
 }
