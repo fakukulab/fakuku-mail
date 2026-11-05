@@ -715,10 +715,10 @@ enum SelfTest {
                       && readBack?.externalAudience == "contactsOnly")
 
             // M14: 별도 창 (S-043). 창이 쓰는 리더와 모델 동작을 그대로 부른다.
-            // 본문과 대화가 있는 보통 메일로 (S-024가 만든 시험용 새 메일은 본문이 없다)
+            // 본문이 있는 보통 메일로 (S-024가 만든 시험용 새 메일 n…은 본문이 없다)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.5))
-            if let first = model.messages.first(where: { !$0.isMeetingRequest && $0.conversationId != nil }) {
+            if let first = model.messages.first(where: { !$0.isMeetingRequest && !$0.id.hasPrefix("n") }) {
                 await open(first.id)
                 check("S-043 받은 메일은 메시지 창으로 연다", model.openTarget() == .message(model.displayedMessageID ?? ""))
                 let reader = MessageReader(messageID: first.id)
@@ -733,6 +733,8 @@ enum SelfTest {
                       reader.message?.isFlagged == !wasFlagged
                           && model.messages.first { $0.id == first.id }?.isFlagged == !wasFlagged)
                 await reader.toggleFlag(model: model)
+            } else {
+                check("S-043 받은 편지함에 고를 메일이 있다", false, model.messages.map(\.id).joined(separator: ","))
             }
             let sentPage = try? await model.service.messages(folderID: "sentitems", search: nil)
             if let sent = sentPage?.messages.first {
@@ -877,10 +879,10 @@ enum SelfTest {
                 model.merge.removeGroup(group.id)
             }
 
-            // M17: 맥 Mail 메뉴 (대화 알림을 끄려면 대화가 있는 메일이어야 한다)
+            // M17: 맥 Mail 메뉴
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))
-            if let m = model.messages.first(where: { !$0.isMeetingRequest && $0.conversationId != nil }) {
+            if let m = model.messages.first(where: { !$0.isMeetingRequest && !$0.id.hasPrefix("n") }) {
                 await open(m.id)
                 let again = model.sendAgainDraft()
                 check("M17 다시 보내기는 원본을 지우지 않는 새 메일", again != nil && again?.draftMessageID == nil
@@ -893,11 +895,22 @@ enum SelfTest {
                 await model.setImportanceSelected("high")
                 check("M17 우선 순위를 높음으로", model.messages.first { $0.id == m.id }?.importance == "high")
                 await model.setImportanceSelected("normal")
-                model.toggleMuteSelected()
-                check("M17 알림 비활성화", model.selectionIsMuted,
-                      "selected=\(model.selectedIDs) conv=\(model.messages.first { $0.id == m.id }?.conversationId ?? "nil") muted=\(model.mutedConversations.count)")
-                model.toggleMuteSelected()
-                check("M17 알림 활성화", !model.selectionIsMuted)
+                // 알림 끄기는 대화 단위: 견적 대화(S-025가 보관 폴더로 옮겼다)로 한다
+                model.selectedFolderID = "archive"
+                try? await Task.sleep(for: .seconds(0.6))
+                if let conv = model.messages.first(where: { $0.conversationId != nil }) {
+                    await open(conv.id)
+                    model.toggleMuteSelected()
+                    check("M17 알림 비활성화", model.selectionIsMuted,
+                          "selected=\(model.selectedIDs) conv=\(conv.conversationId ?? "nil") muted=\(model.mutedConversations.count)")
+                    model.toggleMuteSelected()
+                    check("M17 알림 활성화", !model.selectionIsMuted)
+                } else {
+                    check("M17 알림 비활성화", false, "보관 폴더에 대화가 있는 메일이 없다")
+                }
+                model.selectedFolderID = "inbox"
+                try? await Task.sleep(for: .seconds(0.6))
+                await open(m.id)
                 let archiveBefore = (try? await model.service.messages(folderID: "archive", search: nil))?.messages.count ?? 0
                 await model.copySelected(to: "archive")
                 let archiveAfter = (try? await model.service.messages(folderID: "archive", search: nil))?.messages.count ?? 0
@@ -905,6 +918,8 @@ enum SelfTest {
                       archiveAfter == archiveBefore + 1 && model.messages.contains { $0.id == m.id })
                 await model.moveSelected(to: "projects", undoManager: nil, undoName: "이동")
                 check("M17 옮긴 폴더를 기억한다 (다시 이동)", model.lastMoveTarget?.id == "projects")
+            } else {
+                check("M17 받은 편지함에 고를 메일이 있다", false, model.messages.map(\.id).joined(separator: ","))
             }
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))
