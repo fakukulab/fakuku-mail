@@ -237,6 +237,9 @@ struct FolderSidebar: View {
                 }
             }
         }
+        // 사이드바는 스크롤 막대를 그리지 않는다 (휠·트랙패드로는 스크롤된다). 시스템 설정 "스크롤 막대 보기: 항상"이면
+        // 구역을 펼쳐 목록이 길어질 때만 막대가 생겨, 그 폭만큼 구역 이름의 ⌄·새 폴더 단추가 좌우로 움직였다 (docs/FIXLOG.md)
+        .scrollIndicators(.never, axes: .vertical)
         .contextMenu {
             Button(L("새 폴더…")) { newFolder(parent: nil) }
             Button(L("메일상자 가져오기…")) { model.importLocalMailbox() }

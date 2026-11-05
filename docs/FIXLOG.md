@@ -186,3 +186,5 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
 - 원인: 시스템 설정 "스크롤 막대 보기: 항상"이면, 구역을 펼쳐 목록이 길어질 때만 스크롤 막대가 생기고 그 폭만큼 줄이 좁아진다.
   줄 오른쪽 끝에 붙은 단추가 그만큼 왼쪽으로 밀렸다. `.scrollIndicators(.visible)`은 사이드바 List에 듣지 않았다.
 - 고침: 사이드바의 NSScrollView 막대를 오버레이로 (`overlayScrollers()`, UI/WindowBehavior.swift). 막대가 내용 위에 겹쳐 폭이 바뀌지 않는다.
+- 다시 (같은 날): 오버레이로 바꿔도 SwiftUI List가 줄 수가 바뀔 때 막대 모양을 되돌렸다 (녹화에서 굵은 막대가 그대로).
+  사이드바는 `.scrollIndicators(.never)`로 막대를 그리지 않는다. 오버레이 고리는 목록 크기가 바뀔 때마다 다시 건다.

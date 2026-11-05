@@ -89,22 +89,44 @@ private struct OverlayScrollerHook: NSViewRepresentable {
     func makeNSView(context: Context) -> Probe { Probe() }
     func updateNSView(_ probe: Probe, context: Context) { probe.apply() }
 
+    /// SwiftUI List는 줄 수가 바뀔 때 막대 모양을 다시 정하므로, 목록 크기가 바뀔 때마다 다시 건다.
     final class Probe: NSView {
+        private weak var scroll: NSScrollView?
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             NotificationCenter.default.removeObserver(self)
             guard window != nil else { return }
             apply()
-            // 시스템 설정을 바꾸면 AppKit이 막대 모양을 되돌리므로 다시 건다
-            NotificationCenter.default.addObserver(self, selector: #selector(styleChanged),
+            NotificationCenter.default.addObserver(self, selector: #selector(changed),
                                                    name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
         }
 
-        @objc private func styleChanged() { apply() }
+        @objc private func changed() { apply() }
+
+        /// 이 보기를 감싼 스크롤 영역 (부모를 따라 올라가며 찾는다)
+        private func findScroll() -> NSScrollView? {
+            if let enclosingScrollView { return enclosingScrollView }
+            var view = superview
+            while let v = view {
+                if let s = v as? NSScrollView { return s }
+                view = v.superview
+            }
+            return nil
+        }
 
         func apply() {
-            guard let scroll = enclosingScrollView, scroll.scrollerStyle != .overlay else { return }
-            scroll.scrollerStyle = .overlay
+            guard let s = scroll ?? findScroll() else { return }
+            if scroll !== s {
+                scroll = s
+                // 목록이 길어지거나 짧아질 때(구역 펼치기·접기) 다시 건다
+                if let doc = s.documentView {
+                    doc.postsFrameChangedNotifications = true
+                    NotificationCenter.default.addObserver(self, selector: #selector(changed),
+                                                           name: NSView.frameDidChangeNotification, object: doc)
+                }
+            }
+            if s.scrollerStyle != .overlay { s.scrollerStyle = .overlay }
         }
     }
 }
