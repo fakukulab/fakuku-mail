@@ -678,7 +678,7 @@ Status: done (맥에서 Gmail 계정으로 확인 2026-11-05)
 ## M26 1.0.1 기본 이메일 앱과 .eml 열기
 
 ### S-064 기본 이메일 앱
-Status: built (맥에서 확인 전)
+Status: done (맥에서 확인 2026-11-06, 1.0.1)
 - [x] 설정 > 일반 > 기본 이메일 앱: mailto: 링크를 여는 앱 목록(아이콘·이름)에서 고르면 macOS 값을 바꾼다. 이 앱이 아니면 "FAKUKU Mail로 지정" 단추
 - [x] 고른 앱이 .eml을 열 수 있으면 .eml(com.apple.mail.email, emlx)도 그 앱으로
 - [x] Info.plist: mailto URL 형식, .eml·.emlx 문서 형식(보기, Alternate)
@@ -686,7 +686,7 @@ Status: built (맥에서 확인 전)
 - [x] 테스트·스냅숏·데모(APP_STORE)는 이 Mac의 기본 앱을 바꾸지 않는다
 
 ### S-065 .eml 열기·답장·전달
-Status: built (맥에서 확인 전)
+Status: done (맥에서 확인 2026-11-06, 1.0.1)
 - [x] 받은 메일의 첨부된 메일(.eml, message/rfc822)을 열면 이 앱의 .eml 창(WindowGroup "eml")에서 연다. 나의 Mac에 메일의 첨부, 작성 창에 붙인 .eml도
 - [x] Finder에서 연 .eml(기본 이메일 앱일 때, 또는 다음으로 열기)도 같은 창
 - [x] 창의 도구 막대와 메시지 메뉴: 답장(⌘R), 전체 답장(⇧⌘R), 전달(⇧⌘F), 새 메시지로 편집(⌥⌘D). 보낼 계정은 지금 계정, 로그인하지 않으면 읽기만
