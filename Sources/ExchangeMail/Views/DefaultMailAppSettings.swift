@@ -3,7 +3,7 @@ import ExchangeMailKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 기본 이메일 앱 (1.1): 웹 브라우저·다른 앱의 메일 링크(mailto:)와 Finder의 .eml 파일을 열 앱.
+/// 기본 이메일 앱 (1.0.1): 웹 브라우저·다른 앱의 메일 링크(mailto:)와 Finder의 .eml 파일을 열 앱.
 /// 맥 Mail의 설정 > 일반 > 기본 이메일 앱과 같이 macOS의 값을 바꾼다 (이 앱에 저장하지 않는다).
 enum DefaultMailApp {
     struct Handler: Identifiable, Hashable {

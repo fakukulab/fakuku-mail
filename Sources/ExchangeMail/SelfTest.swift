@@ -908,30 +908,30 @@ enum SelfTest {
                       asFile?.attachMessageFrom == m.id && asFile?.subject.hasPrefix("FW:") == true)
                 let raw = (try? await model.service.mimeContent(id: m.id)).map { String(decoding: $0, as: UTF8.self) } ?? ""
                 check("M17 원본 보기는 헤더가 있는 MIME", raw.contains("Subject:") && raw.contains("From:"))
-                // 1.1: 메일 원본(.eml)을 이 앱의 창에서 열고 답장·전달·새 메시지로 편집한다
+                // 1.0.1: 메일 원본(.eml)을 이 앱의 창에서 열고 답장·전달·새 메시지로 편집한다
                 if let mime = try? await model.service.mimeContent(id: m.id) {
                     let emlURL = Store.directory.appending(path: "selftest-open.eml")
                     try? mime.write(to: emlURL)
                     let doc = EMLDocument(url: emlURL)
                     await doc.load()
-                    check("1.1 .eml 파일을 열면 제목과 보낸 사람을 읽는다",
+                    check("1.0.1 .eml 파일을 열면 제목과 보낸 사람을 읽는다",
                           doc.mail?.subject == (m.subject ?? "") && doc.mail?.from.isEmpty == false,
                           doc.failure ?? "")
                     let reply = doc.draft(.reply, model: model)
                     let sender = m.from?.emailAddress.address ?? ""
-                    check("1.1 .eml 답장은 보낸 사람에게, 답장 제목과 인용",
+                    check("1.0.1 .eml 답장은 보낸 사람에게, 답장 제목과 인용",
                           reply?.to.lowercased().contains(sender.lowercased()) == true
                           && reply?.subject == ReplyBuilder.subject(for: .reply, original: m.subject ?? "")
                           && reply?.quoteHTML.contains("data-quote=\"reply\"") == true,
                           "to=\(reply?.to ?? "nil")")
                     let fwd = doc.draft(.forward, model: model)
-                    check("1.1 .eml 전달은 받는 사람이 비고 원문을 인용한다 (서버에서 첨부를 찾지 않는다)",
+                    check("1.0.1 .eml 전달은 받는 사람이 비고 원문을 인용한다 (서버에서 첨부를 찾지 않는다)",
                           fwd?.to.isEmpty == true && fwd?.quoteHTML.contains("data-quote=\"forward\"") == true
                           && fwd?.forwardAttachmentsFrom == nil)
                     let asNew = doc.draft(.new, model: model)
-                    check("1.1 .eml 새 메시지로 편집은 제목과 본문을 옮긴다",
+                    check("1.0.1 .eml 새 메시지로 편집은 제목과 본문을 옮긴다",
                           asNew?.subject == (m.subject ?? "") && asNew?.bodyHTML?.isEmpty == false && asNew?.quoteHTML.isEmpty == true)
-                    check("1.1 첨부된 메일(.eml, message/rfc822)은 이 앱에서 연다",
+                    check("1.0.1 첨부된 메일(.eml, message/rfc822)은 이 앱에서 연다",
                           EMLMessage.isMail(name: "회의.eml", contentType: nil)
                           && EMLMessage.isMail(name: "전달된 메일", contentType: "message/rfc822")
                           && !EMLMessage.isMail(name: "견적.pdf", contentType: "application/pdf"))

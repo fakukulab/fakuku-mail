@@ -303,7 +303,7 @@ struct ComposeView: View {
                                size: (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil,
                                preview: { previewURL = url },
                                open: {
-                                   // 붙인 메일(.eml)은 이 앱의 창에서 (1.1)
+                                   // 붙인 메일(.eml)은 이 앱의 창에서 (1.0.1)
                                    if EMLMessage.isMail(name: url.lastPathComponent, contentType: nil) {
                                        WindowOpener.shared.open(url)
                                    } else {

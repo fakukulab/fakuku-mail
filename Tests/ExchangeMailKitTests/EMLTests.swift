@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import ExchangeMailKit
 
-// 1.1 .eml 파일 열기: 읽고, 답장·전체 답장·전달·새 메시지로 편집. mailto: 링크 (기본 이메일 앱).
+// 1.0.1 .eml 파일 열기: 읽고, 답장·전체 답장·전달·새 메시지로 편집. mailto: 링크 (기본 이메일 앱).
 
 private let eml = """
 From: =?utf-8?B?6rmA7Lyc7J20?= <kim@example.com>\r

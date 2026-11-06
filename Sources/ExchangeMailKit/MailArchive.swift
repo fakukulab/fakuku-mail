@@ -19,7 +19,7 @@ public struct ArchivedMail: Identifiable, Sendable {
     public var attachments: [ArchivedAttachment]
     /// 원본 크기 (바이트)
     public var size: Int
-    /// Message-ID 머리글 ("<…>"). 답장이 같은 대화로 묶이게 (1.1 .eml 열기)
+    /// Message-ID 머리글 ("<…>"). 답장이 같은 대화로 묶이게 (1.0.1 .eml 열기)
     public var messageID: String? = nil
     /// References 머리글의 Message-ID들
     public var references: [String] = []

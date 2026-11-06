@@ -3,7 +3,7 @@ import ExchangeMailKit
 import Observation
 import SwiftUI
 
-/// .eml 파일 한 통 (1.1): 받은 메일에 첨부된 메일, 나의 Mac에 메일의 첨부, Finder에서 연 .eml.
+/// .eml 파일 한 통 (1.0.1): 받은 메일에 첨부된 메일, 나의 Mac에 메일의 첨부, Finder에서 연 .eml.
 /// 맥 Mail처럼 앱 안의 창에서 읽고, 답장·전체 답장·전달하거나 새 메시지로 편집한다. 서버에 닿지 않는다.
 @Observable
 final class EMLDocument {
@@ -130,14 +130,14 @@ nonisolated struct EMLDocumentKey: FocusedValueKey {
 }
 
 extension FocusedValues {
-    /// 앞에 있는 .eml 창의 메일. 메시지 메뉴의 답장·전달이 이 메일에 동작한다 (1.1).
+    /// 앞에 있는 .eml 창의 메일. 메시지 메뉴의 답장·전달이 이 메일에 동작한다 (1.0.1).
     nonisolated var emlDocument: EMLDocument? {
         get { self[EMLDocumentKey.self] }
         set { self[EMLDocumentKey.self] = newValue }
     }
 }
 
-/// 모델이나 앱 델리게이트처럼 `openWindow`가 없는 곳에서 창을 연다 (1.1):
+/// 모델이나 앱 델리게이트처럼 `openWindow`가 없는 곳에서 창을 연다 (1.0.1):
 /// Finder에서 연 .eml, 다른 앱의 mailto: 링크(기본 이메일 앱일 때), 받은 메일의 .eml 첨부 열기.
 /// 창이 하나 뜨면 그 창의 `openWindow`를 받아 둔다. 그 전에 온 요청은 모아 두었다가 연다.
 final class WindowOpener {

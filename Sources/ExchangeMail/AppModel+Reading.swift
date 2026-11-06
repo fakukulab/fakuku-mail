@@ -36,7 +36,7 @@ extension AppModel {
             }
             return
         }
-        // 첨부된 메일(.eml)은 Quick Look 대신 이 앱의 창에서: 답장·전달할 수 있게 (1.1)
+        // 첨부된 메일(.eml)은 Quick Look 대신 이 앱의 창에서: 답장·전달할 수 있게 (1.0.1)
         if EMLMessage.isMail(name: full.name, contentType: full.contentType) {
             WindowOpener.shared.open(url)
             return
@@ -48,7 +48,7 @@ extension AppModel {
     func openAttachment(_ attachment: FileAttachment, messageID: String? = nil) async {
         guard let full = await loadedAttachment(attachment, messageID: messageID),
               let url = previewFile(for: full) else { return }
-        // 첨부된 메일(.eml)은 다른 메일 앱이 아니라 이 앱의 창에서 연다: 읽고 답장·전달할 수 있게 (1.1).
+        // 첨부된 메일(.eml)은 다른 메일 앱이 아니라 이 앱의 창에서 연다: 읽고 답장·전달할 수 있게 (1.0.1).
         if EMLMessage.isMail(name: full.name, contentType: full.contentType) {
             WindowOpener.shared.open(url)
         } else {

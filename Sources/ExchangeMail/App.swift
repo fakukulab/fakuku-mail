@@ -63,7 +63,7 @@ struct ExchangeMailApp: App {
         .defaultSize(width: 820, height: 760)
         .windowToolbarStyle(.unified)
 
-        // .eml 파일 한 통 (1.1): 첨부된 메일, Finder에서 연 .eml. 같은 파일을 다시 열면 그 창을 앞으로.
+        // .eml 파일 한 통 (1.0.1): 첨부된 메일, Finder에서 연 .eml. 같은 파일을 다시 열면 그 창을 앞으로.
         WindowGroup(L("메시지"), id: "eml", for: URL.self) { $url in
             if let url {
                 EMLWindow(url: url)
@@ -174,7 +174,7 @@ struct MailCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     /// 앞에 있는 메시지 창 (S-043). 있으면 메시지 메뉴가 그 창의 메일에 동작한다.
     @FocusedValue(\.messageReader) private var reader
-    /// 앞에 있는 .eml 창 (1.1). 있으면 답장·전달은 그 메일에, 목록 선택에 하는 동작은 끈다.
+    /// 앞에 있는 .eml 창 (1.0.1). 있으면 답장·전달은 그 메일에, 목록 선택에 하는 동작은 끈다.
     @FocusedValue(\.emlDocument) private var eml
     /// 앞에 있는 작성 창의 편집기. 포맷 메뉴가 쓴다.
     @FocusedValue(\.richTextEditor) private var editor
@@ -397,7 +397,7 @@ struct MailCommands: Commands {
         Button(L("개별 발송…")) { openWindow(id: "merge") }
             .keyboardShortcut("m", modifiers: [.command, .option, .shift])
             .disabled(!menu.signedIn)
-        // .eml 창이 앞이면 그 메일을 새 메시지로 편집 (1.1)
+        // .eml 창이 앞이면 그 메일을 새 메시지로 편집 (1.0.1)
         Button(L("다시 보내기")) {
             let d = eml.map { $0.draft(.new, model: model) } ?? model.sendAgainDraft()
             if let d { openWindow(id: "compose", value: d) }
@@ -643,7 +643,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    /// Finder에서 연 .eml 파일, 다른 앱의 mailto: 링크 (설정 > 일반 > 기본 이메일 앱, 1.1)
+    /// Finder에서 연 .eml 파일, 다른 앱의 mailto: 링크 (설정 > 일반 > 기본 이메일 앱, 1.0.1)
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls { WindowOpener.shared.open(url) }
     }

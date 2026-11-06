@@ -25,7 +25,7 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
     public var attachMessageName: String?
     /// 보낼 계정 (M23). nil이면 지금 계정. 답장·전달은 원래 메일의 계정.
     public var fromAccountID: String?
-    /// 붙일 이 Mac의 파일 (1.1: .eml 메일을 전달하거나 새 메시지로 편집할 때 그 첨부)
+    /// 붙일 이 Mac의 파일 (1.0.1: .eml 메일을 전달하거나 새 메시지로 편집할 때 그 첨부)
     public var attachFiles: [URL] = []
     /// mailto: 링크의 body (글자). 서명 앞, 본문 첫머리에 들어간다.
     public var bodyText: String?

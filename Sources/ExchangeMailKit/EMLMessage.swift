@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: .eml 파일 한 통 열기 (1.1)
+// MARK: .eml 파일 한 통 열기 (1.0.1)
 //
 // 첨부로 온 메일(.eml, 받은 메일의 첨부된 메일)이나 Finder에서 연 .eml 파일을 FAKUKU Mail에서 읽고,
 // 답장·전체 답장·전달·새 메시지로 편집한다. 읽기는 `MailArchive.parse`, 답장 규칙은 `ReplyBuilder`를 그대로 쓴다.
