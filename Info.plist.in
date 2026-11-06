@@ -18,6 +18,16 @@
 <key>NSHighResolutionCapable</key><true/>
 <key>NSHumanReadableCopyright</key><string>© 2026 FAKUKULAB</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
+<key>CFBundleURLTypes</key><array>
+  <dict><key>CFBundleURLName</key><string>Email Address URL</string>
+    <key>CFBundleURLSchemes</key><array><string>mailto</string></array></dict>
+</array>
+<key>CFBundleDocumentTypes</key><array>
+  <dict><key>CFBundleTypeName</key><string>Email Message</string>
+    <key>CFBundleTypeRole</key><string>Viewer</string>
+    <key>LSHandlerRank</key><string>Alternate</string>
+    <key>LSItemContentTypes</key><array><string>com.apple.mail.email</string><string>com.apple.mail.emlx</string><string>public.email-message</string></array></dict>
+</array>
 <key>INAlternativeAppNames</key><array>
   <dict><key>INAlternativeAppName</key><string>파쿠쿠 메일</string></dict>
   <dict><key>INAlternativeAppName</key><string>파쿠쿠</string></dict>

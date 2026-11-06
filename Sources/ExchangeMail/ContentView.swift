@@ -19,7 +19,11 @@ struct ContentView: View {
             }
         }
         // Siri·단축어 (Intents/MailIntents.swift)
-        .onAppear { IntentModel.current = model }
+        .onAppear {
+            IntentModel.current = model
+            // .eml 파일·mailto: 링크를 받으면 창을 열 수 있게 (1.0.1)
+            WindowOpener.shared.attach(openWindow)
+        }
         .onChange(of: model.pendingCompose) { _, draft in
             if let draft {
                 openWindow(id: "compose", value: draft)

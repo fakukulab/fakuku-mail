@@ -53,17 +53,20 @@ public enum SMTP {
     }
 
     /// 받는 사람에게는 숨은 참조(Bcc) 머리글을 지워 보낸다 (접힌 다음 줄까지)
+    /// 바이트로 줄을 나눈다: Swift 글자로 나누면 "\r\n"이 글자 하나라 CRLF 메일의 줄이 나뉘지 않아 Bcc가 남았다.
     public static func removingBcc(_ mime: Data) -> Data {
         let head = headerBlock(mime)
-        let text = MailArchive.latin1(head)
-        var out: [Substring] = []
+        var result = Data()
         var skipping = false
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            if skipping, let first = line.first, first == " " || first == "\t" { continue }
-            skipping = line.lowercased().hasPrefix("bcc:")
-            if !skipping { out.append(line) }
+        var start = head.startIndex
+        while start < head.endIndex {
+            let end = head[start...].firstIndex(of: UInt8(ascii: "\n")).map { $0 + 1 } ?? head.endIndex
+            let line = head[start..<end]
+            defer { start = end }
+            if skipping, let first = line.first, first == UInt8(ascii: " ") || first == UInt8(ascii: "\t") { continue }
+            skipping = String(decoding: line.prefix(4), as: UTF8.self).lowercased() == "bcc:"
+            if !skipping { result.append(line) }
         }
-        var result = MailArchive.bytes(out.joined(separator: "\n"))
         result.append(mime[(mime.startIndex + head.count)...])
         return result
     }

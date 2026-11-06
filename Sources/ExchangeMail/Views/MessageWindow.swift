@@ -62,7 +62,10 @@ struct MessageWindow: View {
         .quickLookPreview($reader.previewURL)
         // 메시지 메뉴(답장, 보관, 인쇄…)가 이 창이 앞에 있을 때 이 메일에 동작한다.
         .focusedSceneValue(\.messageReader, reader)
-        .task { await reader.load(using: model) }
+        .task {
+            WindowOpener.shared.attach(openWindow)
+            await reader.load(using: model)
+        }
         .onChange(of: reader.closed) { _, closed in
             if closed { dismiss() }
         }

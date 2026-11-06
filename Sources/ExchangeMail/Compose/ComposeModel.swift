@@ -82,8 +82,11 @@ final class ComposeModel {
         } else {
             let sig = app.signatures.defaultSignature(kind: draft.kind, account: account(app)?.email)
             signatureID = sig?.id
-            editor.setHTML("<div><br></div>" + SignatureComposer.block(for: sig) + draft.quoteHTML)
+            // mailto: 링크의 body는 서명 앞 첫머리에
+            editor.setHTML((draft.bodyTextHTML ?? "<div><br></div>") + SignatureComposer.block(for: sig) + draft.quoteHTML)
         }
+        // .eml 메일을 전달하거나 새 메시지로 편집할 때 그 첨부 (1.0.1)
+        if !draft.attachFiles.isEmpty { addFiles(draft.attachFiles) }
         editor.onFileDrop = { [weak self] urls in self?.addFiles(urls) }
         editor.spellcheck = Prefs.bool(Prefs.spellcheck, true)
         editor.onUserEdit = { [weak self] _ in self?.bodyRevision += 1 }

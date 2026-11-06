@@ -142,6 +142,7 @@ struct GeneralSettings: View {
 
     var body: some View {
         Section {
+            DefaultMailAppSettings()
             LabeledContent(L("새 메일 확인:")) {
                 Picker(L("새 메일 확인"), selection: $refreshMinutes) {
                     Text(L("1분마다")).tag(1)

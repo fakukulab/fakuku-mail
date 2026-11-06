@@ -25,6 +25,10 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
     public var attachMessageName: String?
     /// 보낼 계정 (M23). nil이면 지금 계정. 답장·전달은 원래 메일의 계정.
     public var fromAccountID: String?
+    /// 붙일 이 Mac의 파일 (1.0.1: .eml 메일을 전달하거나 새 메시지로 편집할 때 그 첨부)
+    public var attachFiles: [URL] = []
+    /// mailto: 링크의 body (글자). 서명 앞, 본문 첫머리에 들어간다.
+    public var bodyText: String?
 
     public init(kind: ComposeKind = .new, to: String = "", subject: String = "") {
         self.kind = kind
@@ -32,21 +36,46 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
         self.subject = subject
     }
 
-    /// 본문의 mailto: 링크로 새 메시지 (받는 사람과 제목)
+    /// mailto: 링크로 새 메시지 (RFC 6068): 받는 사람, 참조, 숨은 참조, 제목, 본문.
+    /// 본문의 링크, 그리고 기본 이메일 앱일 때 다른 앱(웹 브라우저 등)의 링크가 쓴다.
     public static func mailto(_ url: URL) -> ComposeDraft {
-        let raw = url.absoluteString.replacingOccurrences(of: "mailto:", with: "", options: [.anchored, .caseInsensitive])
-        let parts = raw.split(separator: "?", maxSplits: 1).map(String.init)
-        let to = parts.first?.removingPercentEncoding ?? ""
+        let raw = url.absoluteString.replacingOccurrences(of: "mailto:", with: "", options: [.anchored, .caseInsensitive])  // l10n: data
+        let parts = raw.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        var to = [parts.first?.removingPercentEncoding ?? ""]
+        var cc: [String] = []
+        var bcc: [String] = []
         var subject = ""
+        var body: String?
         if parts.count > 1 {
             for pair in parts[1].split(separator: "&") {
                 let kv = pair.split(separator: "=", maxSplits: 1).map(String.init)
-                if kv.count == 2, kv[0].lowercased() == "subject" {
-                    subject = kv[1].removingPercentEncoding ?? kv[1]
+                guard kv.count == 2 else { continue }
+                let value = kv[1].removingPercentEncoding ?? kv[1]
+                switch kv[0].lowercased() {
+                case "to": to.append(value)
+                case "cc": cc.append(value)
+                case "bcc": bcc.append(value)
+                case "subject": subject = value
+                case "body": body = value
+                default: break
                 }
             }
         }
-        return ComposeDraft(to: to, subject: subject)
+        func joined(_ list: [String]) -> String {
+            list.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: ", ")
+        }
+        var draft = ComposeDraft(to: joined(to), subject: subject)
+        draft.cc = joined(cc)
+        draft.bcc = joined(bcc)
+        draft.bodyText = body.flatMap { $0.isEmpty ? nil : $0 }
+        return draft
+    }
+
+    /// `bodyText`를 편집기에 넣을 HTML로 (줄마다 div)
+    public var bodyTextHTML: String? {
+        guard let bodyText else { return nil }
+        let lines = bodyText.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+        return lines.map { $0.isEmpty ? "<div><br></div>" : "<div>\(HTMLProcessor.escape($0))</div>" }.joined()
     }
 }
 

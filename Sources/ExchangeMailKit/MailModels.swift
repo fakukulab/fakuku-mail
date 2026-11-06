@@ -313,8 +313,8 @@ public enum GraphJSON {
     }
 
     public static func parseDate(_ s: String) -> Date? {
-        if let x = try? Date(s, strategy: Date.ISO8601FormatStyle()) { return x }
-        // 소수 초는 버린다: "2024-05-01T10:00:00.1234567Z" → "2024-05-01T10:00:00Z"
+        // 소수 초는 버린다: "2024-05-01T10:00:00.1234567Z" → "2024-05-01T10:00:00Z".
+        // 먼저 뗀다: 새 macOS의 ISO8601FormatStyle은 소수 초도 읽어, 같은 메일의 시각이 기기마다 달라졌다.
         let trimmed = s.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)
         if let x = try? Date(trimmed, strategy: Date.ISO8601FormatStyle()) { return x }
         // 시간대 없는 값은 UTC로 본다.

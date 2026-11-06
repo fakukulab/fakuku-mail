@@ -130,7 +130,7 @@ struct ArchivedMailView: View {
                     AttachmentStrip {
                         ForEach(files) { file in
                             AttachmentCard(name: file.name, size: file.data.count,
-                                           open: { ArchivedFiles.open(file) },
+                                           open: { openFile(file) },
                                            save: { ArchivedFiles.save(file) })
                                 .onDrag { ArchivedFiles.dragProvider(file) }
                         }
@@ -146,6 +146,15 @@ struct ArchivedMailView: View {
             })
         }
         .gridArea("archive-message")
+    }
+
+    /// 첨부된 메일(.eml)은 이 앱의 창에서, 나머지는 기본 앱으로 연다 (1.0.1).
+    private func openFile(_ file: ArchivedAttachment) {
+        if EMLMessage.isMail(name: file.name, contentType: file.contentType), let url = ArchivedFiles.tempFile(file) {
+            openWindow(id: "eml", value: url)
+        } else {
+            ArchivedFiles.open(file)
+        }
     }
 
     @ViewBuilder

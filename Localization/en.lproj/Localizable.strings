@@ -1011,3 +1011,15 @@
 "서버에서 찾을 수 없습니다. 다른 기기나 규칙이 메일을 옮기거나 지웠을 수 있습니다. 목록을 새로 고쳐 주세요." = "Not found on the server. Another device or a rule may have moved or deleted the message. Refresh the list.";
 "나중에 보내기는 Exchange 계정에서만 할 수 있습니다" = "Send Later works only with Exchange accounts";
 "%@을(를) 받는 중입니다. 잠시 뒤 다시 끌어 주세요." = "Downloading %@. Drag it again in a moment.";
+
+/* 1.0.1: 기본 이메일 앱, .eml 열기 */
+"기본 이메일 앱:" = "Default email reader:";
+"기본 이메일 앱" = "Default email reader";
+"FAKUKU Mail로 지정" = "Use FAKUKU Mail";
+"웹 브라우저나 다른 앱의 메일 링크를 누르면 FAKUKU Mail의 새 메시지 창이 열리고, " = "Email links in your web browser and other apps open a new message in FAKUKU Mail, ";
+"Finder에서 .eml 파일을 열면 FAKUKU Mail에서 읽고 답장·전달할 수 있습니다." = "and .eml files you open in Finder open in FAKUKU Mail, where you can read, reply, and forward them.";
+"메일 링크(mailto:)와 .eml 파일을 열 앱입니다. macOS가 바꿀지 물어볼 수 있습니다." = "The app that opens email links (mailto:) and .eml files. macOS may ask you to confirm the change.";
+"\"%@\"에서 메일을 찾지 못했습니다." = "No message found in “%@”.";
+"파일을 읽지 못했습니다: %@" = "Couldn’t read the file: %@";
+"새 메시지로 편집" = "Edit as New Message";
+"받는 사람·제목·본문·첨부를 옮긴 새 메시지 (⌥⌘D)" = "A new message with the same recipients, subject, body, and attachments (⌥⌘D)";
