@@ -58,19 +58,30 @@ if [[ "$log" == *"unknown argument"* || "$log" == *"unsupported option"* ]]; the
   log=$(swift build -c $config --package-path "$here" --scratch-path "$scratch" 2>&1 || true)
 fi
 print -r -- "$log" | grep -E "error|warning|Build complete" | grep -v "^\[" || true
-bin="$scratch/$config/$name"
-[[ -x "$bin" ]] || { echo "build failed"; exit 1; }
+# 실행 파일 위치는 빌드 시스템에 묻는다: 새 빌드 시스템(Xcode 27)은 "$scratch/$config"가 아닌 곳에 쓸 수 있고,
+# 그러면 그 자리에 남은 예전 실행 파일을 검사하고 설치하게 된다.
+bin_dir=$(swift build -c $config --package-path "$here" --scratch-path "$scratch" --show-bin-path 2>/dev/null || true)
+[[ -n "$bin_dir" ]] || bin_dir="$scratch/$config"
+bin="$bin_dir/$name"
+[[ -x "$bin" ]] || { echo "build failed: $bin 이 없습니다"; exit 1; }
 # 링크가 실패해도 예전 실행 파일이 남아 있으면 그대로 설치될 수 있다: 빌드 실패면 멈춘다.
 if [[ "$log" == *"error: Build failed"* || "$log" == *"failed with a nonzero exit code"* ]]; then
   echo "build failed (위 error 줄을 보세요)"
   exit 1
 fi
 # swift build can report success while an edited file failed to compile. Catch that.
+# 실행 파일보다 새 소스가 있으면 한 번 더 빌드한다: 정말 컴파일이 안 됐다면 이번에 error가 나온다.
+# error 없이 끝나면 시각만 어긋난 것이다 (iCloud로 동기화되는 문서 폴더는 빌드 뒤에 파일 시각을 다시 찍기도 한다).
 stale=$(find "$here/Sources" -name '*.swift' -newer "$bin" | head -1)
 if [[ -n "$stale" ]]; then
-  echo "build failed: binary is older than $stale"
-  swift build -c $config --package-path "$here" --scratch-path "$scratch" "${intent_flags[@]}" 2>&1 | grep -E "error" | head -20
-  exit 1
+  echo "note: 실행 파일보다 새 소스가 있어 다시 빌드해 확인합니다 ($stale)"
+  again=$(swift build -c $config --package-path "$here" --scratch-path "$scratch" "${intent_flags[@]}" 2>&1 || true)
+  if [[ "$again" == *"error:"* || "$again" == *"failed with a nonzero exit code"* ]]; then
+    echo "build failed: binary is older than $stale"
+    print -r -- "$again" | grep -E "error" | head -20
+    exit 1
+  fi
+  echo "note: 다시 빌드해도 오류가 없습니다. 파일 시각만 어긋났으므로 계속합니다"
 fi
 
 app="$HOME/Applications/$display.app"
