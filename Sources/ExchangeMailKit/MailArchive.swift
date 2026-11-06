@@ -19,6 +19,12 @@ public struct ArchivedMail: Identifiable, Sendable {
     public var attachments: [ArchivedAttachment]
     /// 원본 크기 (바이트)
     public var size: Int
+    /// Message-ID 머리글 ("<…>"). 답장이 같은 대화로 묶이게 (1.1 .eml 열기)
+    public var messageID: String? = nil
+    /// References 머리글의 Message-ID들
+    public var references: [String] = []
+    /// Reply-To 머리글 (있으면 답장은 이 주소로)
+    public var replyTo: String = ""
 
     public var title: String { subject.isEmpty ? L("(제목 없음)") : subject }
 }
@@ -178,6 +184,10 @@ public enum MailArchive {
                                 cc: decodeWords(part.header("cc") ?? ""),
                                 date: part.header("date").flatMap(parseDate),
                                 html: nil, text: nil, attachments: [], size: data.count)
+        mail.messageID = part.header("message-id").map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
+        mail.references = (part.header("references") ?? "").split(whereSeparator: \.isWhitespace).map(String.init)
+            .filter { $0.hasPrefix("<") }
+        mail.replyTo = decodeWords(part.header("reply-to") ?? "")
         var counter = 0
         walk(part, into: &mail, counter: &counter)
         return mail

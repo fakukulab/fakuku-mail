@@ -74,7 +74,13 @@ final class MessageReader {
         Task {
             guard let full = await model.loadedAttachment(attachment, messageID: messageID) else { return }
             if let i = attachments.firstIndex(where: { $0.id == full.id }) { attachments[i] = full }
-            previewURL = model.previewFile(for: full)
+            guard let url = model.previewFile(for: full) else { return }
+            // 첨부된 메일(.eml)은 Quick Look 대신 이 앱의 창에서 (1.1)
+            if EMLMessage.isMail(name: full.name, contentType: full.contentType) {
+                WindowOpener.shared.open(url)
+            } else {
+                previewURL = url
+            }
         }
     }
 

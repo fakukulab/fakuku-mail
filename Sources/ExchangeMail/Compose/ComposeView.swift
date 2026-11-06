@@ -302,7 +302,14 @@ struct ComposeView: View {
                 AttachmentCard(name: FilenameEncoder.normalize(url.lastPathComponent),
                                size: (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? nil,
                                preview: { previewURL = url },
-                               open: { NSWorkspace.shared.open(url) },
+                               open: {
+                                   // 붙인 메일(.eml)은 이 앱의 창에서 (1.1)
+                                   if EMLMessage.isMail(name: url.lastPathComponent, contentType: nil) {
+                                       WindowOpener.shared.open(url)
+                                   } else {
+                                       NSWorkspace.shared.open(url)
+                                   }
+                               },
                                save: { AttachmentFiles.saveCopy(of: url) },
                                remove: { compose.removeFile(url) })
             }
