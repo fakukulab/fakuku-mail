@@ -675,6 +675,24 @@ Status: done (맥에서 Gmail 계정으로 확인 2026-11-05)
 - [x] 대화는 Gmail 대화 번호(X-GM-THRID)로, 대화 내역은 받은 편지함·보낸 편지함·전체 보관함에서 (같은 메일은 한 번)
 - [x] 모든 폴더 검색·깃발 표시·VIP는 전체 보관함 하나에서 (라벨마다 같은 메일이 또 나오지 않게)
 
+## M26 1.1 기본 이메일 앱과 .eml 열기
+
+### S-064 기본 이메일 앱
+Status: built (맥에서 확인 전)
+- [x] 설정 > 일반 > 기본 이메일 앱: mailto: 링크를 여는 앱 목록(아이콘·이름)에서 고르면 macOS 값을 바꾼다. 이 앱이 아니면 "FAKUKU Mail로 지정" 단추
+- [x] 고른 앱이 .eml을 열 수 있으면 .eml(com.apple.mail.email, emlx)도 그 앱으로
+- [x] Info.plist: mailto URL 형식, .eml·.emlx 문서 형식(보기, Alternate)
+- [x] 다른 앱의 mailto: 링크 → 새 메시지 창 (받는 사람 여럿, cc, bcc, 제목, body)
+- [x] 테스트·스냅숏·데모(APP_STORE)는 이 Mac의 기본 앱을 바꾸지 않는다
+
+### S-065 .eml 열기·답장·전달
+Status: built (맥에서 확인 전)
+- [x] 받은 메일의 첨부된 메일(.eml, message/rfc822)을 열면 이 앱의 .eml 창(WindowGroup "eml")에서 연다. 나의 Mac에 메일의 첨부, 작성 창에 붙인 .eml도
+- [x] Finder에서 연 .eml(기본 이메일 앱일 때, 또는 다음으로 열기)도 같은 창
+- [x] 창의 도구 막대와 메시지 메뉴: 답장(⌘R), 전체 답장(⇧⌘R), 전달(⇧⌘F), 새 메시지로 편집(⌥⌘D). 보낼 계정은 지금 계정, 로그인하지 않으면 읽기만
+- [x] 답장은 Reply-To가 있으면 그 주소로, In-Reply-To·References로 같은 대화. 전달·새 메시지로 편집은 첨부도 옮긴다
+- [x] .eml 창이 앞에 있으면 목록 선택에 하는 메뉴(지우기, 이동, 깃발, VIP, 원본 보기…)는 끈다 (뒤의 메일을 잘못 지우지 않게)
+
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)
