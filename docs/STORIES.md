@@ -696,6 +696,10 @@ Status: built (맥에서 확인 전)
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)
+- 2026-11-06 **1.0.1** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.1 (태그 v1.0.1 = main 5b1a3b0)
+  - DMG `FAKUKU-Mail-1.0.1.dmg` 5,890,684바이트, SHA-256 `95f0be0fcde3c5ec251b3c20de4ccb59cdd2dae8e2aeb5582aec6ace327bf6eb` (받은 파일과 .sha256 일치)
+  - 담은 것: iCloud·Gmail 숨은 참조(Bcc) 노출 수정, Graph 날짜 소수 초, 기본 이메일 앱(S-064), .eml 열기·답장·전달(S-065), build.sh 실행 파일 위치·시각 검사
+  - 릴리스 노트: docs/release-notes/1.0.1.md
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, docs/FIXLOG.md), iCloud·Gmail 회의 초대(.ics) 막대
 
 ## Later
