@@ -20,7 +20,7 @@ if [[ -n "$bin_dir" ]]; then
   rm -rf "$fw"
   ditto --noextattr --norsrc "$bin_dir/Sparkle.framework" "$fw"
   # 샌드박스를 쓰지 않는 앱은 XPC 서비스가 필요 없다 (Sparkle 문서: 지워도 된다). 서명할 것이 줄어든다.
-  rm -rf "$fw/Versions/B/XPCServices"
+  rm -rf "$fw/Versions/B/XPCServices" "$fw/XPCServices"   # 맨 위 바로가기도 (남으면 xattr -cr 이 멈춘다)
   # 실행 파일이 Contents/Frameworks에서 Sparkle을 찾게 한다 (swift build는 @loader_path만 넣는다)
   if ! otool -l "$exe" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$exe"
