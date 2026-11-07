@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FAKUKU Mail 자동 업데이트 목록 (Sparkle). tools/release.sh (publish) 가 쓴다: 손으로 고치지 마세요. -->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>FAKUKU Mail</title>
+    <link>https://mail.fakukulab.com/appcast.xml</link>
+    <language>ko</language>
+  </channel>
+</rss>
