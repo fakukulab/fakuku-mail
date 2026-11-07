@@ -732,6 +732,11 @@ As the user, 새 버전이 나오면 앱이 알아서 알려 주고 버튼 하�
   - DMG `FAKUKU-Mail-1.0.1.dmg` 5,890,684바이트, SHA-256 `95f0be0fcde3c5ec251b3c20de4ccb59cdd2dae8e2aeb5582aec6ace327bf6eb` (받은 파일과 .sha256 일치)
   - 담은 것: iCloud·Gmail 숨은 참조(Bcc) 노출 수정, Graph 날짜 소수 초, 기본 이메일 앱(S-064), .eml 열기·답장·전달(S-065), build.sh 실행 파일 위치·시각 검사
   - 릴리스 노트: docs/release-notes/1.0.1.md
+- 2026-11-07 **1.0.2** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.2 (태그 v1.0.2 = main fedbe1b, PR #2)
+  - DMG `FAKUKU-Mail-1.0.2.dmg` 6,920,803바이트, SHA-256 `6cae363681a416f3d7d5ccb979d519cf11ba35217b9ba41b4fd1efb2cb4ff11e`, 빌드 202611072345
+  - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
+  - 담은 것: 여러 통 읽음 표시 속도·즉시 표시·메뉴 이름(S-066), 많이 골랐을 때 멈춤, 읽지 않음 필터, 자동 업데이트(S-067)
+  - 첫 자동 업데이트 버전: site/appcast.xml에 1.0.2. 1.0.1 사용자는 한 번 손으로 받아야 한다
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, docs/FIXLOG.md), iCloud·Gmail 회의 초대(.ics) 막대
 
 ## Later
