@@ -116,6 +116,8 @@ cp -R "$here/Localization/"*.lproj "$app/Contents/Resources/"
 # Siri·단축어 메타데이터 (Contents/Resources/Metadata.appintents). 실패해도 앱은 설치한다.
 "$here/tools/make_intents.sh" "$app" "$scratch" "$here/Sources/ExchangeMail" || echo "warning: Siri 명령 메타데이터를 만들지 못했습니다 (앱은 정상 설치)"
 xattr -cr "$app"
+# 자동 업데이트(Sparkle): 프레임워크를 앱 안에 넣고 안쪽부터 서명한다 (1.0.2)
+"$here/tools/embed_sparkle.sh" "$app" "$identity" "$bin_dir"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity})"
 

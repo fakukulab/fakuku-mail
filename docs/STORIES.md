@@ -708,6 +708,18 @@ Status: built (맥에서 확인 전)
 - [x] [self] 1.0.2 여러 통을 한 번에 읽음으로, 사이드바 수, 데모 사서함
 - [ ] [manual] 실제 Exchange 계정에서 안 읽은 메일 수백 통을 골라 읽음으로: 몇 초 안에 끝나고 CPU가 오르지 않는다
 
+### S-067 자동 업데이트 (Sparkle)
+Status: built (맥에서 확인 전)
+As the user, 새 버전이 나오면 앱이 알아서 알려 주고 버튼 하나로(또는 자동으로) 바꾼다.
+- [x] Sparkle 2.10.0 (Swift 패키지). build.sh·release.sh가 `Contents/Frameworks`에 넣고 안쪽부터 서명 (`tools/embed_sparkle.sh`, XPC 서비스는 샌드박스가 없어 뺀다)
+- [x] Info.plist: `SUFeedURL` https://mail.fakukulab.com/appcast.xml, `SUPublicEDKey`, 하루 한 번 확인, 자동 받기·설치 기본 켬
+- [x] FAKUKU Mail > 업데이트 확인… (앱 정보 아래), 설정 > 일반 > 업데이트 (자동 확인, 자동 받아서 설치, 지금 버전, 업데이트 확인…)
+- [x] 테스트·스냅숏·데모(APP_STORE)에서는 켜지 않는다
+- [x] release.sh: DMG에 EdDSA 서명(`sign_update`), `--publish`면 `tools/appcast.py`로 site/appcast.xml에 새 버전 (한국어·영어 릴리스 노트)
+- [x] [self] 업데이트 주소·공개 키가 앱 정보에 있다, 셀프 테스트에서는 켜지 않는다
+- [ ] [manual] 1.0.2를 공개하고, 그다음 버전(1.0.3)을 올렸을 때 1.0.2 앱이 알리고 설치·다시 켜기까지 된다
+- 주의: 1.0.1 이하에는 업데이트 기능이 없다. 1.0.2는 사용자가 한 번 손으로 받아야 하고, 그 뒤부터 자동이다.
+
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)
@@ -718,7 +730,6 @@ Status: built (맥에서 확인 전)
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, docs/FIXLOG.md), iCloud·Gmail 회의 초대(.ics) 막대
 
 ## Later
-- Sparkle 업데이트와 공증 배포 (기획안 7장)
 
 ## Dropped
 - SMTP 릴레이: Graph에 MIME을 그대로 보내므로 필요 없음.

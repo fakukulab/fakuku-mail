@@ -159,9 +159,43 @@ struct GeneralSettings: View {
                     .onChange(of: badge) { _, _ in model.updateBadge() }
             }
         }
+        UpdateSettings()
         OfflineSettings()
         AppearanceSettings()
         AppIconSettings()
+    }
+}
+
+/// 설정 > 일반 > 업데이트 (1.0.2, Sparkle)
+struct UpdateSettings: View {
+    @State private var updater = AppUpdater.shared
+
+    var body: some View {
+        Section {
+            LabeledContent(L("업데이트:")) {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Toggle(L("새 버전을 자동으로 확인"), isOn: $updater.checksAutomatically)
+                    Toggle(L("새 버전을 자동으로 받아서 설치"), isOn: $updater.installsAutomatically)
+                        .disabled(!updater.checksAutomatically)
+                    HStack(spacing: Space.sm) {
+                        Text(L("지금 버전 \(Self.version)"))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        Button(L("업데이트 확인…")) { updater.checkNow() }
+                            .controlSize(.small)
+                            .disabled(!updater.canCheck)
+                    }
+                    SettingsNote(updater.isAvailable
+                        ? L("하루에 한 번 새 버전이 있는지 확인합니다. 자동으로 설치하면 새 버전을 받아 두었다가 앱을 끌 때 바꿉니다.")
+                        : L("이 빌드는 업데이트를 확인하지 않습니다 (테스트 또는 개발 빌드)."))
+                }
+            }
+        }
+        .disabled(!updater.isAvailable)
+    }
+
+    static var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
     }
 }
 

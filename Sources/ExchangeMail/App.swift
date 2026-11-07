@@ -185,6 +185,11 @@ struct MailCommands: Commands {
     @Binding var fieldPriority: Bool
 
     var body: some Commands {
+        // FAKUKU Mail > 업데이트 확인… (1.0.2, Sparkle). 맥 앱의 관례대로 앱 정보 바로 아래.
+        CommandGroup(after: .appInfo) {
+            Button(L("업데이트 확인…")) { AppUpdater.shared.checkNow() }
+                .disabled(!AppUpdater.shared.isAvailable)
+        }
         CommandGroup(replacing: .newItem) {
             Button(L("새로운 메시지")) { openWindow(id: "compose", value: ComposeDraft()) }
                 .keyboardShortcut("n")
@@ -639,6 +644,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Store.isOverridden {
             UNUserNotificationCenter.current().delegate = SystemNotifier.shared
         }
+        // 자동 업데이트를 켠다 (1.0.2). 테스트 실행(APP_STORE)에서는 켜지 않는다.
+        _ = AppUpdater.shared
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

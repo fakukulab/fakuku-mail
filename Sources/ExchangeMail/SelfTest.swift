@@ -587,6 +587,10 @@ enum SelfTest {
                 }
                 await model.setRead(ids: wasUnread, false)   // 다음 검사를 위해 원래대로
 
+                // 1.0.2 자동 업데이트: 앱 정보에 업데이트 주소(https)와 공개 키가 있고, 테스트 실행에서는 켜지 않는다
+                check("1.0.2 업데이트 주소와 공개 키가 앱 정보에 있다", AppUpdater.isConfigured(Bundle.main))
+                check("1.0.2 셀프 테스트에서는 업데이트를 확인하지 않는다", !AppUpdater.shared.isAvailable)
+
                 // S-028 다른 폴더로 옮기기
                 let moving = model.navigationOrder[0]
                 model.selection = [moving]
