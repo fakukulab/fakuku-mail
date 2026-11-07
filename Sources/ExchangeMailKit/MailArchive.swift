@@ -262,7 +262,11 @@ public enum MailArchive {
         } else if type != "text/plain" && type != "text/html" || isAttachment {
             counter += 1
             let cid = part.header("content-id")?.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
-            let fallback = type == "message/rfc822" ? L("전달된 메일 \(counter).eml") : (cid.map { L("그림 \($0)") } ?? L("첨부 \(counter)"))
+            // 이름 없는 일정 파일(회의 초대·응답)은 .ics로: 훑어보기·캘린더가 알아본다
+            let isCalendar = type == "text/calendar" || type == "application/ics"
+            let fallback = type == "message/rfc822" ? L("전달된 메일 \(counter).eml")
+                : isCalendar ? "invite.ics"  // l10n: data
+                : (cid.map { L("그림 \($0)") } ?? L("첨부 \(counter)"))
             let name = filename.map(decodeWords) ?? fallback
             mail.attachments.append(ArchivedAttachment(id: counter, name: name, contentType: type, contentID: cid,
                                                        isInline: disposition.type == "inline" || (cid != nil && filename == nil),

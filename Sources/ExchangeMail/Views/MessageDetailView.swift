@@ -612,5 +612,7 @@ struct MeetingBar: View {
         .padding(.horizontal, Space.margin)
         .padding(.vertical, Space.sm)
         .background(.bar)
+        // 이미 맥 캘린더에 있는 회의면 "있음" (S-056)
+        .task(id: event.id) { model.loadMacCalendarStatus(for: event, subject: model.detail?.subject) }
     }
 }

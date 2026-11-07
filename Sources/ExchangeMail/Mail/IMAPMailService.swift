@@ -369,8 +369,22 @@ final class IMAPMailService: MailService {
         let reply = try await run(select: path, "UID FETCH \(uid) (\(summaryItems) BODY.PEEK[])")
         guard let items = reply.untagged.compactMap(IMAP.fetchItems).first(where: { $0["UID"]?.int == uid }),
               let base = IMAP.summary(items, account: accountID, path: path) else { throw Self.notFound }
-        let (message, files) = IMAP.detail(base, mime: IMAP.bodySection(items) ?? Data())
+        var (message, files) = IMAP.detail(base, mime: IMAP.bodySection(items) ?? Data())
         attachmentMemo = [id: files]   // 열린 메일 하나만 기억한다
+        // 회의 초대(.ics): 회의 막대와 수락·미정·거절, 맥 캘린더 (1.0.3)
+        if let invite = ICSInvite.find(in: files.map { ($0.name, $0.contentType ?? "", $0.data ?? Data()) }) {
+            let eventID = ICSInvite.eventID(account: accountID, uid: invite.uid)
+            inviteMemo[eventID] = invite
+            Self.rememberInvite(eventID, messageID: id)
+            message.event = invite.mailEvent(id: eventID, response: Self.savedResponse(eventID) ?? invite.myResponse(me: me))
+            if invite.isRequest(me: me) { message.odataType = "#microsoft.graph.eventMessageRequest" }
+            // 본문이 없는 초대·응답·취소 메일(Outlook·Exchange의 응답 등)은 무슨 메일인지 글로 보인다
+            if (message.body?.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let text = invite.summaryText()
+                message.body = .init(contentType: "text", content: text)
+                message.bodyPreview = text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
+            }
+        }
         return message
     }
 
@@ -620,9 +634,58 @@ final class IMAPMailService: MailService {
 
     // MARK: Exchange에만 있는 기능
 
-    func respond(toEvent eventID: String, with response: MeetingResponse) async throws { throw IMAPError.unsupported }
-    func event(id: String) async throws -> MailEvent { throw IMAPError.unsupported }
+    // MARK: 회의 초대 (.ics, 1.0.3)
+
+    /// 연 초대 메일의 일정 (일정 id → 초대)
+    private var inviteMemo: [String: ICSInvite] = [:]
+    private var me: [String] { [config.email, config.username].filter { !$0.isEmpty } }
+
+    /// 주최자에게 답장(METHOD:REPLY)을 보낸다. 보낸 편지함에는 두지 않는다 (맥 Mail·Outlook처럼).
+    func respond(toEvent eventID: String, with response: MeetingResponse) async throws {
+        let invite = try await invite(eventID)
+        let mine = invite.attendees.first { a in me.contains { $0.lowercased() == a.email.lowercased() } }
+        let address = MailAddress(name: config.name.isEmpty ? mine?.name : config.name, address: mine?.email ?? config.email)
+        guard let mime = invite.replyMIME(from: address, response: response) else {
+            throw IMAPError.server(L("초대에 주최자 주소가 없어 답할 수 없습니다."))
+        }
+        try await smtp.send(mime, from: config.email)
+        Self.saveResponse(eventID, response.graphValue)
+    }
+
+    func event(id: String) async throws -> MailEvent {
+        let invite = try await invite(id)
+        return invite.mailEvent(id: id, response: Self.savedResponse(id) ?? invite.myResponse(me: me))
+    }
+
     func meetingCheck(eventID: String) async throws -> MeetingCheck { throw IMAPError.unsupported }
+
+    /// 기억한 초대, 없으면(앱을 다시 켠 뒤) 그 메일을 다시 읽는다
+    private func invite(_ eventID: String) async throws -> ICSInvite {
+        if let i = inviteMemo[eventID] { return i }
+        if let messageID = Self.inviteMessages[eventID]?["message"] {
+            _ = try await message(id: messageID)
+            if let i = inviteMemo[eventID] { return i }
+        }
+        throw Self.notFound
+    }
+
+    /// 일정 id → {message: 메일 id, response: 내 답}. 초대 메일을 다시 열거나 앱을 다시 켜도 내 답이 보이게.
+    private static let invitesKey = "ics.invites"
+    private static var inviteMessages: [String: [String: String]] {
+        get { UserDefaults.standard.dictionary(forKey: invitesKey) as? [String: [String: String]] ?? [:] }
+        set {
+            // 오래된 것부터 지워 200개만 둔다
+            var v = newValue
+            if v.count > 200 { for k in v.keys.sorted().prefix(v.count - 200) { v[k] = nil } }
+            UserDefaults.standard.set(v, forKey: invitesKey)
+        }
+    }
+    private static func rememberInvite(_ eventID: String, messageID: String) {
+        guard inviteMessages[eventID]?["message"] != messageID else { return }
+        inviteMessages[eventID, default: [:]]["message"] = messageID
+    }
+    private static func savedResponse(_ eventID: String) -> String? { inviteMessages[eventID]?["response"] }
+    private static func saveResponse(_ eventID: String, _ value: String) { inviteMessages[eventID, default: [:]]["response"] = value }
     func rules() async throws -> [MessageRule] { [] }
     func createRule(_ rule: MessageRule) async throws -> MessageRule { throw IMAPError.unsupported }
     func setRule(id: String, enabled: Bool) async throws { throw IMAPError.unsupported }

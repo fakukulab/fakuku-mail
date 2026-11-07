@@ -51,6 +51,15 @@ public struct CalendarEntry: Equatable, Sendable {
         return a == b && otherAllDay == isAllDay && abs(start.timeIntervalSince(otherStart)) < 60
     }
 
+    /// 앱이 넣은 일정이 지금 회의와 달라졌는가 (주최자가 시각·제목·장소를 바꿨을 때). 다르면 고친다.
+    public func needsUpdate(title other: String?, start otherStart: Date, end otherEnd: Date,
+                            isAllDay otherAllDay: Bool, location otherLocation: String?) -> Bool {
+        let place = { (s: String?) in (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
+        return !isSame(title: other, start: otherStart, isAllDay: otherAllDay)
+            || abs(end.timeIntervalSince(otherEnd)) >= 60
+            || place(location) != place(otherLocation)
+    }
+
     /// "2026-11-05T00:00:00.0000000" → 이 Mac의 그날 0시
     static func localDay(_ dateTime: String, calendar: Calendar) -> Date? {
         let parts = dateTime.prefix(10).split(separator: "-").compactMap { Int($0) }
