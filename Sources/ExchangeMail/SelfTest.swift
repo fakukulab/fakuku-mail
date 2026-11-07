@@ -661,6 +661,39 @@ enum SelfTest {
                     try? await Task.sleep(for: .milliseconds(300))
                 }
 
+                // 1.0.2 "읽지 않음" 필터: 읽음이 된 메일은 목록에서 빠지고, 보고 있는 메일은 다른 메일로 넘어갈 때 빠진다 (맥 Mail)
+                do {
+                    let savedThreaded = UserDefaults.standard.object(forKey: "list.threaded")
+                    UserDefaults.standard.set(false, forKey: "list.threaded")
+                    let all = model.messages.map(\.id)
+                    await model.setRead(ids: all, false)
+                    model.listFilter.unread = true
+                    await model.loadMessages(keepSelection: false)
+                    if model.messages.count >= 3 {
+                        let a = model.messages[0].id, b = model.messages[1].id
+                        model.selectedMessageID = a
+                        try? await Task.sleep(for: .milliseconds(300))
+                        await model.setRead(ids: [a, b], true)
+                        try? await Task.sleep(for: .milliseconds(200))
+                        let ids = model.messages.map(\.id)
+                        check("1.0.2 읽지 않음 필터: 읽음으로 바꾼 메일은 목록에서 빠진다", !ids.contains(b), ids.joined(separator: ","))
+                        check("1.0.2 읽지 않음 필터: 보고 있는 메일은 읽어도 남는다", ids.contains(a))
+                        model.selectedMessageID = model.messages.first { $0.id != a }?.id
+                        try? await Task.sleep(for: .milliseconds(300))
+                        check("1.0.2 읽지 않음 필터: 다른 메일로 넘어가면 읽은 메일이 빠진다",
+                              !model.messages.contains { $0.id == a })
+                    } else {
+                        check("1.0.2 읽지 않음 필터 검사에 메일이 세 통 이상 있다", false, "\(model.messages.count)")
+                    }
+                    model.listFilter = MailFilter()
+                    await model.loadMessages(keepSelection: false)
+                    await model.setRead(ids: all, true)
+                    await model.setRead(ids: wasUnread, false)
+                    if let savedThreaded { UserDefaults.standard.set(savedThreaded, forKey: "list.threaded") }
+                    else { UserDefaults.standard.removeObject(forKey: "list.threaded") }
+                    try? await Task.sleep(for: .milliseconds(300))
+                }
+
                 // S-028 다른 폴더로 옮기기
                 let moving = model.navigationOrder[0]
                 model.selection = [moving]

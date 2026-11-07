@@ -121,6 +121,8 @@ final class AppModel {
     @ObservationIgnored let detailCache = DetailCache()
     /// 미리 받기 (다른 메일을 열면 앞의 것을 그만둔다)
     @ObservationIgnored var prefetchTask: Task<Void, Never>?
+    /// "읽지 않음" 필터에서 읽음이 됐지만 지금 보고 있어 목록에 남겨 둔 메일 (1.0.2)
+    @ObservationIgnored var unreadFilterKept: String?
     /// 읽음 상태 서버 요청을 차례대로 보내는 줄 (1.0.2: 화면은 먼저 바꾸고 서버는 뒤에서)
     @ObservationIgnored var readChain: Task<Void, Never>?
     /// 메일마다 읽음 상태를 바꾼 횟수: 서버가 거절해 되돌릴 때, 그사이 다시 바꾼 메일은 되돌리지 않는다
@@ -232,6 +234,13 @@ final class AppModel {
                 if selection != [id] { selection = [id] }
             } else if selection.count == 1 {
                 selection = []
+            }
+            // "읽지 않음" 필터: 읽으면서도 남겨 둔 메일은 다른 메일로 넘어가면 목록에서 뺀다 (맥 Mail과 같다, 1.0.2)
+            if let kept = unreadFilterKept, kept != selectedMessageID {
+                unreadFilterKept = nil
+                if listFilter.unread {
+                    Task { @MainActor in self.messages.removeAll { $0.id == kept && !$0.isUnread } }
+                }
             }
             allowRemoteFor = nil
             shownMessageID = nil
@@ -486,8 +495,9 @@ final class AppModel {
             localHits = []
         }
         // 비어 있으면 저장된 목록을 먼저 보여 주고 서버 응답으로 바꾼다 (S-026).
+        // 필터가 켜져 있으면 저장된 목록에도 건다 (1.0.2: 거르지 않은 목록이 잠깐, 오프라인이면 계속 보였다)
         if messages.isEmpty, search.isEmpty, let saved = cachedService?.cache?.list(folderID: folderID) {
-            messages = saved.messages
+            messages = listFilter.isActive ? arrange(saved.messages, serverFiltered: false) : saved.messages
         }
         isLoading = true
         defer { isLoading = false }
@@ -726,6 +736,8 @@ final class AppModel {
                 now[id] = m
             }
             applyRead(failed, !read, known: now)
+            // "읽지 않음" 필터에서 이미 뺀 메일은 다시 불러와야 보인다
+            if read && listFilter.unread { Task { await loadMessages(keepSelection: true) } }
             if !done.isEmpty { report(PartialReadError(missed: failed.count)) }
         }
         return done.count
@@ -760,6 +772,7 @@ final class AppModel {
             touched = true
         }
         if touched { messages = list }
+        if read { hideReadUnderUnreadFilter(changed) }
         // 사이드바 숫자와 Dock 배지는 계정별 폴더(accountFolders)를 본다: 거기와 지금 계정 폴더를 함께 고친다.
         // 고른 사이드바 항목이 아니라 메일의 폴더다 (모든 받은 편지함·깃발 표시·스마트 메일상자에서 읽어도 줄게).
         var deltas: [String: Int] = [:]
@@ -782,6 +795,24 @@ final class AppModel {
         }
         updateBadge()
         updateMenu()
+    }
+
+    /// "읽지 않음" 필터를 켠 목록에서 읽음이 된 메일을 뺀다 (1.0.2: 예전에는 다시 불러올 때까지 읽은 메일이 남았다).
+    /// 맥 Mail처럼 지금 보고 있는 메일은 다른 메일로 넘어갈 때까지 남긴다 (읽는 도중 사라지지 않게).
+    private func hideReadUnderUnreadFilter(_ changed: Set<String>) {
+        guard listFilter.unread else { return }
+        var gone = changed
+        if let keep = selectedMessageID, changed.contains(keep) {
+            gone.remove(keep)
+            unreadFilterKept = keep
+        }
+        guard messages.contains(where: { gone.contains($0.id) }) else { return }
+        // 줄은 다음 차례에 뺀다: 표가 선택을 바꾸는 도중일 수 있다 (NSTableView 재진입 경고)
+        Task { @MainActor in
+            self.messages.removeAll { gone.contains($0.id) && !$0.isUnread }
+            let left = self.selection.subtracting(gone)
+            if left != self.selection { self.selection = left }
+        }
     }
 
     /// 폴더의 읽지 않은 수를 바로 고친다 (서버 숫자는 다음 새로 고침에 다시 받는다)
