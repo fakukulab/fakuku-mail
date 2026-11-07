@@ -1,5 +1,13 @@
 # Fix log
 
+## 2026-11-08 앱을 켜면 "메일 서버 오류: Please login first" (iCloud·Gmail)
+
+증상: 1.0.3으로 자동 업데이트한 뒤 다시 켜자 오류 알림이 먼저 떴다 (그 뒤로는 정상).
+원인: 켜질 때 연결을 미리 여는 `warmUp()`이 `connectIfNeeded()`를 차례 지키기(acquire) 없이 불렀다. `connectIfNeeded()`는
+연결(task)을 먼저 두고 인사·LOGIN을 기다리는데(actor는 await 사이에 다른 호출을 받는다), 그 사이 폴더 불러오기가 `task != nil`만 보고
+로그인 전에 SELECT를 보냈다 → 서버가 "Please login first". 업데이트와는 상관없이 켜질 때 타이밍이 겹치면 생긴다.
+고침: 로그인까지 끝나야 `ready`. 연결·로그인 중이면 그 일(`connecting`)을 다 같이 기다린다 (IMAPConnection).
+
 ## 2026-11-08 NSTableView 재진입 경고가 아직 남은 곳 (조사, 고치지 않음)
 
 증상: 셀프 테스트 중 "WARNING: Application performed a reentrant operation in its NSTableView delegate"가 3~4번

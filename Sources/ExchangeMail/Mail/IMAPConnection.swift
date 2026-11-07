@@ -140,9 +140,25 @@ actor IMAPConnection {
 
     // MARK: 연결
 
-    /// 연결하고 로그인한다 (계정 추가 때 암호 확인에도 쓴다)
+    /// 로그인까지 끝난 연결인가
+    private var ready = false
+    /// 연결·로그인 중이면 그 일 (같이 부른 쪽은 끝나기를 기다린다)
+    private var connecting: Task<Void, Error>?
+
+    /// 연결하고 로그인한다 (계정 추가 때 암호 확인에도 쓴다).
+    /// 1.0.3 고침: 앱이 켜질 때 미리 열기(warmUp)가 인사·로그인을 기다리는 사이, 다른 명령이 연결이 있는 것만 보고
+    /// 로그인 전에 SELECT를 보내 서버가 "Please login first"로 거절했다. 이제 로그인이 끝날 때까지 모두 기다린다.
     func connectIfNeeded() async throws {
-        guard task == nil else { return }
+        if ready, task != nil { return }
+        if let connecting { return try await connecting.value }
+        let job = Task { try await self.openAndLogin() }
+        connecting = job
+        defer { connecting = nil }
+        try await job.value
+    }
+
+    private func openAndLogin() async throws {
+        disconnect()
         let t = URLSession.shared.streamTask(withHostName: host, port: port)
         t.resume()
         t.startSecureConnection()
@@ -161,6 +177,7 @@ actor IMAPConnection {
             } catch IMAPError.server(let text) {
                 throw IMAPError.login(text)
             }
+            ready = true
         } catch {
             disconnect()
             throw error
@@ -217,6 +234,7 @@ actor IMAPConnection {
     }
 
     func disconnect() {
+        ready = false
         task?.cancel()
         task = nil
         selected = nil
