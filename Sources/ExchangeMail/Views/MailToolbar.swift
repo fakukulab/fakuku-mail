@@ -105,8 +105,11 @@ extension MessageDetailView {
     @ToolbarContentBuilder
     private var extras: some CustomizableToolbarContent {
         ToolbarItem(id: "read") {
-            Button(L("읽음/읽지 않음"), systemImage: "envelope.badge") { Task { await model.toggleReadSelected() } }
-                .help(L("읽음 또는 읽지 않음으로 표시 (⇧⌘U)"))
+            // 맥 Mail처럼 할 일 하나만 보인다 (1.0.2)
+            let unread = model.selectionHasUnread
+            Button(unread ? L("읽음으로 표시") : L("읽지 않음으로 표시"),
+                   systemImage: unread ? "envelope.open" : "envelope.badge") { Task { await model.toggleReadSelected() } }
+                .help(unread ? L("읽음으로 표시 (⇧⌘U)") : L("읽지 않음으로 표시 (⇧⌘U)"))
                 .disabled(noSelection)
         }
         .defaultCustomization(.hidden)

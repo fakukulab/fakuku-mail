@@ -591,6 +591,46 @@ enum SelfTest {
                 check("1.0.2 업데이트 주소와 공개 키가 앱 정보에 있다", AppUpdater.isConfigured(Bundle.main))
                 check("1.0.2 셀프 테스트에서는 업데이트를 확인하지 않는다", !AppUpdater.shared.isAvailable)
 
+                // 1.0.2 맥 Mail처럼: 메뉴는 할 일 하나만, 화면은 서버를 기다리지 않고 바로, 서버가 거절하면 되돌린다
+                if let row = model.navigationOrder.first, let target = model.messages.first(where: { $0.id == row }),
+                   let folder = model.selectedFolderID {
+                    model.selection = [row]
+                    await model.setRead(id: target.id, true)
+                    check("1.0.2 모두 읽었으면 메뉴는 '읽지 않음으로 표시'", !model.hasUnread(rows: [row]) && !model.selectionHasUnread)
+                    await model.setRead(id: target.id, false)
+                    check("1.0.2 읽지 않은 메일이 있으면 메뉴는 '읽음으로 표시'", model.hasUnread(rows: [row]) && model.selectionHasUnread)
+
+                    let unreadNow = model.selectedFolder?.unreadItemCount ?? 0
+                    func onServer() async -> Bool? {
+                        (try? await demo.messages(folderID: folder, search: nil))?.messages.first { $0.id == target.id }?.isUnread
+                    }
+                    demo.readDelay = .seconds(1)
+                    let slow = Task { await model.setRead(id: target.id, true) }
+                    try? await Task.sleep(for: .milliseconds(200))
+                    let serverStillUnread = await onServer() == true
+                    check("1.0.2 느린 서버를 기다리지 않고 화면이 바로 읽음으로 바뀐다",
+                          serverStillUnread && model.messages.first { $0.id == target.id }?.isUnread == false
+                          && (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1),
+                          "server unread=\(serverStillUnread) count \(unreadNow) → \(model.selectedFolder?.unreadItemCount ?? -1)")
+                    _ = await slow.value
+                    check("1.0.2 서버도 뒤이어 읽음", await onServer() == false)
+
+                    demo.simulateOffline = true
+                    model.errorMessage = nil
+                    let refused = Task { await model.setRead(id: target.id, false) }
+                    try? await Task.sleep(for: .milliseconds(200))
+                    let shownAtOnce = model.messages.first { $0.id == target.id }?.isUnread == true
+                    _ = await refused.value
+                    check("1.0.2 서버가 거절하면 화면을 원래대로 되돌린다",
+                          shownAtOnce && model.messages.first { $0.id == target.id }?.isUnread == false
+                          && (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1))
+                    demo.simulateOffline = false
+                    demo.readDelay = .zero
+                    model.errorMessage = nil
+                    await model.retryConnection()
+                }
+                await model.setRead(ids: wasUnread, false)   // 다음 검사를 위해 원래대로
+
                 // S-028 다른 폴더로 옮기기
                 let moving = model.navigationOrder[0]
                 model.selection = [moving]

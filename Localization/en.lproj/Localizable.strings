@@ -1024,7 +1024,6 @@
 "새 메시지로 편집" = "Edit as New Message";
 "받는 사람·제목·본문·첨부를 옮긴 새 메시지 (⌥⌘D)" = "A new message with the same recipients, subject, body, and attachments (⌥⌘D)";
 "%@통의 읽음 상태를 바꾸지 못했습니다. 잠시 뒤 다시 해 보세요." = "Couldn’t change the read status of %@ messages. Try again in a moment.";
-"읽지 않음으로 표시하는 중…" = "Marking as unread…";
 "일부 메일의 읽음 상태를 바꾸지 못했습니다." = "Couldn’t change the read status of some messages.";
 "서버가 요청을 잠시 막았습니다. 잠시 뒤 다시 해 보세요." = "The server is limiting requests. Try again in a moment.";
 "업데이트 확인…" = "Check for Updates…";
@@ -1034,3 +1033,5 @@
 "지금 버전 %@" = "Version %@";
 "하루에 한 번 새 버전이 있는지 확인합니다. 자동으로 설치하면 새 버전을 받아 두었다가 앱을 끌 때 바꿉니다." = "Checks for a new version once a day. With automatic install, the new version is downloaded and installed when you quit the app.";
 "이 빌드는 업데이트를 확인하지 않습니다 (테스트 또는 개발 빌드)." = "This build doesn’t check for updates (test or development build).";
+"읽음으로 표시 (⇧⌘U)" = "Mark as Read (⇧⌘U)";
+"읽지 않음으로 표시 (⇧⌘U)" = "Mark as Unread (⇧⌘U)";

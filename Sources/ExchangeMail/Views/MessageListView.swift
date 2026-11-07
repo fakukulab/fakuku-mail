@@ -211,7 +211,10 @@ struct MessageListView: View {
             Button(L("전달")) { if let m = single { compose(.forward, for: m) } }
                 .disabled(single == nil)
             Divider()
-            Button(L("읽음/읽지 않음 전환")) { act(rows) { await model.toggleReadSelected() } }
+            // 맥 Mail처럼 할 일 하나만: 읽지 않은 메일이 있으면 "읽음으로 표시", 모두 읽었으면 "읽지 않음으로 표시"
+            Button(model.hasUnread(rows: rows) ? L("읽음으로 표시") : L("읽지 않음으로 표시")) {
+                act(rows) { await model.toggleReadSelected() }
+            }
             Menu(L("깃발")) {
                 FlagColorItems { color in act(rows) { await model.setFlagColorSelected(color) } }
                 Divider()
