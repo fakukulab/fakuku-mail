@@ -1,5 +1,11 @@
 # Fix log
 
+## 2026-11-08 셀프 테스트가 "검사 0개"로 4분 뒤 TIMEOUT (메인 창이 뜨지 않음)
+
+증상: `tools/selftest.sh`가 "SELFTEST start" 뒤 아무 검사도 하지 않고 4분 뒤 끝났다. 어제 통과한 1.0.2 배포판도 똑같았고, 가끔은 다시 돌리면 통과했다.
+원인: 터미널에서 실행 파일을 바로 켜면 macOS가 앱을 앞으로 가져오지 않을 때가 있고(`NSApp.activate()`는 요청일 뿐), 그러면 SwiftUI가 메인 창(`Window "main"`)을 만들지 않는다. 앱은 멈춘 것이 아니라 창 없이 기다리고 있었다 (창 목록에 창 0개).
+고침: selftest.sh가 5초 안에 "메인 창이 떴습니다"가 없으면, 셀프 테스트 앱이 아직 켜져 있을 때만 `open`으로 한 번 깨운다 (Dock 아이콘을 누른 것과 같다). 앱이 꺼진 뒤에 `open`하면 실제 계정 앱이 켜지므로 켜져 있는지 먼저 본다.
+
 ## 2026-11-01 Build failed: non-Sendable 'any MailService' cannot exit main actor (SelfTest.swift)
 
 Symptom: `swift build` stopped at SelfTest.swift: "non-Sendable type 'any MailService' of property 'service' cannot exit main actor-isolated context".

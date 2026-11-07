@@ -967,6 +967,20 @@ func calendarEntryAllDay() throws {
     #expect(CalendarEntry(event: MailEvent(id: "y", subject: "a", start: nil, end: nil)) == nil)
 }
 
+@Test("맥 캘린더 일정: 주최자가 시각·제목·장소를 바꾸면 앱이 넣은 일정을 고친다")
+func calendarEntryNeedsUpdate() throws {
+    let event = MailEvent(id: "z", subject: "주간 회의",
+                          start: GraphDateTime(dateTime: "2026-11-05T01:00:00.0000000", timeZone: "UTC"),
+                          end: GraphDateTime(dateTime: "2026-11-05T02:00:00.0000000", timeZone: "UTC"),
+                          location: "3층 회의실")
+    let e = try #require(CalendarEntry(event: event))
+    #expect(!e.needsUpdate(title: " 주간 회의", start: e.start, end: e.end, isAllDay: false, location: "3층 회의실 "))
+    #expect(e.needsUpdate(title: "주간 회의", start: e.start.addingTimeInterval(-3600), end: e.end, isAllDay: false, location: "3층 회의실"))
+    #expect(e.needsUpdate(title: "주간 회의", start: e.start, end: e.end.addingTimeInterval(1800), isAllDay: false, location: "3층 회의실"))
+    #expect(e.needsUpdate(title: "주간 회의", start: e.start, end: e.end, isAllDay: false, location: "5층"))
+    #expect(e.needsUpdate(title: "예전 제목", start: e.start, end: e.end, isAllDay: false, location: "3층 회의실"))
+}
+
 // S-057 Siri가 읽어 주는 글
 
 @Test("Siri: 최근 메일은 보낸 사람, 제목, 본문 앞부분")

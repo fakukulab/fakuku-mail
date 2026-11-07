@@ -26,6 +26,14 @@ extension AppModel {
         show(await MacCalendar.shared.add(entry, calendarID: Prefs.string(Prefs.calendarTarget, "")), for: event.id)
     }
 
+    /// 회의 막대를 열 때: 이미 맥 캘린더에 있으면 "있음"을 보인다 (다시 열거나 앱을 다시 켜도 "추가" 단추가 나오지 않게).
+    func loadMacCalendarStatus(for event: MailEvent, subject: String?) {
+        guard !Store.isOverridden, macCalendarStatus[event.id] == nil,
+              let entry = CalendarEntry(event: event, fallbackTitle: subject),
+              let found = MacCalendar.shared.lookup(entry) else { return }
+        macCalendarStatus[event.id] = found
+    }
+
     private func show(_ outcome: MacCalendar.Outcome, for eventID: String) {
         macCalendarStatus[eventID] = outcome
         switch outcome {
@@ -46,6 +54,7 @@ extension MacCalendar.Outcome {
         switch self {
         case .added(let calendar): L("맥 캘린더에 추가함 (\(calendar))")
         case .alreadyThere: L("맥 캘린더에 있음")
+        case .updated: L("맥 캘린더 일정을 고침")
         case .removed: L("맥 캘린더에서 지움")
         case .denied, .failed: nil
         }
