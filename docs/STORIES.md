@@ -766,6 +766,11 @@ As the user, iCloud·Gmail로 받은 회의 초대도 Exchange처럼 회의 막�
   - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
   - 담은 것: 맥 캘린더 일정 고치기·"있음" 표시(S-056), iCloud·Gmail 회의 초대(S-068), 셀프 테스트 창 깨우기
   - 첫 자동 업데이트 대상: 1.0.2 앱이 알리고 설치·다시 켜기까지 되는지 확인 (S-067 manual)
+- 2026-11-08 **1.0.4** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.4 (태그 v1.0.4 = main 1ece798, PR #4)
+  - DMG `FAKUKU-Mail-1.0.4.dmg` 6,964,550바이트, SHA-256 `5e1ef08a34d6e2aa3338a23f525f2eb24a9e3d9aacab49299bc68048b8765b21`, 빌드 202611080243
+  - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
+  - 담은 것: iCloud·Gmail 켤 때 "Please login first" 오류 (docs/FIXLOG.md)
+  - 1.0.2 → 1.0.3 자동 업데이트는 사용자가 확인했다 (S-067 done)
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, 원인은 SwiftUI List 안쪽: docs/FIXLOG.md 2026-11-08)
 
 ## Later

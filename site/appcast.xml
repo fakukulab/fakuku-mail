@@ -6,6 +6,22 @@
     <link>https://mail.fakukulab.com/appcast.xml</link>
     <language>ko</language>
     <item>
+      <title>FAKUKU Mail 1.0.4</title>
+      <pubDate>Sat, 07 Nov 2026 17:44:18 GMT</pubDate>
+      <sparkle:version>202611080243</sparkle:version>
+      <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description xml:lang="ko"><![CDATA[
+<ul><li><b>iCloud·Gmail 계정 오류 알림</b>: 앱을 켤 때 &quot;메일 서버 오류: Please login first&quot; 알림이 뜨던 문제를 고쳤습니다. 서버에 로그인이 끝나기 전에 메일함을 열려고 해서 생긴 문제였습니다. 메일은 그대로이고 따로 하실 일은 없습니다.</li></ul>
+<p>macOS 26 이상. 사용법: <a href="https://mail.fakukulab.com/help.html">https://mail.fakukulab.com/help.html</a></p>
+      ]]></description>
+      <description xml:lang="en"><![CDATA[
+<ul><li><b>iCloud and Gmail error alert</b>: fixed an alert that could appear when opening the app: “Mail server error: Please login first.” The app was opening a mailbox before it finished signing in to the server. Your mail is unaffected, and there’s nothing you need to do.</li></ul>
+<p>Requires macOS 26 or later. Help: <a href="https://mail.fakukulab.com/help-en.html">https://mail.fakukulab.com/help-en.html</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/fakukulab/fakuku-mail/releases/download/v1.0.4/FAKUKU-Mail-1.0.4.dmg" type="application/octet-stream" sparkle:edSignature="jIlqnmq5CccTR5qU4WtDfyHdZnAvhY3m+3dZI5JsvZ5czbI/2ldxGB8jpyIdsRLbN8LQwxp5yaOsNU/bk/ZLDg==" length="6964550"/>
+    </item>
+    <item>
       <title>FAKUKU Mail 1.0.3</title>
       <pubDate>Sat, 07 Nov 2026 17:29:58 GMT</pubDate>
       <sparkle:version>202611080228</sparkle:version>
