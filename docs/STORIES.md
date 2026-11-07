@@ -761,6 +761,11 @@ As the user, iCloud·Gmail로 받은 회의 초대도 Exchange처럼 회의 막�
   - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
   - 담은 것: 여러 통 읽음 표시 속도·즉시 표시·메뉴 이름(S-066), 많이 골랐을 때 멈춤, 읽지 않음 필터, 자동 업데이트(S-067)
   - 첫 자동 업데이트 버전: site/appcast.xml에 1.0.2. 1.0.1 사용자는 한 번 손으로 받아야 한다
+- 2026-11-08 **1.0.3** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.3 (태그 v1.0.3 = main bbf4b68, PR #3)
+  - DMG `FAKUKU-Mail-1.0.3.dmg` 6,963,391바이트, SHA-256 `16bf72759aac22c1baf941d88de6730fb5d36dfff71822e575031a9eb309ed97`, 빌드 202611080228
+  - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
+  - 담은 것: 맥 캘린더 일정 고치기·"있음" 표시(S-056), iCloud·Gmail 회의 초대(S-068), 셀프 테스트 창 깨우기
+  - 첫 자동 업데이트 대상: 1.0.2 앱이 알리고 설치·다시 켜기까지 되는지 확인 (S-067 manual)
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, 원인은 SwiftUI List 안쪽: docs/FIXLOG.md 2026-11-08)
 
 ## Later
