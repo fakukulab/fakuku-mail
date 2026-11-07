@@ -1036,3 +1036,17 @@
 "이 빌드는 업데이트를 확인하지 않습니다 (테스트 또는 개발 빌드)." = "This build doesn’t check for updates (test or development build).";
 "읽음으로 표시 (⇧⌘U)" = "Mark as Read (⇧⌘U)";
 "읽지 않음으로 표시 (⇧⌘U)" = "Mark as Unread (⇧⌘U)";
+
+/* 1.0.3 iCloud·Gmail 회의 초대 (.ics) */
+"초대에 주최자 주소가 없어 답할 수 없습니다." = "This invitation has no organizer address, so it can't be answered.";
+"수락: %@" = "Accepted: %@";
+"%@님이 회의를 수락했습니다." = "%@ has accepted this meeting.";
+"미정: %@" = "Tentative: %@";
+"%@님이 회의에 미정으로 답했습니다." = "%@ has tentatively accepted this meeting.";
+"거절: %@" = "Declined: %@";
+"%@님이 회의를 거절했습니다." = "%@ has declined this meeting.";
+"%@님이 회의에 답했습니다." = "%@ has responded to this meeting.";
+"주최자가 회의를 취소했습니다." = "The organizer has canceled this meeting.";
+"%@님의 회의 초대" = "Meeting invitation from %@";
+"회의 초대" = "Meeting Invitation";
+"참석자" = "Attendee";

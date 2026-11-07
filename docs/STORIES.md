@@ -732,6 +732,23 @@ As the user, 새 버전이 나오면 앱이 알아서 알려 주고 버튼 하�
 - [ ] [manual] 1.0.2를 공개하고, 그다음 버전(1.0.3)을 올렸을 때 1.0.2 앱이 알리고 설치·다시 켜기까지 된다
 - 주의: 1.0.1 이하에는 업데이트 기능이 없다. 1.0.2는 사용자가 한 번 손으로 받아야 하고, 그 뒤부터 자동이다.
 
+## M28 1.0.3
+
+### S-068 iCloud·Gmail 회의 초대 (.ics)
+Status: done (맥에서 확인 2026-11-08, 주최자 쪽 응답 표시는 확인 전)
+As the user, iCloud·Gmail로 받은 회의 초대도 Exchange처럼 회의 막대에서 수락·미정·거절하고 맥 캘린더에 넣는다.
+- [x] 메일에 붙은 일정 파일(text/calendar, application/ics, .ics)을 읽는다: 제목, 시각(UTC·TZID·Windows 시간대 이름·VTIMEZONE 오프셋), 종일, 장소, 주최자, 참석자, 반복 규칙
+- [x] METHOD:REQUEST이고 내가 주최자가 아니면 회의 막대 (일시·장소·수락/미정/거절, 맥 캘린더에 추가)
+- [x] 답하면 주최자에게 iTIP 답장(METHOD:REPLY, 같은 UID·SEQUENCE, 내 PARTSTAT)을 SMTP로 보낸다. 보낸 편지함에는 두지 않는다
+- [x] 내 답은 앱이 기억한다 (다시 열거나 앱을 다시 켜도 막대에 보인다). 수락·미정이면 맥 캘린더에, 거절이면 앱이 넣은 일정을 지운다 (S-056 그대로)
+- [x] [unit] ICSInviteTests: Google 초대, 시간대 여러 가지, 종일, 답장 일정 파일과 메일, 긴 줄 접기
+- [x] 본문 없는 응답·취소 메일은 "○○님이 회의를 거절했습니다"와 제목·일시·장소를 본문 자리에, 이름 없는 일정 파일은 invite.ics
+- [x] [manual] 실제 초대(Exchange → iCloud): 회의 막대, 맥 캘린더에 있음, 응답 메일 설명과 invite.ics (2026-11-08 사용자 확인)
+- [ ] [manual] 이 앱에서 수락한 답장이 주최자 캘린더에 내 응답으로 보인다
+- 참고: 초대가 iCloud 정크 메일로 들어간 일이 있었다. 서버의 스팸 판단이라 앱이 정하지 않는다 (메시지 > 정크 아님으로 돌려놓는다).
+- 한계: Gmail은 Google 캘린더가 초대를 이미 넣어 두는데, 이 앱의 답장은 주최자에게만 가므로 내 Google 캘린더의 응답 표시는 바뀌지 않을 수 있다 (확인 전).
+  취소(METHOD:CANCEL) 메일은 아직 따로 다루지 않는다.
+
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)
@@ -744,7 +761,7 @@ As the user, 새 버전이 나오면 앱이 알아서 알려 주고 버튼 하�
   - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
   - 담은 것: 여러 통 읽음 표시 속도·즉시 표시·메뉴 이름(S-066), 많이 골랐을 때 멈춤, 읽지 않음 필터, 자동 업데이트(S-067)
   - 첫 자동 업데이트 버전: site/appcast.xml에 1.0.2. 1.0.1 사용자는 한 번 손으로 받아야 한다
-- 남은 일: NSTableView 재진입 경고 (동작 영향 없음, docs/FIXLOG.md), iCloud·Gmail 회의 초대(.ics) 막대
+- 남은 일: NSTableView 재진입 경고 (동작 영향 없음, 원인은 SwiftUI List 안쪽: docs/FIXLOG.md 2026-11-08)
 
 ## Later
 

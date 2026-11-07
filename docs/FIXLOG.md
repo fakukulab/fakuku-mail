@@ -1,5 +1,16 @@
 # Fix log
 
+## 2026-11-08 NSTableView 재진입 경고가 아직 남은 곳 (조사, 고치지 않음)
+
+증상: 셀프 테스트 중 "WARNING: Application performed a reentrant operation in its NSTableView delegate"가 3~4번
+(S-042 정렬을 바꾼 뒤, S-024 알림을 눌러 메일을 열 때 2번, S-046 스마트 메일상자 폴더 조건). 사이드바를 누르거나 화살표로 옮길 때는 나지 않았다.
+조사: lldb로 NSLog에 멈춰 본 호출 순서에 앱 코드가 없다. SwiftUI `OutlineListCoordinator.diffRows` → `-[NSTableView endUpdates]` →
+`_doAutomaticRowHeightsForInsertedAndVisibleRows` → 줄 높이 캐시가 표 크기를 다시 재며 자기 자신을 또 부른다. 경고를 낸 표는
+접근성 이름이 없는 표(메일 목록)였다. 사이드바("사이드바")가 아니다.
+시도: 미리보기 자리를 늘 두어(`lineLimit(_, reservesSpace: true)`) 줄 높이를 같게 해 봤지만 3번으로 줄었을 뿐이라 되돌렸다.
+결론: SwiftUI List(자동 줄 높이) 안쪽의 일이고 동작에는 영향이 없다. 없애려면 메일 목록을 NSTableView로 직접 만들어야 한다 (큰 일).
+macOS가 이 경고를 assert로 바꾸면 그때 다시 본다.
+
 ## 2026-11-08 셀프 테스트가 "검사 0개"로 4분 뒤 TIMEOUT (메인 창이 뜨지 않음)
 
 증상: `tools/selftest.sh`가 "SELFTEST start" 뒤 아무 검사도 하지 않고 4분 뒤 끝났다. 어제 통과한 1.0.2 배포판도 똑같았고, 가끔은 다시 돌리면 통과했다.
