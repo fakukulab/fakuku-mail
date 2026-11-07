@@ -671,32 +671,78 @@ final class AppModel {
     // MARK: 바꾸기
 
     func setRead(id: String, _ read: Bool) async {
+        await setRead(ids: [id], read)
+    }
+
+    /// 여러 통을 한 번에 (1.0.2). 서버에는 묶어서 보내고(Exchange 묶음 요청, IMAP 한 명령), 끝난 뒤 화면을 한 번만 고친다.
+    /// 예전에는 한 통마다 요청 하나를 기다리고 목록·사이드바·Dock·메뉴를 다시 그려, 수백 통이면 CPU가 100%를 넘고 오래 걸렸다.
+    /// 바뀐 메일 수를 돌려준다.
+    @discardableResult
+    func setRead(ids: [String], _ read: Bool) async -> Int {
+        guard !ids.isEmpty else { return 0 }
+        // 바꾸기 전 상태와 메일이 실제로 있는 폴더 (목록, 대화, 본문 가운데 아는 곳에서). 목록이 앞선다.
+        let wanted = Set(ids)
+        var known: [String: MailMessage] = [:]
+        if let d = detail, wanted.contains(d.id) { known[d.id] = d }
+        for m in thread where wanted.contains(m.id) { known[m.id] = m }
+        for m in messages where wanted.contains(m.id) { known[m.id] = m }
+        let done: [String]
         do {
-            // 바꾸기 전 상태와 메일이 실제로 있는 폴더 (목록, 대화, 본문 가운데 아는 곳에서)
-            let known = messages.first { $0.id == id } ?? thread.first { $0.id == id } ?? (detail?.id == id ? detail : nil)
-            let wasRead = known?.isRead
-            try await service.setRead(id: id, read: read)
-            if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].isRead = read }
-            if let wasRead, wasRead != read {
-                // 사이드바 숫자와 Dock 배지는 계정별 폴더(accountFolders)를 본다: 거기와 지금 계정 폴더를 함께 고친다.
-                // 고른 사이드바 항목이 아니라 메일의 폴더다 (모든 받은 편지함·깃발 표시·스마트 메일상자에서 읽어도 줄게).
-                adjustUnread(folderID: known?.parentFolderId ?? selectedFolderID, by: read ? -1 : 1)
-            }
-            if detail?.id == id { detail?.isRead = read }
-            if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].isRead = read }
-            for (key, cached) in threadCache {
-                if let t = cached.list.firstIndex(where: { $0.id == id }) { threadCache[key]?.list[t].isRead = read }
-            }
-            updateBadge()
-            updateMenu()
+            done = try await service.setRead(ids: ids, read: read)
         } catch {
             report(error)
+            return 0
         }
+        applyRead(Set(done), read, known: known)
+        if done.count < wanted.count {
+            report(PartialReadError(missed: wanted.count - done.count))
+        }
+        return done.count
+    }
+
+    /// 여러 통 가운데 일부만 바뀌었을 때 (나머지는 서버가 막았거나 찾지 못했다)
+    struct PartialReadError: LocalizedError {
+        let missed: Int
+        var errorDescription: String? { L("\(missed)통의 읽음 상태를 바꾸지 못했습니다. 잠시 뒤 다시 해 보세요.") }
+    }
+
+    /// 서버에서 바뀐 메일을 화면에 한 번에 반영한다: 배열마다 한 번만 바꿔 목록이 한 번만 다시 그려진다.
+    private func applyRead(_ changed: Set<String>, _ read: Bool, known: [String: MailMessage]) {
+        guard !changed.isEmpty else { return }
+        var list = messages
+        var touched = false
+        for i in list.indices where changed.contains(list[i].id) && list[i].isRead != read {
+            list[i].isRead = read
+            touched = true
+        }
+        if touched { messages = list }
+        // 사이드바 숫자와 Dock 배지는 계정별 폴더(accountFolders)를 본다: 거기와 지금 계정 폴더를 함께 고친다.
+        // 고른 사이드바 항목이 아니라 메일의 폴더다 (모든 받은 편지함·깃발 표시·스마트 메일상자에서 읽어도 줄게).
+        var deltas: [String: Int] = [:]
+        for id in changed {
+            guard let m = known[id], let wasRead = m.isRead, wasRead != read,
+                  let folder = m.parentFolderId ?? selectedFolderID else { continue }
+            deltas[folder, default: 0] += read ? -1 : 1
+        }
+        for (folder, delta) in deltas { adjustUnread(folderID: folder, by: delta) }
+        if let id = detail?.id, changed.contains(id) { detail?.isRead = read }
+        if thread.contains(where: { changed.contains($0.id) }) {
+            var t = thread
+            for i in t.indices where changed.contains(t[i].id) { t[i].isRead = read }
+            thread = t
+        }
+        for (key, cached) in threadCache where cached.list.contains(where: { changed.contains($0.id) }) {
+            var l = cached.list
+            for i in l.indices where changed.contains(l[i].id) { l[i].isRead = read }
+            threadCache[key]?.list = l
+        }
+        updateBadge()
+        updateMenu()
     }
 
     /// 폴더의 읽지 않은 수를 바로 고친다 (서버 숫자는 다음 새로 고침에 다시 받는다)
     func adjustUnread(folderID: String?, by delta: Int) {
-        guard let folderID else { return }
+        guard let folderID, delta != 0 else { return }
         if let f = folders.firstIndex(where: { $0.id == folderID }) {
             folders[f].unreadItemCount = max(0, (folders[f].unreadItemCount ?? 0) + delta)
         }
@@ -735,7 +781,10 @@ final class AppModel {
         let targets = messages.filter { selectedIDs.contains($0.id) }
         guard !targets.isEmpty else { return }
         let makeRead = targets.contains(where: \.isUnread)
-        for m in targets where m.isUnread == makeRead { await setRead(id: m.id, makeRead) }
+        let ids = targets.filter { $0.isUnread == makeRead }.map(\.id)
+        if ids.count > 20 { progressText = makeRead ? L("읽음으로 표시하는 중…") : L("읽지 않음으로 표시하는 중…") }
+        await setRead(ids: ids, makeRead)
+        if ids.count > 20 { progressText = nil }
     }
 
     /// 보관도 지우기처럼 ⌘Z로 되돌린다 (창의 되돌리기 관리자를 넘긴다).

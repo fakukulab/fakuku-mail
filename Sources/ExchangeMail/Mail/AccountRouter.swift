@@ -198,6 +198,26 @@ final class AccountRouter: MailService {
     }
     func setRead(id: String, read: Bool) async throws { try await forMessage(id).setRead(id: id, read: read) }
 
+    /// 계정마다 모아 그 계정의 서비스에 한 번에 넘긴다 (1.0.2: Exchange는 묶음 요청, IMAP은 폴더별 한 명령).
+    func setRead(ids: [String], read: Bool) async throws -> [String] {
+        var groups: [(service: any MailService, ids: [String])] = []
+        for id in ids {
+            let s = try forMessage(id)
+            if let i = groups.firstIndex(where: { $0.service === s }) { groups[i].ids.append(id) } else { groups.append((s, [id])) }
+        }
+        var done: [String] = []
+        var lastError: Error?
+        for group in groups {
+            do {
+                done += try await group.service.setRead(ids: group.ids, read: read)
+            } catch {
+                lastError = error
+            }
+        }
+        if done.isEmpty, let lastError { throw lastError }
+        return done
+    }
+
     func move(id: String, to destination: String) async throws -> String {
         let account = messageOwner[id] ?? store.active?.id
         // Exchange는 다른 계정(사서함)의 폴더로 옮길 수 없다.

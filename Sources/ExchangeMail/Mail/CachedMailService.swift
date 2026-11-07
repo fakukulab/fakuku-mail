@@ -206,6 +206,10 @@ final class CachedMailService: MailService {
         try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(id: id, read: read) }
     }
 
+    func setRead(ids: [String], read: Bool) async throws -> [String] {
+        try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(ids: ids, read: read) }
+    }
+
     func move(id: String, to destination: String) async throws -> String {
         try await write(L("옮길")) { try await remote.move(id: id, to: destination) }
     }

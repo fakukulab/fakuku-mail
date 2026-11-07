@@ -567,6 +567,26 @@ enum SelfTest {
                 let readStates = model.messages.filter { model.selection.contains($0.id) }.map(\.isUnread)
                 check("S-027 여러 통 읽음 전환은 모두 같은 상태가 된다", Set(readStates).count == 1)
 
+                // 1.0.2 여러 통을 한 번에 읽음으로: 모두 바뀌고, 사이드바 수가 바뀐 만큼만 준다
+                let wasUnread = model.messages.filter(\.isUnread).map(\.id)
+                model.selection = Set(model.navigationOrder)
+                let picked = model.messages.filter { model.selectedIDs.contains($0.id) }.map(\.id)
+                await model.setRead(ids: picked, false)
+                let unreadBefore = model.selectedFolder?.unreadItemCount ?? 0
+                await model.toggleReadSelected()
+                let unreadAfter = model.selectedFolder?.unreadItemCount ?? 0
+                check("1.0.2 여러 통을 한 번에 읽음으로 바꾼다",
+                      picked.count > 2 && model.messages.filter { picked.contains($0.id) }.allSatisfy { !$0.isUnread },
+                      "picked=\(picked.count)")
+                check("1.0.2 사이드바 읽지 않은 수가 바꾼 만큼 준다", unreadAfter == max(0, unreadBefore - picked.count),
+                      "\(unreadBefore) → \(unreadAfter), \(picked.count)통")
+                if let folder = model.selectedFolderID {
+                    let server = (try? await model.service.messages(folderID: folder, search: nil))?.messages ?? []
+                    check("1.0.2 서버(데모 사서함)에서도 모두 읽음",
+                          !server.isEmpty && server.filter { picked.contains($0.id) }.allSatisfy { !$0.isUnread })
+                }
+                await model.setRead(ids: wasUnread, false)   // 다음 검사를 위해 원래대로
+
                 // S-028 다른 폴더로 옮기기
                 let moving = model.navigationOrder[0]
                 model.selection = [moving]

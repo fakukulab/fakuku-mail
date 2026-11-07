@@ -446,6 +446,39 @@ final class IMAPMailService: MailService {
         try await store(id, read ? "+FLAGS.SILENT (\\Seen)" : "-FLAGS.SILENT (\\Seen)")
     }
 
+    /// 여러 통 (1.0.2): 폴더마다 UID 목록 하나로 STORE 한 번 (한 명령에 500통까지).
+    func setRead(ids: [String], read: Bool) async throws -> [String] {
+        var byPath: [String: [(id: String, uid: Int)]] = [:]
+        var order: [String] = []
+        var single: [String] = []
+        for id in ids {
+            // 옮긴 뒤 UID를 아직 모르는 메일 등은 한 통씩
+            guard let (path, uid) = try? parts(id), uid > 0 else { single.append(id); continue }
+            if byPath[path] == nil { order.append(path) }
+            byPath[path, default: []].append((id, uid))
+        }
+        var done: [String] = []
+        var lastError: Error?
+        let change = read ? "+FLAGS.SILENT (\\Seen)" : "-FLAGS.SILENT (\\Seen)"
+        for path in order {
+            let items = byPath[path] ?? []
+            for start in stride(from: 0, to: items.count, by: 500) {
+                let slice = items[start..<min(start + 500, items.count)]
+                do {
+                    _ = try await run(select: path, "UID STORE \(slice.map { String($0.uid) }.joined(separator: ",")) \(change)")
+                    done += slice.map(\.id)
+                } catch {
+                    lastError = error
+                }
+            }
+        }
+        if !single.isEmpty {
+            do { done += try await setReadOneByOne(ids: single, read: read) } catch { lastError = error }
+        }
+        if done.isEmpty, let lastError { throw lastError }
+        return done
+    }
+
     func setFlag(id: String, flagged: Bool) async throws {
         try await store(id, flagged ? "+FLAGS.SILENT (\\Flagged)" : "-FLAGS.SILENT (\\Flagged)")
     }

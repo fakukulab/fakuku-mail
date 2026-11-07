@@ -108,9 +108,8 @@ extension AppModel {
             // 목록 줄의 수를 실제 대화 수로 (한 번 연 대화는 같은 수가 보인다)
             if let row, ordered.count != row.count { threadCounts[row.id] = ordered.count }
             if Self.organizeByConversation, let row {
-                for m in row.messages where m.isUnread && m.id != id {
-                    await setRead(id: m.id, true)
-                }
+                let others = row.messages.filter { $0.isUnread && $0.id != id }.map(\.id)
+                if !others.isEmpty { await setRead(ids: others, true) }
             }
         } catch {
             // 대화를 못 가져와도 고른 메일 본문은 보인다.

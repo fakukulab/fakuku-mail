@@ -242,3 +242,13 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   (1) 스마트 메일상자 저장: 사이드바에 줄을 넣으며 바로 고름 (2) 알림으로 열기: 목록을 채우며 바로 고름
   (3) 폴더 바꾸기: 골라진 줄이 사라져 표가 선택을 풀 때, 그 알림(selection didSet) 안에서 본문·대화를 비움.
   셋 다 선택·본문 바꾸기를 다음 차례(Task)로. 한 줄 선택일 때 동작할 메일은 목록 선택(selection)을 먼저 본다.
+
+## 2026-11-07 여러 통을 읽음으로 바꾸면 아주 느리고 CPU가 100%를 넘음 (1.0.2)
+- 증상: Exchange 계정에서 안 읽은 메일 여러 통을 골라 읽음/읽지 않음으로 바꾸면 한참 걸리고 CPU가 100%를 넘었다.
+- 원인: (1) `toggleReadSelected`가 한 통마다 `PATCH /me/messages/{id}`를 보내고 응답을 기다린 뒤 다음 통으로 갔다 (수백 번 왕복).
+  (2) 한 통마다 `messages`·`thread`·`threadCache`를 바꾸고 `updateBadge`·`updateMenu`를 불러, 목록·사이드바·메뉴가 통마다 다시 계산됐다.
+  "모든 메시지를 읽음으로 표시"도 같았고, 바꾼 뒤 다음 쪽 링크(skip)를 따라가 안 읽은 메일을 건너뛸 수 있었다.
+- 고침: `MailService.setRead(ids:read:)`. Graph는 `$batch`(20개씩, 묶음 안 429·503만 다시), IMAP은 폴더별 `UID STORE` 한 번,
+  `AccountRouter`는 계정별로 나눠 넘긴다. `AppModel.setRead(ids:_:)`는 서버가 끝난 뒤 배열마다 한 번만 바꾸고 배지·메뉴도 한 번.
+  모두 읽음은 첫 쪽을 다시 물어 묶어 바꾼다.
+- 규칙: 여러 통에 하는 일은 서버에 묶어 보내고, 관찰되는 상태(@Observable 배열)는 복사본을 고쳐 한 번에 넣는다. 반복문 안에서 화면 상태를 바꾸지 않는다.
