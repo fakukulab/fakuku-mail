@@ -121,6 +121,12 @@ final class AppModel {
     @ObservationIgnored let detailCache = DetailCache()
     /// 미리 받기 (다른 메일을 열면 앞의 것을 그만둔다)
     @ObservationIgnored var prefetchTask: Task<Void, Never>?
+    /// "읽지 않음" 필터에서 읽음이 됐지만 지금 보고 있어 목록에 남겨 둔 메일 (1.0.2)
+    @ObservationIgnored var unreadFilterKept: String?
+    /// 읽음 상태 서버 요청을 차례대로 보내는 줄 (1.0.2: 화면은 먼저 바꾸고 서버는 뒤에서)
+    @ObservationIgnored var readChain: Task<Void, Never>?
+    /// 메일마다 읽음 상태를 바꾼 횟수: 서버가 거절해 되돌릴 때, 그사이 다시 바꾼 메일은 되돌리지 않는다
+    @ObservationIgnored var readGeneration: [String: Int] = [:]
     /// 대화별 메일과 받은 시각 (1분 동안 다시 묻지 않는다)
     @ObservationIgnored var threadCache: [String: (at: Date, list: [MailMessage])] = [:] {
         // 옮기기·지우기 등으로 비우면 목록 줄의 확인된 수도 다시 센다.
@@ -228,6 +234,13 @@ final class AppModel {
                 if selection != [id] { selection = [id] }
             } else if selection.count == 1 {
                 selection = []
+            }
+            // "읽지 않음" 필터: 읽으면서도 남겨 둔 메일은 다른 메일로 넘어가면 목록에서 뺀다 (맥 Mail과 같다, 1.0.2)
+            if let kept = unreadFilterKept, kept != selectedMessageID {
+                unreadFilterKept = nil
+                if listFilter.unread {
+                    Task { @MainActor in self.messages.removeAll { $0.id == kept && !$0.isUnread } }
+                }
             }
             allowRemoteFor = nil
             shownMessageID = nil
@@ -482,8 +495,9 @@ final class AppModel {
             localHits = []
         }
         // 비어 있으면 저장된 목록을 먼저 보여 주고 서버 응답으로 바꾼다 (S-026).
+        // 필터가 켜져 있으면 저장된 목록에도 건다 (1.0.2: 거르지 않은 목록이 잠깐, 오프라인이면 계속 보였다)
         if messages.isEmpty, search.isEmpty, let saved = cachedService?.cache?.list(folderID: folderID) {
-            messages = saved.messages
+            messages = listFilter.isActive ? arrange(saved.messages, serverFiltered: false) : saved.messages
         }
         isLoading = true
         defer { isLoading = false }
@@ -671,32 +685,139 @@ final class AppModel {
     // MARK: 바꾸기
 
     func setRead(id: String, _ read: Bool) async {
-        do {
-            // 바꾸기 전 상태와 메일이 실제로 있는 폴더 (목록, 대화, 본문 가운데 아는 곳에서)
-            let known = messages.first { $0.id == id } ?? thread.first { $0.id == id } ?? (detail?.id == id ? detail : nil)
-            let wasRead = known?.isRead
-            try await service.setRead(id: id, read: read)
-            if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].isRead = read }
-            if let wasRead, wasRead != read {
-                // 사이드바 숫자와 Dock 배지는 계정별 폴더(accountFolders)를 본다: 거기와 지금 계정 폴더를 함께 고친다.
-                // 고른 사이드바 항목이 아니라 메일의 폴더다 (모든 받은 편지함·깃발 표시·스마트 메일상자에서 읽어도 줄게).
-                adjustUnread(folderID: known?.parentFolderId ?? selectedFolderID, by: read ? -1 : 1)
-            }
-            if detail?.id == id { detail?.isRead = read }
-            if let t = thread.firstIndex(where: { $0.id == id }) { thread[t].isRead = read }
-            for (key, cached) in threadCache {
-                if let t = cached.list.firstIndex(where: { $0.id == id }) { threadCache[key]?.list[t].isRead = read }
-            }
-            updateBadge()
-            updateMenu()
-        } catch {
+        await setRead(ids: [id], read)
+    }
+
+    /// 여러 통을 한 번에 (1.0.2). 맥 Mail처럼 화면(목록의 파란 점, 굵은 글씨, 사이드바 수, Dock 배지)을 먼저 바로 바꾸고,
+    /// 서버에는 뒤에서 묶어 보낸다(Exchange 묶음 요청, IMAP 한 명령). 서버가 거절한 메일만 원래대로 되돌리고 알린다.
+    /// 예전에는 한 통마다 요청을 기다리고 화면을 다시 그려, 수백 통이면 CPU가 100%를 넘고 오래 걸렸다.
+    /// 서버 요청은 차례대로 보낸다: 빨리 두 번 바꿔도 서버에 나중 것이 남는다. 서버에서 바뀐 메일 수를 돌려준다.
+    @discardableResult
+    func setRead(ids: [String], _ read: Bool) async -> Int {
+        guard !ids.isEmpty else { return 0 }
+        // 바꾸기 전 상태와 메일이 실제로 있는 폴더 (목록, 대화, 본문 가운데 아는 곳에서). 목록이 앞선다.
+        let wanted = Set(ids)
+        var known: [String: MailMessage] = [:]
+        if let d = detail, wanted.contains(d.id) { known[d.id] = d }
+        for m in thread where wanted.contains(m.id) { known[m.id] = m }
+        for m in messages where wanted.contains(m.id) { known[m.id] = m }
+
+        // 1. 화면을 바로
+        var generation: [String: Int] = [:]
+        for id in wanted {
+            readGeneration[id, default: 0] += 1
+            generation[id] = readGeneration[id]
+        }
+        applyRead(wanted, read, known: known)
+
+        // 2. 서버는 뒤에서, 앞의 읽음 요청이 끝난 다음에
+        let previous = readChain
+        let service = self.service
+        let work = Task { () -> Result<[String], Error> in
+            await previous?.value
+            do { return .success(try await service.setRead(ids: ids, read: read)) } catch { return .failure(error) }
+        }
+        readChain = Task { _ = await work.value }
+        let done: [String]
+        switch await work.value {
+        case .success(let list): done = list
+        case .failure(let error):
+            done = []
             report(error)
+        }
+
+        // 3. 서버가 거절한 메일은 되돌린다. 그사이 사용자가 다시 바꾼 메일은 건드리지 않는다.
+        let failed = wanted.subtracting(done).filter { readGeneration[$0] == generation[$0] }
+        if !failed.isEmpty {
+            var now: [String: MailMessage] = [:]
+            for (id, m) in known where failed.contains(id) {
+                var m = m
+                m.isRead = read
+                now[id] = m
+            }
+            applyRead(failed, !read, known: now)
+            // "읽지 않음" 필터에서 이미 뺀 메일은 다시 불러와야 보인다
+            if read && listFilter.unread { Task { await loadMessages(keepSelection: true) } }
+            if !done.isEmpty { report(PartialReadError(missed: failed.count)) }
+        }
+        return done.count
+    }
+
+    /// 고른 줄(오른쪽 클릭한 줄)에 읽지 않은 메일이 있는가: 메뉴가 "읽음으로 표시"인지 "읽지 않음으로 표시"인지 (맥 Mail과 같다).
+    /// 대화별 보기면 대화 안의 메일까지 본다.
+    func hasUnread(rows: Set<String>) -> Bool {
+        let ids = Set(expandRows(rows))
+        return messages.contains { ids.contains($0.id) && $0.isUnread }
+    }
+
+    /// 지금 고른 메일에 읽지 않은 메일이 있는가 (도구 막대 단추)
+    var selectionHasUnread: Bool {
+        let ids = Set(selectedIDs)
+        return messages.contains { ids.contains($0.id) && $0.isUnread }
+    }
+
+    /// 여러 통 가운데 일부만 바뀌었을 때 (나머지는 서버가 막았거나 찾지 못했다)
+    struct PartialReadError: LocalizedError {
+        let missed: Int
+        var errorDescription: String? { L("\(missed)통의 읽음 상태를 바꾸지 못했습니다. 잠시 뒤 다시 해 보세요.") }
+    }
+
+    /// 서버에서 바뀐 메일을 화면에 한 번에 반영한다: 배열마다 한 번만 바꿔 목록이 한 번만 다시 그려진다.
+    private func applyRead(_ changed: Set<String>, _ read: Bool, known: [String: MailMessage]) {
+        guard !changed.isEmpty else { return }
+        var list = messages
+        var touched = false
+        for i in list.indices where changed.contains(list[i].id) && list[i].isRead != read {
+            list[i].isRead = read
+            touched = true
+        }
+        if touched { messages = list }
+        if read { hideReadUnderUnreadFilter(changed) }
+        // 사이드바 숫자와 Dock 배지는 계정별 폴더(accountFolders)를 본다: 거기와 지금 계정 폴더를 함께 고친다.
+        // 고른 사이드바 항목이 아니라 메일의 폴더다 (모든 받은 편지함·깃발 표시·스마트 메일상자에서 읽어도 줄게).
+        var deltas: [String: Int] = [:]
+        for id in changed {
+            guard let m = known[id], let wasRead = m.isRead, wasRead != read,
+                  let folder = m.parentFolderId ?? selectedFolderID else { continue }
+            deltas[folder, default: 0] += read ? -1 : 1
+        }
+        for (folder, delta) in deltas { adjustUnread(folderID: folder, by: delta) }
+        if let id = detail?.id, changed.contains(id) { detail?.isRead = read }
+        if thread.contains(where: { changed.contains($0.id) }) {
+            var t = thread
+            for i in t.indices where changed.contains(t[i].id) { t[i].isRead = read }
+            thread = t
+        }
+        for (key, cached) in threadCache where cached.list.contains(where: { changed.contains($0.id) }) {
+            var l = cached.list
+            for i in l.indices where changed.contains(l[i].id) { l[i].isRead = read }
+            threadCache[key]?.list = l
+        }
+        updateBadge()
+        updateMenu()
+    }
+
+    /// "읽지 않음" 필터를 켠 목록에서 읽음이 된 메일을 뺀다 (1.0.2: 예전에는 다시 불러올 때까지 읽은 메일이 남았다).
+    /// 맥 Mail처럼 지금 보고 있는 메일은 다른 메일로 넘어갈 때까지 남긴다 (읽는 도중 사라지지 않게).
+    private func hideReadUnderUnreadFilter(_ changed: Set<String>) {
+        guard listFilter.unread else { return }
+        var gone = changed
+        if let keep = selectedMessageID, changed.contains(keep) {
+            gone.remove(keep)
+            unreadFilterKept = keep
+        }
+        guard messages.contains(where: { gone.contains($0.id) }) else { return }
+        // 줄은 다음 차례에 뺀다: 표가 선택을 바꾸는 도중일 수 있다 (NSTableView 재진입 경고)
+        Task { @MainActor in
+            self.messages.removeAll { gone.contains($0.id) && !$0.isUnread }
+            let left = self.selection.subtracting(gone)
+            if left != self.selection { self.selection = left }
         }
     }
 
     /// 폴더의 읽지 않은 수를 바로 고친다 (서버 숫자는 다음 새로 고침에 다시 받는다)
     func adjustUnread(folderID: String?, by delta: Int) {
-        guard let folderID else { return }
+        guard let folderID, delta != 0 else { return }
         if let f = folders.firstIndex(where: { $0.id == folderID }) {
             folders[f].unreadItemCount = max(0, (folders[f].unreadItemCount ?? 0) + delta)
         }
@@ -732,10 +853,10 @@ final class AppModel {
 
     /// 고른 메일을 모두 읽음(하나라도 안 읽었으면) 또는 모두 안 읽음으로 (S-027).
     func toggleReadSelected() async {
-        let targets = messages.filter { selectedIDs.contains($0.id) }
+        let targets = selectedMessages
         guard !targets.isEmpty else { return }
         let makeRead = targets.contains(where: \.isUnread)
-        for m in targets where m.isUnread == makeRead { await setRead(id: m.id, makeRead) }
+        await setRead(ids: targets.filter { $0.isUnread == makeRead }.map(\.id), makeRead)
     }
 
     /// 보관도 지우기처럼 ⌘Z로 되돌린다 (창의 되돌리기 관리자를 넘긴다).
@@ -945,12 +1066,16 @@ final class AppModel {
     }
 
     func updateMenu() {
+        // 고른 메일은 한 번만 계산한다 (1.0.2: 예전에는 메일마다 다시 계산해 수백 통을 고르면 멈췄다)
+        let ids = selectedIDs
+        let idSet = Set(ids)
+        let picked = idSet.isEmpty ? [] : messages.filter { idSet.contains($0.id) }
         MenuState.shared.update(MenuSnapshot(
             signedIn: isSignedIn,
             hasMessage: detail != nil && selectedMessageID != nil,
-            hasSelection: !selectedIDs.isEmpty,
-            isUnread: messages.filter { selectedIDs.contains($0.id) }.contains(where: \.isUnread),
-            isFlagged: !messages.filter { selectedIDs.contains($0.id) }.contains { !$0.isFlagged },
+            hasSelection: !ids.isEmpty,
+            isUnread: picked.contains(where: \.isUnread),
+            isFlagged: !picked.contains { !$0.isFlagged },
             inJunk: selectedFolder?.kind == "junkemail",
             hasAttachments: !listedAttachments.isEmpty,
             canPrint: detail != nil && multipleSelectionCount == 0,

@@ -8,6 +8,8 @@ final class DemoMailService: MailService {
 
     /// 셀프 테스트가 네트워크가 끊긴 것처럼 만든다 (S-026).
     var simulateOffline = false
+    /// 셀프 테스트가 느린 서버처럼 만든다 (1.0.2: 읽음 표시가 서버를 기다리지 않고 바로 보이는지)
+    var readDelay: Duration = .zero
 
     private func checkOnline() throws {
         if simulateOffline { throw URLError(.notConnectedToInternet) }
@@ -233,6 +235,11 @@ final class DemoMailService: MailService {
         try checkOnline()
         guard let data = files[messageID]?.first(where: { $0.id == attachmentID })?.data else { throw URLError(.fileDoesNotExist) }
         return data
+    }
+
+    func setRead(ids: [String], read: Bool) async throws -> [String] {
+        if readDelay > .zero { try await Task.sleep(for: readDelay) }
+        return try await setReadOneByOne(ids: ids, read: read)
     }
 
     func setRead(id: String, read: Bool) async throws {

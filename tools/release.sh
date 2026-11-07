@@ -42,6 +42,8 @@ app="$out/$display.app"
 # 2. Developer ID 서명: 강화된 런타임, 보안 타임스탬프, 권한 파일
 xattr -cr "$app"
 find "$app" -exec xattr -c {} + 2>/dev/null || true
+# 안의 Sparkle(자동 업데이트)도 강화된 런타임·타임스탬프로 다시 서명해야 공증을 받는다
+"$here/tools/embed_sparkle.sh" "$app" "$identity" --release
 codesign --force --options runtime --timestamp --entitlements "$entitlements" --sign "$identity" "$app"
 codesign --verify --strict --verbose=2 "$app"
 echo "release: 서명 확인 완료"
@@ -80,6 +82,15 @@ if $notarize; then
   spctl --assess --type execute --verbose=2 "$app"
 fi
 (cd "$out" && shasum -a 256 "$(basename "$dmg")" | tee "$(basename "$dmg").sha256")
+# 자동 업데이트 서명 (Sparkle EdDSA, 1.0.2): 키체인의 비밀 키(계정 com.fakukulab.fakukumail)로 DMG에 서명한다.
+# 앱 안의 공개 키(Info.plist SUPublicEDKey)와 짝이 맞아야 사용자의 앱이 이 DMG를 받아들인다.
+sparkle_bin="$HOME/Library/Developer/FAKUKUMail/build/artifacts/sparkle/Sparkle/bin"
+build_number=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")
+if ! ed_signature=$("$sparkle_bin/sign_update" --account com.fakukulab.fakukumail "$dmg" 2>&1); then
+  echo "release: 업데이트 서명을 못 했습니다. 키체인에 Sparkle 비밀 키가 있는지 보세요 (docs/RELEASE.md 4단계): $ed_signature" >&2
+  exit 1
+fi
+echo "release: 업데이트 서명 $ed_signature (빌드 $build_number)"
 # 다 만든 DMG만 저장소의 dist/로 (DMG는 서명이 안에 있어 동기화 꼬리표가 붙어도 괜찮다)
 mkdir -p "$here/dist"
 cp "$dmg" "$dmg.sha256" "$here/dist/"
@@ -96,4 +107,9 @@ if $publish; then
     gh release create "v$version" "$dmg" "$dmg.sha256" --title "FAKUKU Mail $version" --generate-notes
   fi
   echo "release: GitHub 릴리스 v$version 에 올렸습니다"
+  # 자동 업데이트 목록: 사용자의 앱은 소개 사이트의 appcast.xml을 본다. main에 올리면 GitHub Pages가 내보낸다.
+  dmg_url="https://github.com/fakukulab/fakuku-mail/releases/download/v$version/$(basename "$dmg")"
+  notes_arg=(); [[ -f "$notes" ]] && notes_arg=("$notes")
+  python3 "$here/tools/appcast.py" "$here/site/appcast.xml" "$version" "$build_number" "$dmg_url" "$ed_signature" "${notes_arg[@]}"
+  echo "release: site/appcast.xml 을 커밋해 main에 올리면 사용자에게 업데이트가 보입니다"
 fi

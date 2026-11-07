@@ -22,6 +22,26 @@ extension MailService {
     func messages(folderID: String, search: String?) async throws -> MessagePage {
         try await messages(folderID: folderID, search: search, filter: nil, oldestFirst: false)
     }
+
+    /// 묶어 보낼 방법이 없는 서비스(데모): 한 통씩 차례로.
+    func setRead(ids: [String], read: Bool) async throws -> [String] {
+        try await setReadOneByOne(ids: ids, read: read)
+    }
+
+    func setReadOneByOne(ids: [String], read: Bool) async throws -> [String] {
+        var done: [String] = []
+        var lastError: Error?
+        for id in ids {
+            do {
+                try await setRead(id: id, read: read)
+                done.append(id)
+            } catch {
+                lastError = error
+            }
+        }
+        if done.isEmpty, let lastError { throw lastError }
+        return done
+    }
 }
 
 /// 메일 서버와의 대화. 실제 계정은 GraphMailService, 데모·테스트는 DemoMailService.
@@ -37,6 +57,9 @@ protocol MailService: AnyObject {
     /// 첨부 하나의 내용 (`$value`). 목록에 내용이 빠진 큰 파일, 첨부된 메일(.eml)에 쓴다.
     func attachmentContent(messageID: String, attachmentID: String) async throws -> Data
     func setRead(id: String, read: Bool) async throws
+    /// 여러 통을 한 번에 읽음·읽지 않음으로 (1.0.2). 바뀐 메일 id를 돌려준다: 일부가 실패해도 나머지는 바꾼다.
+    /// 하나도 못 바꿨으면 오류를 던진다.
+    func setRead(ids: [String], read: Bool) async throws -> [String]
     /// 옮긴 뒤의 새 메시지 id를 돌려준다 (Graph는 옮기면 id가 바뀐다).
     func move(id: String, to destination: String) async throws -> String
     /// 보정이 끝난 MIME을 그대로 보낸다.
@@ -310,6 +333,50 @@ final class GraphMailService: MailService {
 
     func setRead(id: String, read: Bool) async throws {
         _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(["isRead": read]))
+    }
+
+    /// 여러 통은 JSON 묶음 요청(`$batch`, 한 번에 20개까지)으로 보낸다 (1.0.2).
+    /// 한 통씩 PATCH하면 수백 통에 수백 번 왕복했다. 묶음 안에서 서버가 막은 것(429, 503)은 기다렸다 다시 보낸다.
+    func setRead(ids: [String], read: Bool) async throws -> [String] {
+        var seen = Set<String>()
+        let unique = ids.filter { seen.insert($0).inserted }
+        if unique.count == 1 {
+            try await setRead(id: unique[0], read: read)
+            return unique
+        }
+        var done: [String] = []
+        var lastError: Error?
+        for chunk in GraphBatch.chunks(unique) {
+            var pending = chunk
+            var attempt = 0
+            while !pending.isEmpty {
+                let data: Data
+                do {
+                    let body = try JSONSerialization.data(withJSONObject: GraphBatch.readRequests(pending, read: read))
+                    data = try await request("POST", "/$batch", body: body)
+                } catch {
+                    lastError = error
+                    break
+                }
+                let result = GraphBatch.parse(data, ids: pending)
+                done += result.done
+                if let failed = result.failedStatus {
+                    lastError = GraphError(status: failed, code: nil, message: L("일부 메일의 읽음 상태를 바꾸지 못했습니다."))
+                }
+                guard !result.retry.isEmpty else { break }
+                guard attempt < 3 else {
+                    lastError = GraphError(status: 429, code: nil, message: L("서버가 요청을 잠시 막았습니다. 잠시 뒤 다시 해 보세요."))
+                    break
+                }
+                let wait = min(result.retryAfter ?? pow(2, Double(attempt + 1)), 30)
+                GraphThrottle.note(retryAfter: wait)
+                try await Task.sleep(for: .seconds(wait))
+                attempt += 1
+                pending = result.retry
+            }
+        }
+        if done.isEmpty, let lastError { throw lastError }
+        return done
     }
 
     func move(id: String, to destination: String) async throws -> String {

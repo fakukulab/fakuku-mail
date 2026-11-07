@@ -18,6 +18,14 @@
 <key>NSHighResolutionCapable</key><true/>
 <key>NSHumanReadableCopyright</key><string>© 2026 FAKUKULAB</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
+<!-- 자동 업데이트 (Sparkle, 1.0.2). 새 버전 목록: 소개 사이트의 appcast.xml (site/appcast.xml, GitHub Pages).
+     공개 키는 tools/release.sh가 서명할 때 쓰는 키체인 비밀 키(계정 com.fakukulab.fakukumail)의 짝이다. 바꾸면 예전 앱이 업데이트를 거부한다. -->
+<key>SUFeedURL</key><string>https://mail.fakukulab.com/appcast.xml</string>
+<key>SUPublicEDKey</key><string>GQ7AYZ8tJGFCA8kvzElRSwZ28L9/PwIVlBa2VUTmGQY=</string>
+<key>SUEnableAutomaticChecks</key><true/>
+<key>SUAutomaticallyUpdate</key><true/>
+<key>SUScheduledCheckInterval</key><integer>86400</integer>
+<key>SUVerifyUpdateBeforeExtraction</key><true/>
 <key>CFBundleURLTypes</key><array>
   <dict><key>CFBundleURLName</key><string>Email Address URL</string>
     <key>CFBundleURLSchemes</key><array><string>mailto</string></array></dict>

@@ -20,7 +20,7 @@ extension AppModel {
 
     /// 고른 메일에 그 색 깃발을 단다 (깃발이 없으면 서버에 깃발도 단다).
     func setFlagColorSelected(_ color: FlagColor) async {
-        let targets = messages.filter { selectedIDs.contains($0.id) }
+        let targets = selectedMessages
         for m in targets {
             if !m.isFlagged { _ = await setFlag(id: m.id, flagged: true) }
             flagColors[FlagColor.key(for: m)] = color

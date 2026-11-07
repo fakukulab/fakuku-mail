@@ -567,6 +567,133 @@ enum SelfTest {
                 let readStates = model.messages.filter { model.selection.contains($0.id) }.map(\.isUnread)
                 check("S-027 여러 통 읽음 전환은 모두 같은 상태가 된다", Set(readStates).count == 1)
 
+                // 1.0.2 여러 통을 한 번에 읽음으로: 모두 바뀌고, 사이드바 수가 바뀐 만큼만 준다
+                let wasUnread = model.messages.filter(\.isUnread).map(\.id)
+                model.selection = Set(model.navigationOrder)
+                let picked = model.messages.filter { model.selectedIDs.contains($0.id) }.map(\.id)
+                await model.setRead(ids: picked, false)
+                let unreadBefore = model.selectedFolder?.unreadItemCount ?? 0
+                await model.toggleReadSelected()
+                let unreadAfter = model.selectedFolder?.unreadItemCount ?? 0
+                check("1.0.2 여러 통을 한 번에 읽음으로 바꾼다",
+                      picked.count > 2 && model.messages.filter { picked.contains($0.id) }.allSatisfy { !$0.isUnread },
+                      "picked=\(picked.count)")
+                check("1.0.2 사이드바 읽지 않은 수가 바꾼 만큼 준다", unreadAfter == max(0, unreadBefore - picked.count),
+                      "\(unreadBefore) → \(unreadAfter), \(picked.count)통")
+                if let folder = model.selectedFolderID {
+                    let server = (try? await model.service.messages(folderID: folder, search: nil))?.messages ?? []
+                    check("1.0.2 서버(데모 사서함)에서도 모두 읽음",
+                          !server.isEmpty && server.filter { picked.contains($0.id) }.allSatisfy { !$0.isUnread })
+                }
+                await model.setRead(ids: wasUnread, false)   // 다음 검사를 위해 원래대로
+
+                // 1.0.2 자동 업데이트: 앱 정보에 업데이트 주소(https)와 공개 키가 있고, 테스트 실행에서는 켜지 않는다
+                check("1.0.2 업데이트 주소와 공개 키가 앱 정보에 있다", AppUpdater.isConfigured(Bundle.main))
+                check("1.0.2 셀프 테스트에서는 업데이트를 확인하지 않는다", !AppUpdater.shared.isAvailable)
+
+                // 1.0.2 맥 Mail처럼: 메뉴는 할 일 하나만, 화면은 서버를 기다리지 않고 바로, 서버가 거절하면 되돌린다
+                if let row = model.navigationOrder.first, let target = model.messages.first(where: { $0.id == row }),
+                   let folder = model.selectedFolderID {
+                    model.selection = [row]
+                    await model.setRead(id: target.id, true)
+                    check("1.0.2 모두 읽었으면 메뉴는 '읽지 않음으로 표시'", !model.hasUnread(rows: [row]) && !model.selectionHasUnread)
+                    await model.setRead(id: target.id, false)
+                    check("1.0.2 읽지 않은 메일이 있으면 메뉴는 '읽음으로 표시'", model.hasUnread(rows: [row]) && model.selectionHasUnread)
+
+                    let unreadNow = model.selectedFolder?.unreadItemCount ?? 0
+                    func onServer() async -> Bool? {
+                        (try? await demo.messages(folderID: folder, search: nil))?.messages.first { $0.id == target.id }?.isUnread
+                    }
+                    demo.readDelay = .seconds(1)
+                    let slow = Task { await model.setRead(id: target.id, true) }
+                    try? await Task.sleep(for: .milliseconds(200))
+                    let serverStillUnread = await onServer() == true
+                    check("1.0.2 느린 서버를 기다리지 않고 화면이 바로 읽음으로 바뀐다",
+                          serverStillUnread && model.messages.first { $0.id == target.id }?.isUnread == false
+                          && (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1),
+                          "server unread=\(serverStillUnread) count \(unreadNow) → \(model.selectedFolder?.unreadItemCount ?? -1)")
+                    _ = await slow.value
+                    check("1.0.2 서버도 뒤이어 읽음", await onServer() == false)
+
+                    demo.simulateOffline = true
+                    model.errorMessage = nil
+                    let refused = Task { await model.setRead(id: target.id, false) }
+                    try? await Task.sleep(for: .milliseconds(200))
+                    let shownAtOnce = model.messages.first { $0.id == target.id }?.isUnread == true
+                    _ = await refused.value
+                    check("1.0.2 서버가 거절하면 화면을 원래대로 되돌린다",
+                          shownAtOnce && model.messages.first { $0.id == target.id }?.isUnread == false
+                          && (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1))
+                    demo.simulateOffline = false
+                    demo.readDelay = .zero
+                    model.errorMessage = nil
+                    await model.retryConnection()
+                }
+                await model.setRead(ids: wasUnread, false)   // 다음 검사를 위해 원래대로
+
+                // 1.0.2 많이 골라도 멈추지 않는다: 2,000통(대화 400개)을 대화별로 모두 골라 메뉴를 계산해도 0.5초 안에.
+                // 예전에는 메일마다 고른 메일 목록을 다시 계산해(대화마다 목록 전체를 또 훑어) 실제 계정에서 앱이 멈췄다.
+                do {
+                    let savedMessages = model.messages
+                    let savedSelection = model.selection
+                    let savedThreaded = UserDefaults.standard.object(forKey: "list.threaded")
+                    UserDefaults.standard.set(true, forKey: "list.threaded")
+                    let base = Date()
+                    model.messages = (0..<2000).map { i in
+                        MailMessage(id: "perf-\(i)", conversationId: "conv-\(i % 400)", subject: "perf \(i)", from: nil,
+                                    receivedDateTime: base.addingTimeInterval(Double(-i * 60)), isRead: i % 3 == 0)
+                    }
+                    model.selection = Set(model.navigationOrder)
+                    let clock = ContinuousClock()
+                    var picked = 0
+                    var unread = false
+                    let took = clock.measure {
+                        picked = model.selectedIDs.count
+                        model.updateMenu()
+                        unread = model.selectionHasUnread && model.hasUnread(rows: model.selection)
+                    }
+                    check("1.0.2 2,000통을 대화별로 모두 골라도 메뉴 계산이 0.5초 안에 끝난다",
+                          picked == 2000 && unread && took < .milliseconds(500), "\(picked)통, \(took)")
+                    model.selection = savedSelection
+                    model.messages = savedMessages
+                    if let savedThreaded { UserDefaults.standard.set(savedThreaded, forKey: "list.threaded") }
+                    else { UserDefaults.standard.removeObject(forKey: "list.threaded") }
+                    try? await Task.sleep(for: .milliseconds(300))
+                }
+
+                // 1.0.2 "읽지 않음" 필터: 읽음이 된 메일은 목록에서 빠지고, 보고 있는 메일은 다른 메일로 넘어갈 때 빠진다 (맥 Mail)
+                do {
+                    let savedThreaded = UserDefaults.standard.object(forKey: "list.threaded")
+                    UserDefaults.standard.set(false, forKey: "list.threaded")
+                    let all = model.messages.map(\.id)
+                    await model.setRead(ids: all, false)
+                    model.listFilter.unread = true
+                    await model.loadMessages(keepSelection: false)
+                    if model.messages.count >= 3 {
+                        let a = model.messages[0].id, b = model.messages[1].id
+                        model.selectedMessageID = a
+                        try? await Task.sleep(for: .milliseconds(300))
+                        await model.setRead(ids: [a, b], true)
+                        try? await Task.sleep(for: .milliseconds(200))
+                        let ids = model.messages.map(\.id)
+                        check("1.0.2 읽지 않음 필터: 읽음으로 바꾼 메일은 목록에서 빠진다", !ids.contains(b), ids.joined(separator: ","))
+                        check("1.0.2 읽지 않음 필터: 보고 있는 메일은 읽어도 남는다", ids.contains(a))
+                        model.selectedMessageID = model.messages.first { $0.id != a }?.id
+                        try? await Task.sleep(for: .milliseconds(300))
+                        check("1.0.2 읽지 않음 필터: 다른 메일로 넘어가면 읽은 메일이 빠진다",
+                              !model.messages.contains { $0.id == a })
+                    } else {
+                        check("1.0.2 읽지 않음 필터 검사에 메일이 세 통 이상 있다", false, "\(model.messages.count)")
+                    }
+                    model.listFilter = MailFilter()
+                    await model.loadMessages(keepSelection: false)
+                    await model.setRead(ids: all, true)
+                    await model.setRead(ids: wasUnread, false)
+                    if let savedThreaded { UserDefaults.standard.set(savedThreaded, forKey: "list.threaded") }
+                    else { UserDefaults.standard.removeObject(forKey: "list.threaded") }
+                    try? await Task.sleep(for: .milliseconds(300))
+                }
+
                 // S-028 다른 폴더로 옮기기
                 let moving = model.navigationOrder[0]
                 model.selection = [moving]

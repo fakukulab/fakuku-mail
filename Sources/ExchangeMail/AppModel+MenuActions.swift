@@ -65,7 +65,7 @@ extension AppModel {
 
     /// 고른 메일의 대화 id들
     private var selectedConversationIDs: Set<String> {
-        Set(messages.filter { selectedIDs.contains($0.id) }.compactMap(\.conversationId))
+        Set(selectedMessages.compactMap(\.conversationId))
     }
 
     /// 고른 대화의 알림이 꺼져 있는지
@@ -95,16 +95,17 @@ extension AppModel {
         progressText = L("읽음으로 표시하는 중…")
         defer { progressText = nil }
         do {
-            var page = try await service.messages(folderID: folderID, search: nil, filter: unread, oldestFirst: false)
+            // 1.0.2: 한 쪽(50통)씩 묶어서 바꾼다 (Exchange 묶음 요청, IMAP 한 명령). 다음 쪽 링크(nextLink)는
+            // 건너뛸 수(skip)로 넘기므로, 읽음으로 바꾼 뒤에 따라가면 안 읽은 메일을 건너뛴다: 늘 첫 쪽을 다시 묻는다.
             var done = 0
-            while true {
-                for m in page.messages where m.isUnread {
-                    try await service.setRead(id: m.id, read: true)
-                    done += 1
-                    progressText = L("읽음으로 표시하는 중… \(done)통")
-                }
-                guard let next = page.nextLink, done < 5_000 else { break }
-                page = try await service.nextPage(next)
+            for _ in 0..<200 {
+                let page = try await service.messages(folderID: folderID, search: nil, filter: unread, oldestFirst: false)
+                let ids = page.messages.filter(\.isUnread).map(\.id)
+                guard !ids.isEmpty else { break }
+                let changed = await setRead(ids: ids, true)
+                guard changed > 0 else { break }   // 하나도 못 바꿨으면 (오류는 setRead가 알린다) 멈춘다
+                done += changed
+                progressText = L("읽음으로 표시하는 중… \(done)통")
             }
             await refresh()
             updateBadge()
