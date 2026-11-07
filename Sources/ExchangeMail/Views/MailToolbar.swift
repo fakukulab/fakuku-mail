@@ -40,7 +40,7 @@ extension MessageDetailView {
 
     /// 고른 메일이 모두 깃발이면 채운 깃발
     private var allFlagged: Bool {
-        let picked = model.messages.filter { model.selectedIDs.contains($0.id) }
+        let picked = model.selectedMessages
         return !picked.isEmpty && picked.allSatisfy(\.isFlagged)
     }
 

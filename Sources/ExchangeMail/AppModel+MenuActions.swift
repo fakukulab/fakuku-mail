@@ -65,7 +65,7 @@ extension AppModel {
 
     /// 고른 메일의 대화 id들
     private var selectedConversationIDs: Set<String> {
-        Set(messages.filter { selectedIDs.contains($0.id) }.compactMap(\.conversationId))
+        Set(selectedMessages.compactMap(\.conversationId))
     }
 
     /// 고른 대화의 알림이 꺼져 있는지

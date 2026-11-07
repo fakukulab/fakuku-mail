@@ -18,13 +18,39 @@ extension AppModel {
         } else {
             rows = []
         }
+        return expandRows(rows)
+    }
+
+    /// 줄 id → 동작할 메일 id (대화별이면 이 폴더의 그 대화 전체), 겹치지 않게 순서대로.
+    /// 1.0.2: 목록을 한 번만 훑는다. 예전에는 줄마다 목록 전체를 훑고(대화 찾기) 결과 배열도 매번 처음부터 찾아,
+    /// 수백 통을 고르면 수억 번 계산해 앱이 멈췄다.
+    func expandRows<S: Sequence>(_ rows: S) -> [String] where S.Element == String {
         var out: [String] = []
+        var seen = Set<String>()
+        guard Self.organizeByConversation else {
+            for row in rows where seen.insert(row).inserted { out.append(row) }
+            return out
+        }
+        var conversationOf: [String: String] = [:]
+        var members: [String: [String]] = [:]
+        for m in messages {
+            guard let c = m.conversationId, !c.isEmpty else { continue }
+            conversationOf[m.id] = c
+            members[c, default: []].append(m.id)
+        }
         for row in rows {
-            for id in Self.organizeByConversation ? conversationMessageIDs(containing: row) : [row] where !out.contains(id) {
+            for id in conversationOf[row].flatMap({ members[$0] }) ?? [row] where seen.insert(id).inserted {
                 out.append(id)
             }
         }
         return out
+    }
+
+    /// 고른 메일 (목록 순서). 예전 `messages.filter { selectedIDs.contains($0.id) }`는 메일마다 selectedIDs를 다시 계산했다.
+    var selectedMessages: [MailMessage] {
+        let ids = Set(selectedIDs)
+        guard !ids.isEmpty else { return [] }
+        return messages.filter { ids.contains($0.id) }
     }
 
     /// 여러 줄을 골랐을 때 본문 자리에 보일 수
@@ -43,12 +69,7 @@ extension AppModel {
     func dropped(_ payloads: [String], onto folderID: String, undoManager: UndoManager?) async {
         let rows = payloads.flatMap { $0.split(separator: "\n").map(String.init) }
         guard !rows.isEmpty, folderID != selectedFolderID, folderID != FolderOrder.flaggedID else { return }
-        var ids: [String] = []
-        for row in rows {
-            for id in Self.organizeByConversation ? conversationMessageIDs(containing: row) : [row] where !ids.contains(id) {
-                ids.append(id)
-            }
-        }
+        let ids = expandRows(rows)
         await move(ids, to: folderID, undoManager: undoManager, undoName: L("이동"))
     }
 
@@ -63,7 +84,7 @@ extension AppModel {
 
     /// 고른 메일에 깃발을 모두 달거나(하나라도 없으면) 모두 뗀다.
     func toggleFlagSelected() async {
-        let targets = messages.filter { selectedIDs.contains($0.id) }
+        let targets = selectedMessages
         guard !targets.isEmpty else { return }
         let flag = targets.contains { !$0.isFlagged }
         do {

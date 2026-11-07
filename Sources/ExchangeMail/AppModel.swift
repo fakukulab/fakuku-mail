@@ -734,10 +734,7 @@ final class AppModel {
     /// 고른 줄(오른쪽 클릭한 줄)에 읽지 않은 메일이 있는가: 메뉴가 "읽음으로 표시"인지 "읽지 않음으로 표시"인지 (맥 Mail과 같다).
     /// 대화별 보기면 대화 안의 메일까지 본다.
     func hasUnread(rows: Set<String>) -> Bool {
-        var ids = Set<String>()
-        for row in rows {
-            ids.formUnion(Self.organizeByConversation ? conversationMessageIDs(containing: row) : [row])
-        }
+        let ids = Set(expandRows(rows))
         return messages.contains { ids.contains($0.id) && $0.isUnread }
     }
 
@@ -825,7 +822,7 @@ final class AppModel {
 
     /// 고른 메일을 모두 읽음(하나라도 안 읽었으면) 또는 모두 안 읽음으로 (S-027).
     func toggleReadSelected() async {
-        let targets = messages.filter { selectedIDs.contains($0.id) }
+        let targets = selectedMessages
         guard !targets.isEmpty else { return }
         let makeRead = targets.contains(where: \.isUnread)
         await setRead(ids: targets.filter { $0.isUnread == makeRead }.map(\.id), makeRead)
@@ -1038,12 +1035,16 @@ final class AppModel {
     }
 
     func updateMenu() {
+        // 고른 메일은 한 번만 계산한다 (1.0.2: 예전에는 메일마다 다시 계산해 수백 통을 고르면 멈췄다)
+        let ids = selectedIDs
+        let idSet = Set(ids)
+        let picked = idSet.isEmpty ? [] : messages.filter { idSet.contains($0.id) }
         MenuState.shared.update(MenuSnapshot(
             signedIn: isSignedIn,
             hasMessage: detail != nil && selectedMessageID != nil,
-            hasSelection: !selectedIDs.isEmpty,
-            isUnread: messages.filter { selectedIDs.contains($0.id) }.contains(where: \.isUnread),
-            isFlagged: !messages.filter { selectedIDs.contains($0.id) }.contains { !$0.isFlagged },
+            hasSelection: !ids.isEmpty,
+            isUnread: picked.contains(where: \.isUnread),
+            isFlagged: !picked.contains { !$0.isFlagged },
             inJunk: selectedFolder?.kind == "junkemail",
             hasAttachments: !listedAttachments.isEmpty,
             canPrint: detail != nil && multipleSelectionCount == 0,

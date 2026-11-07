@@ -252,3 +252,14 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   `AccountRouter`는 계정별로 나눠 넘긴다. `AppModel.setRead(ids:_:)`는 서버가 끝난 뒤 배열마다 한 번만 바꾸고 배지·메뉴도 한 번.
   모두 읽음은 첫 쪽을 다시 물어 묶어 바꾼다.
 - 규칙: 여러 통에 하는 일은 서버에 묶어 보내고, 관찰되는 상태(@Observable 배열)는 복사본을 고쳐 한 번에 넣는다. 반복문 안에서 화면 상태를 바꾸지 않는다.
+
+## 2026-11-07 실제 계정에서 여러 통을 골라 읽음으로 바꾸면 앱이 멈춤 (CPU 100%, 1.0.2)
+- 증상: Exchange 계정에서 메일을 많이 골라 읽음 표시를 하자 앱이 응답하지 않았다. `sample`의 메인 스레드:
+  `loadDetail → updateMenu → selectedIDs → conversationMessageIDs → MailMessage 복사`.
+- 원인: `updateMenu`가 `messages.filter { selectedIDs.contains($0.id) }`로 메일마다 `selectedIDs`(계산 속성)를 다시 계산했다.
+  `selectedIDs`는 대화별 보기에서 고른 줄마다 목록 전체를 훑고(`conversationMessageIDs`), 결과 배열에서 겹침도 처음부터 찾았다.
+  수백 통이면 수억 번. 1.0.1부터 있던 문제이고, 읽음 표시를 바로 보이게 하면서 메뉴 갱신이 잦아져 드러났다.
+- 고침: `expandRows`가 목록을 한 번 훑어 대화 → 메일 표를 만들고 Set으로 겹침을 거른다. `selectedMessages`로 고른 메일을 한 번에.
+  `updateMenu`, 깃발 색, 대화 음소거, 도구 막대, 끌어 놓기, 메뉴 이름이 모두 이것을 쓴다.
+- 규칙: 계산 속성을 `filter`·`map`의 클로저 안에서 부르지 않는다. 먼저 한 번 계산해 `Set`으로 만든 다음 쓴다.
+  셀프 테스트에 2,000통(대화 400개)을 모두 골라 0.5초 안에 끝나는지 검사가 있다.

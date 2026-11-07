@@ -631,6 +631,36 @@ enum SelfTest {
                 }
                 await model.setRead(ids: wasUnread, false)   // 다음 검사를 위해 원래대로
 
+                // 1.0.2 많이 골라도 멈추지 않는다: 2,000통(대화 400개)을 대화별로 모두 골라 메뉴를 계산해도 0.5초 안에.
+                // 예전에는 메일마다 고른 메일 목록을 다시 계산해(대화마다 목록 전체를 또 훑어) 실제 계정에서 앱이 멈췄다.
+                do {
+                    let savedMessages = model.messages
+                    let savedSelection = model.selection
+                    let savedThreaded = UserDefaults.standard.object(forKey: "list.threaded")
+                    UserDefaults.standard.set(true, forKey: "list.threaded")
+                    let base = Date()
+                    model.messages = (0..<2000).map { i in
+                        MailMessage(id: "perf-\(i)", conversationId: "conv-\(i % 400)", subject: "perf \(i)", from: nil,
+                                    receivedDateTime: base.addingTimeInterval(Double(-i * 60)), isRead: i % 3 == 0)
+                    }
+                    model.selection = Set(model.navigationOrder)
+                    let clock = ContinuousClock()
+                    var picked = 0
+                    var unread = false
+                    let took = clock.measure {
+                        picked = model.selectedIDs.count
+                        model.updateMenu()
+                        unread = model.selectionHasUnread && model.hasUnread(rows: model.selection)
+                    }
+                    check("1.0.2 2,000통을 대화별로 모두 골라도 메뉴 계산이 0.5초 안에 끝난다",
+                          picked == 2000 && unread && took < .milliseconds(500), "\(picked)통, \(took)")
+                    model.selection = savedSelection
+                    model.messages = savedMessages
+                    if let savedThreaded { UserDefaults.standard.set(savedThreaded, forKey: "list.threaded") }
+                    else { UserDefaults.standard.removeObject(forKey: "list.threaded") }
+                    try? await Task.sleep(for: .milliseconds(300))
+                }
+
                 // S-028 다른 폴더로 옮기기
                 let moving = model.navigationOrder[0]
                 model.selection = [moving]
