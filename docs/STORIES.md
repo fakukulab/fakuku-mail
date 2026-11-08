@@ -771,6 +771,10 @@ As the user, iCloud·Gmail로 받은 회의 초대도 Exchange처럼 회의 막�
   - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
   - 담은 것: iCloud·Gmail 켤 때 "Please login first" 오류 (docs/FIXLOG.md)
   - 1.0.2 → 1.0.3 자동 업데이트는 사용자가 확인했다 (S-067 done)
+- 2026-11-08 **1.0.5** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.5 (태그 v1.0.5 = main 86dd103, PR #5)
+  - DMG `FAKUKU-Mail-1.0.5.dmg` 6,966,432바이트, SHA-256 `1cf64457b5f93d78d0bea79df36994d8a9c855ffe26eaf3f383df8441e979790`, 빌드 202611081031
+  - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
+  - 담은 것: 잠자기에서 깨운 뒤 "소켓이 연결되지 않았음" 알림 (iCloud·Gmail, docs/FIXLOG.md)
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, 원인은 SwiftUI List 안쪽: docs/FIXLOG.md 2026-11-08)
 
 ## Later
