@@ -104,6 +104,10 @@ actor IMAPConnection {
             // 잠든 사이 서버가 끊은 연결: 다시 붙어 본다. 그래도 안 되면 오류 (오프라인 캐시가 받는다)
             disconnect()
             return try await runLocked(select: path, parts)
+        } catch where OfflineError.isSocketLost(error) {
+            // 1.0.4 뒤 고침: 같은 끊김이 "소켓이 연결되지 않았음"(POSIX ENOTCONN 등)으로 오면 알림을 띄웠다. 다시 붙는다
+            disconnect()
+            return try await runLocked(select: path, parts)
         }
     }
 

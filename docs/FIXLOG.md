@@ -1,5 +1,14 @@
 # Fix log
 
+## 2026-11-08 "작업을 완료할 수 없습니다. 소켓이 연결되지 않았음" 알림 (iCloud·Gmail, 1.0.4)
+
+증상: 1.0.4에서 오류 알림. NSPOSIXErrorDomain 57(ENOTCONN)의 시스템 문구다.
+원인(유력): 끊긴 IMAP 연결(잠자기·네트워크 바뀜)이 URLError가 아니라 POSIX 오류로 왔다. `IMAPConnection.run`은 URLError의
+networkConnectionLost·timedOut만 다시 붙었고, `OfflineError.isOffline`도 URLError만 봐서 그대로 알림이 됐다.
+사용자 확인: 맥을 잠자기에서 깨운 뒤에 떴다 (1.0.4의 로그인 순서 고침과는 상관없다).
+고침: `OfflineError.isSocketLost` (EPIPE, ENETDOWN, ENETUNREACH, ECONNABORTED, ECONNRESET, ENOTCONN, ETIMEDOUT, EHOSTUNREACH,
+감싼 오류 포함). 이 오류면 한 번 다시 붙고, 그래도 안 되면 오프라인으로 처리해 알림 대신 저장된 메일을 보인다.
+
 ## 2026-11-08 앱을 켜면 "메일 서버 오류: Please login first" (iCloud·Gmail)
 
 증상: 1.0.3으로 자동 업데이트한 뒤 다시 켜자 오류 알림이 먼저 떴다 (그 뒤로는 정상).

@@ -129,3 +129,14 @@ private func data(_ s: String) -> Data { Data(s.utf8) }
     let items = try #require(IMAP.fetchItems(values))
     #expect(IMAP.summary(items, account: "g", path: "INBOX")?.conversationId == "imapconv:g:gm-1278455344230334865")
 }
+
+@Test("소켓 끊김(POSIX)도 연결 끊김으로 본다: 다시 붙고, 알림 대신 오프라인 처리")
+func socketLostIsOffline() {
+    let notConnected = NSError(domain: NSPOSIXErrorDomain, code: 57)   // "소켓이 연결되지 않았음"
+    #expect(OfflineError.isSocketLost(notConnected) && OfflineError.isOffline(notConnected))
+    #expect(OfflineError.isSocketLost(POSIXError(.ECONNRESET)))
+    let wrapped = NSError(domain: "x", code: 1, userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: 32)])
+    #expect(OfflineError.isSocketLost(wrapped))
+    #expect(!OfflineError.isSocketLost(NSError(domain: NSPOSIXErrorDomain, code: 2)))   // 파일 없음은 끊김이 아니다
+    #expect(!OfflineError.isOffline(NSError(domain: "x", code: 57)))
+}

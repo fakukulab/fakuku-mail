@@ -142,9 +142,20 @@ public enum OfflineError: Error, LocalizedError, Equatable {
         }
     }
 
+    /// 소켓 수준의 연결 끊김 (iCloud·Gmail 연결이 URLError가 아니라 POSIX 오류로 알릴 때):
+    /// "소켓이 연결되지 않았음"(ENOTCONN), 연결 재설정, 파이프 끊김, 네트워크 없음 등. 잠자기에서 깨어난 뒤 흔하다.
+    public static func isSocketLost(_ error: Error) -> Bool {
+        let codes: Set<Int> = [32, 50, 51, 53, 54, 57, 60, 65]  // EPIPE ENETDOWN ENETUNREACH ECONNABORTED ECONNRESET ENOTCONN ETIMEDOUT EHOSTUNREACH
+        let e = error as NSError
+        if e.domain == NSPOSIXErrorDomain, codes.contains(e.code) { return true }
+        if let under = e.userInfo[NSUnderlyingErrorKey] as? NSError, under.domain == NSPOSIXErrorDomain, codes.contains(under.code) { return true }
+        return false
+    }
+
     /// 연결 끊김, 시간 초과, 호스트를 찾을 수 없음 등
     public static func isOffline(_ error: Error) -> Bool {
         if error is OfflineError { return true }
+        if isSocketLost(error) { return true }
         guard let e = error as? URLError else { return false }
         let codes: [URLError.Code] = [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost,
                                       .cannotConnectToHost, .dnsLookupFailed, .dataNotAllowed,
