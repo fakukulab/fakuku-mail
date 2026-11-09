@@ -121,6 +121,7 @@ struct MenuSnapshot: Equatable {
     var hasRemoteContent = false
     /// 본문의 보낸 사람이 VIP (S-045)
     var senderIsVIP = false
+    var senderIsBlocked = false
     // M17
     /// 'X'(으)로 다시 이동할 폴더 이름
     var lastMoveTitle: String?
@@ -531,9 +532,14 @@ struct MailCommands: Commands {
         .disabled(!hasMessage)
         Button(L("VIP 이름·아이콘 변경…")) { if let m = vipTarget { model.editVIP(for: m) } }
             .disabled(!hasMessage || !vipTargetIsVIP)
-        // 설정 > 정크 메일 > 차단됨 (받은 편지함 서버 규칙)
-        Button(L("보낸 사람 차단")) {
-            if let m = vipTarget { Task { await model.blockSender(of: m, undoManager: NSApp.keyWindow?.undoManager) } }
+        // 설정 > 정크 메일 > 차단됨 (앱의 차단 목록, Exchange는 서버 규칙에도)
+        Button(blockTargetIsBlocked ? L("보낸 사람 차단 해제") : L("보낸 사람 차단")) {
+            guard let m = vipTarget else { return }
+            if blockTargetIsBlocked {
+                Task { await model.unblock(address: m.from?.emailAddress.address ?? "") }
+            } else {
+                Task { await model.blockSender(of: m, undoManager: NSApp.keyWindow?.undoManager) }
+            }
         }
         .keyboardShortcut("b", modifiers: [.command, .control])
         .disabled(!hasMessage)
@@ -611,6 +617,11 @@ struct MailCommands: Commands {
     private var vipTargetIsVIP: Bool {
         if let m = reader?.message { return model.mailboxes.vip(for: m) != nil }
         return menu.senderIsVIP
+    }
+
+    private var blockTargetIsBlocked: Bool {
+        if let m = reader?.message { return model.blockList.matches(m.from?.emailAddress.address) }
+        return menu.senderIsBlocked
     }
 
     private var flagLabel: String {

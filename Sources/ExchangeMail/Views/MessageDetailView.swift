@@ -347,6 +347,11 @@ struct AddressToken: View {
         } else {
             Button(L("VIP에서 제거")) { model.removeVIP(address: address) }
         }
+        if model.blockList.matches(address) {
+            Button(L("연락처 차단 해제")) { Task { await model.unblock(address: address) } }
+        } else {
+            Button(L("연락처 차단")) { Task { await model.block(address: address) } }
+        }
         Button(L("새로운 이메일")) {
             openWindow(id: "compose", value: ComposeDraft(to: recipient.emailAddress.mailAddress?.editable ?? address))
         }

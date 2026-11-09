@@ -138,8 +138,19 @@ final class AppModel {
     var localHits: [LocalHit] = []
     let localBoxes = LocalMailboxStore(directory: Store.directory.appending(path: "local", directoryHint: .isDirectory))
     @ObservationIgnored var exportTask: Task<Void, Never>?
-    /// 차단된 보낸 사람 서버 규칙 (설정 > 정크 메일). 아직 읽지 않았으면 nil.
-    var blockedRule: MessageRule?
+    /// 차단된 보낸 사람 (설정 > 정크 메일 > 차단됨). 앱이 이 Mac에 보관하고 모든 계정에 적용한다 (AppModel+Blocking).
+    var blockList: BlockList = AppModel.savedBlockList() {
+        didSet {
+            guard blockList != oldValue else { return }
+            saveBlockList()
+            updateMenu()
+        }
+    }
+    /// Exchange 계정마다 서버에 있는 차단 규칙 (계정 id → 규칙). 읽은 계정만 `blockRuleKnown`에.
+    var blockedRules: [String: MessageRule] = [:]
+    @ObservationIgnored var blockRuleKnown: Set<String> = []
+    /// 테스트 실행(APP_STORE)에서는 "예전 규칙을 가져왔다"를 메모리에만 둔다.
+    @ObservationIgnored var blockAdoptedInMemory = false
     var blockedLoaded = false
 
     static func savedMuted() -> Set<String> {
@@ -292,6 +303,12 @@ final class AppModel {
     var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
     }
+    /// 설정 > 정크 메일 안의 칸 (정크 메일 동작 | 차단됨)
+    var junkPage: JunkPage = JunkPage(rawValue: UserDefaults.standard.string(forKey: "settings.junkPage") ?? "") ?? .actions {
+        didSet { if !Store.isOverridden { UserDefaults.standard.set(junkPage.rawValue, forKey: "settings.junkPage") } }
+    }
+    /// 설정 > 정크 메일 > 차단됨 > 차단된 보낸 사람 관리 시트
+    var showBlockedManager = false
 
     init(accounts: AccountStore, signatures: SignatureStore, addressBook: AddressBookStore,
          notifier: any MailNotifier, isDemo: Bool) {
@@ -519,6 +536,8 @@ final class AppModel {
             let serverFiltered = page.serverFiltered && !VirtualMailbox.isVirtual(folderID) && search.isEmpty
             messages = arrange(page.messages, serverFiltered: serverFiltered)
             Task { await loadRelated(for: folderID, searching: !search.isEmpty) }
+            // iCloud·Gmail 받은 편지함: 차단된 보낸 사람의 메일을 지운 편지함으로 (설정 > 정크 메일 > 차단됨)
+            Task { await sweepVisibleBlocked() }
             addressBook.noteSeen(page.messages, me: auth.email)
             nextLink = page.nextLink
             if let pending = pendingOpenID, messages.contains(where: { $0.id == pending }) {
@@ -1085,6 +1104,7 @@ final class AppModel {
             isDraft: isDraftSelected,
             hasRemoteContent: detailHasRemoteContent && detailRemote != .allowed,
             senderIsVIP: detail.flatMap { mailboxes.vip(for: $0) } != nil,
+            senderIsBlocked: detail.map { blockList.matches($0.from?.emailAddress.address) } ?? false,
             lastMoveTitle: lastMoveTarget?.title,
             isMuted: selectionIsMuted,
             importance: detail?.importance,

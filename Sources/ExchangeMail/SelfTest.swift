@@ -960,7 +960,7 @@ enum SelfTest {
             check("S-046 지우면 사이드바에서 빠지고 받은 편지함으로 돌아간다",
                   model.mailboxes.smart.isEmpty && model.selectedFolderID == "inbox")
 
-            // 설정 > 정크 메일 > 차단됨 (서버 규칙)
+            // 설정 > 정크 메일 > 차단됨 (앱 목록 + Exchange 서버 규칙, 1.0.6)
             await model.loadBlocked()
             await model.block(address: "spam@junk.example")
             let rulesAfterBlock = (try? await model.service.rules()) ?? []
@@ -969,6 +969,23 @@ enum SelfTest {
                       && rulesAfterBlock.contains(where: BlockedSenders.isBlockRule))
             await model.saveBlocked(addresses: model.blockedAddresses, mode: .trash, enabled: true)
             check("차단: 지운 편지함으로 옮기는 방식", model.blockedRule?.actions?.delete == true)
+            await model.changeBlockList { $0.enabled = false }
+            check("차단: 필터링을 끄면 서버 규칙도 꺼진다",
+                  model.blockedRule?.isEnabled == false && !model.isBlocked(MailMessage(
+                      id: "b1", subject: nil, from: Recipient(name: nil, address: "spam@junk.example"), receivedDateTime: nil)))
+            await model.changeBlockList { $0.enabled = true }
+            await model.block(address: "@ads.example")
+            check("차단: 도메인 항목은 그 도메인의 모든 주소에 걸리고 규칙에도 들어간다",
+                  model.isBlocked(MailMessage(id: "b2", subject: nil, from: Recipient(name: nil, address: "x@mail.ads.example"),
+                                              receivedDateTime: nil))
+                      && BlockedSenders.addresses(in: model.blockedRule) == ["spam@junk.example", "@ads.example"])
+            await model.unblock(address: "someone@ads.example")
+            check("차단: 도메인에 걸린 주소를 풀면 그 도메인 항목도 빠진다", model.blockedAddresses == ["spam@junk.example"])
+            model.blockedRules = [:]
+            model.blockRuleKnown = []
+            await model.syncBlockRulesIfNeeded()
+            check("차단: 앱 목록이 기준이고, 서버 규칙을 다시 읽어 맞춘다",
+                  model.blockedAddresses == ["spam@junk.example"] && model.blockedRule?.actions?.delete == true)
             await model.unblock(address: "spam@junk.example")
             let rulesAfterUnblock = (try? await model.service.rules()) ?? []
             check("차단: 모두 풀면 규칙도 지운다",

@@ -189,7 +189,7 @@ public enum BlockedSenders {
     public static let ruleName = "FAKUKU 차단된 보낸 사람"  // l10n: data
     public static let category = "차단됨"  // l10n: data
 
-    public enum Mode: String, CaseIterable, Sendable {
+    public enum Mode: String, CaseIterable, Codable, Sendable {
         /// 지운 편지함으로 이동
         case trash
         /// 받은 편지함에 두고 "차단됨" 범주를 붙인다
@@ -212,5 +212,92 @@ public enum BlockedSenders {
             : .init(assignCategories: [category], stopProcessingRules: false)
         return MessageRule(displayName: ruleName, sequence: 1, isEnabled: enabled,
                            conditions: .init(senderContains: list), actions: actions)
+    }
+}
+
+// MARK: 앱이 보관하는 차단 목록 (1.0.6)
+
+/// 차단된 보낸 사람 목록은 앱이 보관한다. 모든 계정(iCloud·Gmail 포함)에 앱이 적용하고,
+/// Exchange 계정은 같은 목록을 서버 규칙(`BlockedSenders`)에도 넣어 앱이 꺼져 있어도 걸러지게 한다.
+/// 항목은 주소(`spam@example.com`) 또는 도메인(`@example.com`, 그 도메인의 모든 주소).
+public struct BlockList: Codable, Equatable, Sendable {
+    public var addresses: [String]
+    public var enabled: Bool
+    public var mode: BlockedSenders.Mode
+
+    public init(addresses: [String] = [], enabled: Bool = true, mode: BlockedSenders.Mode = .keep) {
+        self.addresses = []
+        self.enabled = enabled
+        self.mode = mode
+        for a in addresses { add(a) }
+    }
+
+    /// 입력을 정리한다: 앞뒤 공백·꺾쇠·mailto: 를 떼고 소문자로. 주소나 도메인 꼴이 아니면 nil.
+    public static func normalize(_ raw: String) -> String? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let lt = s.lastIndex(of: "<"), let gt = s.lastIndex(of: ">"), lt < gt {
+            s = String(s[s.index(after: lt)..<gt])
+        }
+        if s.lowercased().hasPrefix("mailto:") { s = String(s.dropFirst(7)) }
+        s = s.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !s.contains(where: \.isWhitespace), s.filter({ $0 == "@" }).count == 1 else { return nil }
+        let parts = s.split(separator: "@", omittingEmptySubsequences: false)
+        let domain = parts[1]
+        guard domain.contains("."), !domain.hasPrefix("."), !domain.hasSuffix(".") else { return nil }
+        return s
+    }
+
+    public static func isDomain(_ entry: String) -> Bool { entry.hasPrefix("@") }
+
+    /// 이 주소가 목록에 걸리는가 (대소문자 무시, 도메인 항목은 그 도메인과 하위 도메인)
+    public func matches(_ address: String?) -> Bool {
+        guard let a = address?.trimmingCharacters(in: .whitespaces).lowercased(), a.contains("@") else { return false }
+        return addresses.contains { entry in
+            if Self.isDomain(entry) {
+                let domain = String(entry.dropFirst())
+                let host = a.split(separator: "@").last.map(String.init) ?? ""
+                return host == domain || host.hasSuffix("." + domain)
+            }
+            return a == entry
+        }
+    }
+
+    /// 걸러내기가 켜져 있고 목록에 걸리는가
+    public func blocks(_ address: String?) -> Bool { enabled && matches(address) }
+
+    /// 넣었으면 true (꼴이 틀렸거나 이미 있으면 false)
+    @discardableResult
+    public mutating func add(_ raw: String) -> Bool {
+        guard let entry = Self.normalize(raw), !addresses.contains(entry) else { return false }
+        addresses.append(entry)
+        return true
+    }
+
+    public mutating func remove(_ entries: some Sequence<String>) {
+        let gone = Set(entries.map { $0.lowercased() })
+        addresses.removeAll { gone.contains($0) }
+    }
+
+    /// 지운 편지함으로 옮길 메일: 받은 편지함의 메일 중 걸리는 것 (걸러내기·옮기기 방식일 때만)
+    public func toTrash(_ messages: [MailMessage]) -> [MailMessage] {
+        guard enabled, mode == .trash else { return [] }
+        return messages.filter { matches($0.from?.emailAddress.address) }
+    }
+
+    /// 서버 규칙이 이 목록과 같은가 (주소 순서는 따지지 않는다)
+    public func sameAsRule(_ rule: MessageRule?) -> Bool {
+        guard let rule else { return addresses.isEmpty }
+        let ruleSet = Set(BlockedSenders.addresses(in: rule).map { $0.lowercased() })
+        return ruleSet == Set(addresses) && BlockedSenders.mode(of: rule) == mode && (rule.isEnabled ?? true) == enabled
+    }
+
+    /// 처음 한 번: 예전 버전이 서버 규칙에만 두었던 목록을 앱 목록으로 가져온다.
+    public mutating func adopt(_ rule: MessageRule?) {
+        guard let rule else { return }
+        if addresses.isEmpty {
+            mode = BlockedSenders.mode(of: rule)
+            enabled = rule.isEnabled ?? true
+        }
+        for a in BlockedSenders.addresses(in: rule) { add(a) }
     }
 }
