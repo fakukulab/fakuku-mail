@@ -1008,25 +1008,6 @@ enum SelfTest {
             model.blockList = BlockList()
             await model.syncBlockRules()
 
-            // 메시지 회수 (S-071): Exchange 보낸 편지함의 메일만, 확인 창을 거쳐 서버에 요청한다
-            model.selectedFolderID = "sentitems"
-            await model.loadMessages()
-            let sentMail = model.messages.first
-            let sentOK = sentMail != nil && model.canRecall(sentMail)
-            model.askRecall(sentMail)
-            check("S-071 회수는 확인 창을 먼저 띄운다", model.recallTarget?.id == sentMail?.id && !demo.recalled.contains(sentMail?.id ?? "-"))
-            model.recallTarget = nil
-            if let sentMail { await model.recall(sentMail) }
-            model.selectedFolderID = "inbox"
-            await model.loadMessages()
-            let inboxMail = model.messages.first
-            check("S-071 보낸 편지함 메일만 회수할 수 있다", sentOK && inboxMail != nil && !model.canRecall(inboxMail))
-            model.askRecall(inboxMail)
-            check("S-071 받은 메일은 회수 확인 창을 띄우지 않는다", model.recallTarget == nil)
-            check("S-071 회수를 서버에 요청하고 결과 안내를 띄운다",
-                  demo.recalled.last == sentMail?.id && model.noticeMessage != nil && model.errorMessage == nil)
-            model.noticeMessage = nil
-
             // 깃발 색 (맥 Mail처럼 일곱 가지, 이 Mac에 저장)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))

@@ -40,16 +40,6 @@ struct ContentView: View {
             NotificationRouter.shared.open = { id in Task { await model.openFromNotification(id) } }
             await model.prepareNotifications()
         }
-        // 메시지 회수 확인 (S-071)
-        .alert(L("이 메시지를 회수할까요?"), isPresented: Binding(get: { model.recallTarget != nil },
-                                                  set: { if !$0 { model.recallTarget = nil } }),
-               presenting: model.recallTarget) { m in
-            Button(L("회수"), role: .destructive) { Task { await model.recall(m) } }
-            Button(L("취소"), role: .cancel) {}
-        } message: { m in
-            Text(L("\"\(m.subject ?? L("(제목 없음)"))\"을(를) 받는 사람의 사서함에서 지웁니다. ")
-                 + L("같은 조직의 Exchange Online 사서함만 회수되고, 조직 밖 주소(Gmail 등)로 간 메일은 회수되지 않습니다."))
-        }
         .alert(L("알림"), isPresented: Binding(get: { model.noticeMessage != nil },
                                           set: { if !$0 { model.noticeMessage = nil } })) {
             Button(L("확인"), role: .cancel) {}

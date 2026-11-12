@@ -777,16 +777,6 @@ As the user, 연락처·메시지·FaceTime에서 차단한 이메일 주소를 
 - [x] [selftest] Apple 주소가 걸리고 규칙에 들어감, 앱에서 풀리지 않음, 끄면 규칙에서 빠짐
 - [ ] [manual] 연락처 앱에서 차단한 주소의 메일이 FAKUKU에서 차단 표시되는지, 연락처에서 풀면 다음 새 메일 확인 때 풀리는지
 
-### S-071 메시지 회수
-Status: built (2026-11-12, 실제 Exchange 계정으로 확인 전)
-As the user, Outlook처럼 Exchange 계정의 보낸 편지함에서 잘못 보낸 메일을 회수한다.
-- [x] 메시지 > 메시지 회수… (⌃⌘R), 메일 목록 오른쪽 클릭. Exchange 계정 보낸 편지함의 메일일 때만 켜진다 (iCloud·Gmail은 회수 없음)
-- [x] 확인 창: 제목, 같은 조직의 Exchange Online 사서함만 회수되고 조직 밖 주소는 안 된다는 안내. "회수"는 위험 단추
-- [x] Graph beta `POST /me/mailFolders/sentitems/messages/{id}/recall` (v1.0에 없음). 접수되면 안내, 결과는 서버가 "메시지 회수 보고서" 메일로 보낸다
-- [x] [selftest] 보낸 편지함 메일만, 확인 창 먼저, 요청과 안내
-- [ ] [manual] 실제 Exchange 계정: 같은 조직 동료에게 보낸 메일을 회수해 상대 사서함에서 사라지고 회수 보고서가 오는지
-- [ ] [manual] beta API라 Microsoft가 바꾸면 오류가 날 수 있다. 오류 문구가 알아볼 만한지
-
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)

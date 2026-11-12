@@ -154,10 +154,6 @@ final class CachedMailService: MailService {
         try await write(L("예약할")) { try await remote.scheduleDraft(id: id, at: date) }
     }
 
-    func recall(id: String) async throws {
-        try await write(L("회수할")) { try await remote.recall(id: id) }
-    }
-
     func rules() async throws -> [MessageRule] {
         try await write(L("규칙을 불러올")) { try await remote.rules() }
     }

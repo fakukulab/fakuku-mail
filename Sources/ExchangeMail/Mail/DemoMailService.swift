@@ -438,17 +438,6 @@ final class DemoMailService: MailService {
         scheduled.append((id, date))
     }
 
-    /// 회수를 요청한 메일 id. 셀프 테스트가 읽는다 (S-071).
-    private(set) var recalled: [String] = []
-
-    func recall(id: String) async throws {
-        try checkOnline()
-        guard store["sentitems", default: []].contains(where: { $0.id == id }) else {
-            throw GraphError(status: 400, code: "ErrorInvalidIdMalformed", message: "not in sent items")
-        }
-        recalled.append(id)
-    }
-
     private(set) var ruleList: [MessageRule] = []
     private(set) var autoReplies = AutomaticReplies()
     private var ruleCounter = 0

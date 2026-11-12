@@ -190,9 +190,6 @@ struct MessageListView: View {
                 }
             }
             .disabled(single == nil)
-            if let m = single, model.canRecall(m) {
-                Button(L("메시지 회수…")) { model.askRecall(m) }
-            }
             if let m = single {
                 if model.blockList.onlyApple(m.from?.emailAddress.address) {
                     // Apple 연락처에서 차단한 주소는 이 앱에서 풀 수 없다 (연락처 앱 > 설정 > 차단됨에서 푼다)
