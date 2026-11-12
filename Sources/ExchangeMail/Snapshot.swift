@@ -55,6 +55,14 @@ enum Snapshot {
                     if page == "inbox" { model.selectedMessageID = model.messages.first?.id }
                     try? await Task.sleep(for: .seconds(1.2))
                     capture(to: "\(dir)/\(page)-\(mode).png", window: main)
+                    if page == "sentitems", let first = model.messages.first {
+                        // 메시지 회수 확인 창 (S-071)
+                        model.askRecall(first)
+                        try? await Task.sleep(for: .seconds(1))
+                        capture(to: "\(dir)/recall-confirm-\(mode).png", window: main)
+                        model.recallTarget = nil
+                        try? await Task.sleep(for: .seconds(0.6))
+                    }
                 }
                 if wanted("signin") {
                     model.previewSignIn = true

@@ -108,6 +108,8 @@ protocol MailService: AnyObject {
     func createRule(_ rule: MessageRule) async throws -> MessageRule
     func setRule(id: String, enabled: Bool) async throws
     func deleteRule(id: String) async throws
+    /// 보낸 편지함의 메일을 회수한다 (S-071, Exchange Online 클라우드 메시지 회수). 결과는 회수 보고서 메일로 온다.
+    func recall(id: String) async throws
     /// 부재중 자동 응답 (S-040)
     func automaticReplies() async throws -> AutomaticReplies
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws
@@ -511,6 +513,13 @@ final class GraphMailService: MailService {
 
     func scheduleDraft(id: String, at date: Date) async throws {
         _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(ScheduledSend.patchBody(sendAt: date)))
+    }
+
+    /// 메시지 회수는 Graph beta에만 있다 (2026-11 기준 v1.0에 없음). 본문 없이 POST, 성공하면 202.
+    /// https://learn.microsoft.com/graph/api/message-recall
+    func recall(id: String) async throws {
+        _ = try await request("POST", "https://graph.microsoft.com/beta/me/mailFolders/sentitems/messages/\(GraphPath.segment(id))/recall",
+                              headers: ["Content-Length": "0"])
     }
 
     private let rulesPath = "/me/mailFolders/inbox/messageRules"

@@ -687,6 +687,8 @@ final class IMAPMailService: MailService {
     private static func savedResponse(_ eventID: String) -> String? { inviteMessages[eventID]?["response"] }
     private static func saveResponse(_ eventID: String, _ value: String) { inviteMessages[eventID, default: [:]]["response"] = value }
     func rules() async throws -> [MessageRule] { [] }
+    /// IMAP(iCloud·Gmail)에는 메시지 회수가 없다
+    func recall(id: String) async throws { throw IMAPError.unsupported }
     func createRule(_ rule: MessageRule) async throws -> MessageRule { throw IMAPError.unsupported }
     func setRule(id: String, enabled: Bool) async throws { throw IMAPError.unsupported }
     func deleteRule(id: String) async throws { throw IMAPError.unsupported }

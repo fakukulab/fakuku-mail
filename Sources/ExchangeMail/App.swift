@@ -122,6 +122,8 @@ struct MenuSnapshot: Equatable {
     /// 본문의 보낸 사람이 VIP (S-045)
     var senderIsVIP = false
     var senderIsBlocked = false
+    /// 본문 메일이 Exchange 보낸 편지함의 메일이라 회수할 수 있다 (S-071)
+    var canRecall = false
     // M17
     /// 'X'(으)로 다시 이동할 폴더 이름
     var lastMoveTitle: String?
@@ -410,6 +412,10 @@ struct MailCommands: Commands {
         }
             .keyboardShortcut("d", modifiers: [.command, .option])
             .disabled(eml != nil ? !menu.signedIn : reader != nil || !menu.hasMessage)
+        // Exchange 보낸 편지함의 메일만 (S-071)
+        Button(L("메시지 회수…")) { model.askRecall(vipTarget) }
+            .keyboardShortcut("r", modifiers: [.command, .control])
+            .disabled(eml != nil || !recallTargetOK)
         Divider()
         Button(L("답장")) { compose(.reply) }
             .keyboardShortcut("r")
@@ -624,6 +630,11 @@ struct MailCommands: Commands {
     private var blockTargetIsBlocked: Bool {
         if let m = reader?.message { return model.blockList.matches(m.from?.emailAddress.address) }
         return menu.senderIsBlocked
+    }
+
+    private var recallTargetOK: Bool {
+        if let m = reader?.message { return model.canRecall(m) }
+        return menu.canRecall
     }
 
     private var blockTargetOnlyApple: Bool {
