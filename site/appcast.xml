@@ -6,6 +6,22 @@
     <link>https://mail.fakukulab.com/appcast.xml</link>
     <language>ko</language>
     <item>
+      <title>FAKUKU Mail 1.0.6</title>
+      <pubDate>Thu, 12 Nov 2026 16:08:41 GMT</pubDate>
+      <sparkle:version>202611122007</sparkle:version>
+      <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description xml:lang="ko"><![CDATA[
+<ul><li><b>차단된 보낸 사람 관리</b>: 설정 &gt; 정크 메일이 맥 Mail처럼 &quot;정크 메일 동작 | 차단됨&quot; 두 칸으로 나뉩니다. 차단됨 칸의 &quot;차단된 보낸 사람 관리…&quot;에서 목록을 찾아보고, 주소나 @도메인(그 도메인의 모든 주소)을 더하고, 차단을 풀 수 있습니다.</li><li><b>모든 계정에 적용</b>: 차단 목록을 앱이 보관해 Exchange뿐 아니라 iCloud·Gmail 계정에도 적용합니다. 차단된 메일은 알림이 뜨지 않고 목록에 차단 표시가 붙습니다. &quot;지운 편지함으로 이동&quot;을 고르면 옮깁니다.</li><li><b>Apple 연락처의 차단 목록</b>: 연락처·메시지·FaceTime에서 차단한 이메일 주소도 함께 거릅니다. 설정 &gt; 정크 메일 &gt; 차단됨에서 끌 수 있고, 차단 해제는 연락처 앱 &gt; 설정 &gt; 차단됨에서 합니다.</li></ul>
+<p>macOS 26 이상. 사용법: <a href="https://mail.fakukulab.com/help.html">https://mail.fakukulab.com/help.html</a></p>
+      ]]></description>
+      <description xml:lang="en"><![CDATA[
+<ul><li><b>Manage blocked senders</b>: Settings &gt; Junk Mail now has two panes, like Mail: Junk Mail Behavior | Blocked. In Blocked, “Manage Blocked Senders…” lets you search the list, add an address or an @domain (every address at that domain), and unblock.</li><li><b>Works for every account</b>: FAKUKU Mail keeps the blocked list itself and applies it to iCloud and Gmail accounts as well as Exchange. Blocked mail doesn’t notify you and is marked in the list. Choose “Move to Deleted Items” to move it instead.</li><li><b>Blocked list in Apple Contacts</b>: email addresses you blocked in Contacts, Messages, or FaceTime are blocked too. Turn this off in Settings &gt; Junk Mail &gt; Blocked; unblock them in Contacts &gt; Settings &gt; Blocked.</li></ul>
+<p>Requires macOS 26 or later. Help: <a href="https://mail.fakukulab.com/help-en.html">https://mail.fakukulab.com/help-en.html</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/fakukulab/fakuku-mail/releases/download/v1.0.6/FAKUKU-Mail-1.0.6.dmg" type="application/octet-stream" sparkle:edSignature="UNIMY6sNywTqkFcU8zpwXkI+leYxGY+Csq71m7gvbcNEvAideqcSpc1EVicYYCQYpARX40o+3Axvj2YdL8cxDg==" length="7046494"/>
+    </item>
+    <item>
       <title>FAKUKU Mail 1.0.5</title>
       <pubDate>Sun, 08 Nov 2026 01:32:23 GMT</pubDate>
       <sparkle:version>202611081031</sparkle:version>

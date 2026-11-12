@@ -803,6 +803,11 @@ As the user, 연락처·메시지·FaceTime에서 차단한 이메일 주소를 
   - DMG `FAKUKU-Mail-1.0.5.dmg` 6,966,432바이트, SHA-256 `1cf64457b5f93d78d0bea79df36994d8a9c855ffe26eaf3f383df8441e979790`, 빌드 202611081031
   - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
   - 담은 것: 잠자기에서 깨운 뒤 "소켓이 연결되지 않았음" 알림 (iCloud·Gmail, docs/FIXLOG.md)
+- 2026-11-12 **1.0.6** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.6 (태그 v1.0.6 = main a59720b, PR #6·#7)
+  - DMG `FAKUKU-Mail-1.0.6.dmg` 7,046,494바이트, SHA-256 `0f898be1475ab3e21d553811ddfc9109c7715a6105c17d5b9b0f5cf165e72693`, 빌드 202611122007
+  - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·EdDSA 서명·Gatekeeper 확인
+  - 담은 것: 차단된 보낸 사람 관리(S-069), Apple 연락처의 차단 목록(S-070), 사용법의 차단 설명
+  - 첫 시도는 빌드 중 Sparkle 서명의 타임스탬프를 받지 못해 멈췄다 (Apple 타임스탬프 서버, 다시 돌려 통과)
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, 원인은 SwiftUI List 안쪽: docs/FIXLOG.md 2026-11-08)
 
 ## Later
