@@ -533,7 +533,9 @@ struct MailCommands: Commands {
         Button(L("VIP 이름·아이콘 변경…")) { if let m = vipTarget { model.editVIP(for: m) } }
             .disabled(!hasMessage || !vipTargetIsVIP)
         // 설정 > 정크 메일 > 차단됨 (앱의 차단 목록, Exchange는 서버 규칙에도)
-        Button(blockTargetIsBlocked ? L("보낸 사람 차단 해제") : L("보낸 사람 차단")) {
+        // Apple 연락처에서 차단한 주소는 이 앱에서 풀 수 없다 (연락처 앱 > 설정 > 차단됨에서 푼다)
+        Button(blockTargetOnlyApple ? L("Apple 연락처에서 차단됨")
+               : blockTargetIsBlocked ? L("보낸 사람 차단 해제") : L("보낸 사람 차단")) {
             guard let m = vipTarget else { return }
             if blockTargetIsBlocked {
                 Task { await model.unblock(address: m.from?.emailAddress.address ?? "") }
@@ -542,7 +544,7 @@ struct MailCommands: Commands {
             }
         }
         .keyboardShortcut("b", modifiers: [.command, .control])
-        .disabled(!hasMessage)
+        .disabled(!hasMessage || blockTargetOnlyApple)
         Divider()
         Button(L("원격 이미지 불러오기")) {
             if let reader { reader.allowRemoteContent() } else { model.allowRemoteContentForSelection() }
@@ -622,6 +624,10 @@ struct MailCommands: Commands {
     private var blockTargetIsBlocked: Bool {
         if let m = reader?.message { return model.blockList.matches(m.from?.emailAddress.address) }
         return menu.senderIsBlocked
+    }
+
+    private var blockTargetOnlyApple: Bool {
+        vipTarget.map { model.blockList.onlyApple($0.from?.emailAddress.address) } ?? false
     }
 
     private var flagLabel: String {

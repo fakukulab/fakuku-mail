@@ -766,6 +766,17 @@ As the user, 차단한 보낸 사람 목록을 맥 Mail처럼 설정의 "차단�
 - [ ] [manual] iCloud·Gmail: 차단한 주소에서 메일을 보내 지운 편지함으로 옮겨지는지
 - [ ] [manual] Exchange: 업데이트 후 예전 차단 목록이 관리 창에 보이는지
 
+### S-070 Apple 연락처의 차단 목록도 쓰기 (읽기만)
+Status: built (2026-11-12, 맥에서 확인 전)
+As the user, 연락처·메시지·FaceTime에서 차단한 이메일 주소를 FAKUKU Mail도 함께 거르게 한다 (iCloud로 아이폰과 같은 목록).
+- [x] 설정 > 정크 메일 > 차단됨에 "Apple 연락처의 차단 목록도 사용" (기본 켜짐)과 차단된 이메일 주소 수
+- [x] 목록은 macOS의 환경설정 도메인 `com.apple.cmfsyncagent`에서 읽는다 (공개 API 없음, 샌드박스를 쓰지 않아 읽힌다). 전화번호는 건너뛴다. 앱을 켤 때, 차단됨 설정을 열 때, 새 메일을 확인할 때 다시 읽는다
+- [x] Apple 주소도 거르기·알림 끄기·차단 표시·Exchange 서버 규칙에 들어간다. 앱 목록에 복사하지 않는다
+- [x] 관리 창에 "Apple" 표시로 보이고 여기서는 풀 수 없다. 메뉴는 "Apple 연락처에서 차단됨"(흐리게)
+- [x] [unit] BlockListTests: Apple 목록 읽기, 함께 거르기, 끄기, 저장하지 않기, 예전 저장값
+- [x] [selftest] Apple 주소가 걸리고 규칙에 들어감, 앱에서 풀리지 않음, 끄면 규칙에서 빠짐
+- [ ] [manual] 연락처 앱에서 차단한 주소의 메일이 FAKUKU에서 차단 표시되는지, 연락처에서 풀면 다음 새 메일 확인 때 풀리는지
+
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)

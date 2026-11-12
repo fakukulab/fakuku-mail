@@ -7,6 +7,8 @@ import Foundation
 /// - iCloud·Gmail(IMAP) 계정: 서버 규칙이 없어 앱이 거른다. 새 메일을 확인할 때와 받은 편지함을 열 때
 ///   "지운 편지함으로 이동"이면 옮기고, "표시만"이면 목록에 차단 표시를 붙인다.
 /// - 예전 버전(서버 규칙에만 저장)의 목록은 처음 한 번 가져온다.
+/// - Apple 연락처의 차단 목록(`AppleBlockList`)의 이메일 주소도 함께 거른다 (읽기만, 설정에서 끌 수 있다).
+///   앱을 켤 때, 차단됨 설정을 열 때, 새 메일을 확인할 때 다시 읽는다.
 extension AppModel {
 
     private static let blockListKey = "blocked.list"
@@ -14,8 +16,28 @@ extension AppModel {
 
     static func savedBlockList() -> BlockList {
         guard !Store.isOverridden, let data = UserDefaults.standard.data(forKey: blockListKey),
-              let list = try? JSONDecoder().decode(BlockList.self, from: data) else { return BlockList() }
+              var list = try? JSONDecoder().decode(BlockList.self, from: data) else {
+            return BlockList(apple: readAppleBlockList())
+        }
+        list.apple = readAppleBlockList()
         return list
+    }
+
+    /// Apple 연락처의 차단 목록에서 이메일 주소를 읽는다. 테스트 실행(APP_STORE)은 이 Mac의 목록을 보지 않는다.
+    static func readAppleBlockList() -> [String] {
+        guard !Store.isOverridden else { return [] }
+        let domain = AppleBlockList.domain as CFString
+        CFPreferencesAppSynchronize(domain)
+        return AppleBlockList.emails(fromTopLevel: CFPreferencesCopyAppValue(AppleBlockList.topKey as CFString, domain))
+    }
+
+    /// Apple 목록을 다시 읽는다. 바뀌었으면 true.
+    @discardableResult
+    func refreshAppleBlockList() -> Bool {
+        let list = Self.readAppleBlockList()
+        guard !Store.isOverridden, list != blockList.apple else { return false }
+        blockList.apple = list
+        return true
     }
 
     func saveBlockList() {
@@ -24,6 +46,8 @@ extension AppModel {
     }
 
     var blockedAddresses: [String] { blockList.addresses }
+    /// Apple 연락처에서 차단해 함께 거르는 주소 (앱 목록에 없는 것만)
+    var appleBlockedAddresses: [String] { blockList.appleInUse }
     var blockMode: BlockedSenders.Mode { blockList.mode }
     var blockEnabled: Bool { blockList.enabled }
 
@@ -34,6 +58,7 @@ extension AppModel {
 
     /// Exchange 계정마다 서버 규칙을 읽고, 처음이면 예전 목록을 가져오고, 앱 목록과 다르면 서버를 맞춘다.
     func loadBlocked() async {
+        refreshAppleBlockList()
         for a in exchangeAccounts {
             do {
                 blockedRules[a.id] = try await a.service.rules().first(where: BlockedSenders.isBlockRule)
@@ -77,9 +102,9 @@ extension AppModel {
                     try await a.service.deleteRule(id: old.id)
                     blockedRules[a.id] = nil
                 }
-                guard !list.addresses.isEmpty else { continue }
+                guard !list.allEntries.isEmpty else { continue }
                 var made = try await a.service.createRule(
-                    BlockedSenders.rule(addresses: list.addresses, mode: list.mode, enabled: true))
+                    BlockedSenders.rule(addresses: list.allEntries, mode: list.mode, enabled: true))
                 if !list.enabled {
                     try await a.service.setRule(id: made.id, enabled: false)
                     made.isEnabled = false
@@ -95,6 +120,7 @@ extension AppModel {
 
     /// 새 메일 확인 때: 아직 규칙을 읽지 못한 Exchange 계정이 있으면 읽고 맞춘다 (앱을 켠 직후, 오프라인이었을 때).
     func syncBlockRulesIfNeeded() async {
+        if refreshAppleBlockList() { await syncBlockRules() }
         guard exchangeAccounts.contains(where: { !blockRuleKnown.contains($0.id) }) else { return }
         await loadBlocked()
     }
@@ -171,7 +197,7 @@ extension AppModel {
 
     /// 지금 목록에 보이는 iCloud·Gmail 받은 편지함 메일에 적용한다 (받은 편지함을 열 때, 목록·방식을 바꿀 때).
     func sweepVisibleBlocked() async {
-        guard blockList.enabled, blockList.mode == .trash, !blockList.addresses.isEmpty else { return }
+        guard blockList.enabled, blockList.mode == .trash, !blockList.allEntries.isEmpty else { return }
         var any = false
         for a in accounts.accounts where a.imap != nil {
             guard let inbox = accountFolders[a.id]?.first(where: { $0.kind == "inbox" })?.id else { continue }

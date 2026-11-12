@@ -347,7 +347,10 @@ struct AddressToken: View {
         } else {
             Button(L("VIP에서 제거")) { model.removeVIP(address: address) }
         }
-        if model.blockList.matches(address) {
+        if model.blockList.onlyApple(address) {
+            // Apple 연락처에서 차단한 주소는 이 앱에서 풀 수 없다 (연락처 앱 > 설정 > 차단됨에서 푼다)
+            Button(L("Apple 연락처에서 차단됨")) {}.disabled(true)
+        } else if model.blockList.matches(address) {
             Button(L("연락처 차단 해제")) { Task { await model.unblock(address: address) } }
         } else {
             Button(L("연락처 차단")) { Task { await model.block(address: address) } }

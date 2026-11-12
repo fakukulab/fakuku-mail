@@ -75,3 +75,45 @@ func blockRuleSync() throws {
     let data = try JSONEncoder().encode(list)
     #expect(try JSONDecoder().decode(BlockList.self, from: data) == list)
 }
+
+// Apple 연락처의 차단 목록 (읽기만)
+
+@Test("Apple 차단 목록: 이메일 항목만 꺼내고 정리한다, 꼴이 다르면 빈 목록")
+func appleBlockListParse() throws {
+    let top: [String: Any] = ["__kCMFBlockListStoreArrayKey": [
+        ["__kCMFItemPhoneNumberUnformattedKey": "01012345678", "__kCMFItemTypeKey": 0],
+        ["__kCMFItemEmailUnformattedKey": "Spam@Apple.Example", "__kCMFItemTypeKey": 1],
+        ["__kCMFItemEmailUnformattedKey": "spam@apple.example", "__kCMFItemTypeKey": 1],
+        ["__kCMFItemEmailUnformattedKey": "not an address", "__kCMFItemTypeKey": 1],
+    ]]
+    #expect(AppleBlockList.emails(fromTopLevel: top) == ["spam@apple.example"])
+    #expect(AppleBlockList.emails(fromTopLevel: nil).isEmpty)
+    #expect(AppleBlockList.emails(fromTopLevel: ["other": 1]).isEmpty)
+
+    let data = try PropertyListSerialization.data(fromPropertyList: [AppleBlockList.topKey: top], format: .binary, options: 0)
+    #expect(AppleBlockList.emails(fromPlist: data) == ["spam@apple.example"])
+    #expect(AppleBlockList.emails(fromPlist: Data("x".utf8)).isEmpty)
+}
+
+@Test("Apple 항목: 함께 걸러지고, 끄면 빠지고, 앱에서는 풀 수 없고, 저장하지 않는다")
+func appleBlockListInUse() throws {
+    var list = BlockList(addresses: ["me@x.com"], apple: ["a@apple.example", "me@x.com"])
+    #expect(list.appleInUse == ["a@apple.example"])
+    #expect(list.allEntries == ["me@x.com", "a@apple.example"])
+    #expect(list.blocks("A@apple.example") && list.onlyApple("a@apple.example") && !list.onlyApple("me@x.com"))
+
+    list.remove(["a@apple.example"])
+    #expect(list.matches("a@apple.example"))
+
+    let rule = BlockedSenders.rule(addresses: list.allEntries, mode: .keep, enabled: true)
+    #expect(list.sameAsRule(rule))
+
+    list.useApple = false
+    #expect(!list.matches("a@apple.example") && list.allEntries == ["me@x.com"] && !list.sameAsRule(rule))
+
+    let decoded = try JSONDecoder().decode(BlockList.self, from: JSONEncoder().encode(list))
+    #expect(decoded.apple.isEmpty && decoded.useApple == false && decoded.addresses == ["me@x.com"])
+    // 예전 버전이 저장한 값(useApple 없음)은 켜짐으로 읽는다
+    let old = Data(#"{"addresses":["me@x.com"],"enabled":true,"mode":"keep"}"#.utf8)
+    #expect(try JSONDecoder().decode(BlockList.self, from: old).useApple)
+}

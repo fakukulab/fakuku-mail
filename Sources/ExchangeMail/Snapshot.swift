@@ -138,7 +138,8 @@ enum Snapshot {
                         if tab == .junk {
                             // 정크 메일 > 차단됨 칸과 차단된 보낸 사람 관리 시트
                             let saved = model.blockList
-                            model.blockList = BlockList(addresses: ["spam@junk.example", "@ads.example", "promo@shop.example"])
+                            model.blockList = BlockList(addresses: ["spam@junk.example", "@ads.example", "promo@shop.example"],
+                                                        apple: ["caller@apple.example"])
                             model.junkPage = .blocked
                             try? await Task.sleep(for: .seconds(1))
                             capture(to: "\(dir)/settings-junk-blocked-\(mode).png", window: settings)

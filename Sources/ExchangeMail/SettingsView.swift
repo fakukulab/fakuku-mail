@@ -336,12 +336,23 @@ struct BlockedSettings: View {
                 .labelsHidden()
                 .disabled(!model.blockEnabled)
             }
+            LabeledContent(L("Apple 연락처:")) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Toggle(L("Apple 연락처의 차단 목록도 사용"), isOn: Binding(
+                        get: { model.blockList.useApple },
+                        set: { on in Task { await model.changeBlockList { $0.useApple = on } } }))
+                    .disabled(!model.blockEnabled)
+                    SettingsNote(model.blockList.apple.isEmpty
+                                 ? L("연락처·메시지·FaceTime에서 차단한 이메일 주소가 없습니다.")
+                                 : L("연락처·메시지·FaceTime에서 차단한 이메일 주소 \(model.blockList.apple.count)개. 차단 해제는 연락처 앱 > 설정 > 차단됨에서 합니다."))
+                }
+            }
             LabeledContent {
                 VStack(alignment: .leading, spacing: Space.sm) {
                     HStack(spacing: Space.sm) {
                         Button(L("차단된 보낸 사람 관리…")) { model.showBlockedManager = true }
-                        Text(model.blockedAddresses.isEmpty ? L("차단한 보낸 사람이 없습니다.")
-                                                            : L("\(model.blockedAddresses.count)개 차단됨"))
+                        Text(model.blockList.allEntries.isEmpty ? L("차단한 보낸 사람이 없습니다.")
+                                                                : L("\(model.blockList.allEntries.count)개 차단됨"))
                             .foregroundStyle(.secondary)
                     }
                     SettingsNote(L("차단 목록은 이 Mac의 앱이 보관해 모든 계정에 적용합니다. ")
@@ -366,11 +377,17 @@ struct BlockedSendersSheet: View {
     @State private var newAddress = ""
     @State private var busy = false
 
+    /// 앱 목록 다음에 Apple 연락처의 항목 (Apple 항목은 여기서 풀 수 없다)
     private var shown: [String] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        let all = model.blockedAddresses
+        let all = model.blockList.allEntries
         return q.isEmpty ? all : all.filter { $0.contains(q) }
     }
+
+    private func isApple(_ entry: String) -> Bool { !model.blockedAddresses.contains(entry) }
+
+    /// 고른 것 중 이 앱에서 풀 수 있는 항목
+    private var removable: Set<String> { selection.filter { !isApple($0) } }
 
     private var newIsValid: Bool { BlockList.normalize(newAddress) != nil }
 
@@ -396,7 +413,12 @@ struct BlockedSendersSheet: View {
                             .accessibilityHidden(true)
                         Text(entry)
                         Spacer()
-                        if BlockList.isDomain(entry) {
+                        if isApple(entry) {
+                            Text(verbatim: "Apple")  // l10n: data
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .help(L("연락처·메시지·FaceTime에서 차단한 주소. 연락처 앱 > 설정 > 차단됨에서 풉니다."))
+                        } else if BlockList.isDomain(entry) {
                             Text(L("도메인 전체"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -407,12 +429,16 @@ struct BlockedSendersSheet: View {
             }
             .listStyle(.bordered)
             .alternatingRowBackgrounds()
-            .onDeleteCommand { remove(selection) }
+            .onDeleteCommand { remove(removable) }
             .contextMenu(forSelectionType: String.self) { ids in
-                Button(L("차단 해제")) { remove(ids) }
+                if ids.allSatisfy(isApple) {
+                    Button(L("Apple 연락처에서 차단됨")) {}.disabled(true)
+                } else {
+                    Button(L("차단 해제")) { remove(ids.filter { !isApple($0) }) }
+                }
             }
             .overlay {
-                if model.blockedAddresses.isEmpty {
+                if model.blockList.allEntries.isEmpty {
                     ContentUnavailableView(L("차단한 보낸 사람 없음"), systemImage: "nosign",
                                            description: Text(L("메일을 오른쪽 클릭해 \"보낸 사람 차단\"을 고르거나 아래에 주소를 넣으세요.")))
                 } else if shown.isEmpty {
@@ -420,10 +446,10 @@ struct BlockedSendersSheet: View {
                 }
             }
             HStack(spacing: Space.sm) {
-                Button(L("차단 해제"), systemImage: "minus") { remove(selection) }
+                Button(L("차단 해제"), systemImage: "minus") { remove(removable) }
                     .labelStyle(.iconOnly)
                     .help(L("고른 항목 차단 해제 (⌫)"))
-                    .disabled(selection.isEmpty || busy)
+                    .disabled(removable.isEmpty || busy)
                 TextField(L("차단할 주소"), text: $newAddress, prompt: Text(L("주소 또는 @도메인")))
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { add() }
@@ -437,7 +463,8 @@ struct BlockedSendersSheet: View {
             }
             HStack {
                 if busy { ProgressView().controlSize(.small) }
-                Text(L("\(model.blockedAddresses.count)개 차단됨"))
+                Text(model.appleBlockedAddresses.isEmpty ? L("\(model.blockList.allEntries.count)개 차단됨")
+                     : L("\(model.blockList.allEntries.count)개 차단됨 (Apple 연락처 \(model.appleBlockedAddresses.count)개)"))
                     .foregroundStyle(.secondary)
                 Spacer()
                 // 입력 칸의 Return은 "차단"이라 완료는 esc로 (기본 단추로 두면 Return이 시트를 닫는다)

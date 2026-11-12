@@ -991,6 +991,23 @@ enum SelfTest {
             check("차단: 모두 풀면 규칙도 지운다",
                   model.blockedRule == nil && !rulesAfterUnblock.contains(where: BlockedSenders.isBlockRule))
 
+            // Apple 연락처의 차단 목록 (읽기만): 함께 거르고 서버 규칙에도 넣는다, 앱에서는 풀 수 없다
+            let appleMail = MailMessage(id: "b3", subject: nil, from: Recipient(name: nil, address: "caller@apple.example"),
+                                        receivedDateTime: nil)
+            model.blockList.apple = ["caller@apple.example"]
+            await model.syncBlockRules()
+            check("차단: Apple 연락처의 차단 주소도 걸리고 서버 규칙에 들어간다",
+                  model.isBlocked(appleMail) && model.blockedAddresses.isEmpty
+                      && BlockedSenders.addresses(in: model.blockedRule) == ["caller@apple.example"])
+            await model.unblock(address: "caller@apple.example")
+            check("차단: Apple 항목은 앱에서 풀리지 않는다",
+                  model.isBlocked(appleMail) && model.blockList.onlyApple("caller@apple.example"))
+            await model.changeBlockList { $0.useApple = false }
+            check("차단: Apple 목록을 끄면 걸리지 않고 서버 규칙도 지운다",
+                  !model.isBlocked(appleMail) && model.blockedRule == nil)
+            model.blockList = BlockList()
+            await model.syncBlockRules()
+
             // 깃발 색 (맥 Mail처럼 일곱 가지, 이 Mac에 저장)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))

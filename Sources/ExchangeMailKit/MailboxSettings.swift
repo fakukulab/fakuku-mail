@@ -221,15 +221,44 @@ public enum BlockedSenders {
 /// Exchange 계정은 같은 목록을 서버 규칙(`BlockedSenders`)에도 넣어 앱이 꺼져 있어도 걸러지게 한다.
 /// 항목은 주소(`spam@example.com`) 또는 도메인(`@example.com`, 그 도메인의 모든 주소).
 public struct BlockList: Codable, Equatable, Sendable {
+    /// 앱에서 차단한 항목 (이 앱이 보관하고 고친다)
     public var addresses: [String]
     public var enabled: Bool
     public var mode: BlockedSenders.Mode
+    /// Apple 연락처의 차단 목록(메시지·FaceTime·Mail과 같은 목록)도 쓰는가
+    public var useApple: Bool
+    /// Apple 차단 목록의 이메일 주소. 읽기만 하고 저장하지 않는다 (`AppleBlockList`가 읽어 채운다).
+    public var apple: [String] = []
 
-    public init(addresses: [String] = [], enabled: Bool = true, mode: BlockedSenders.Mode = .keep) {
+    public init(addresses: [String] = [], enabled: Bool = true, mode: BlockedSenders.Mode = .keep,
+                useApple: Bool = true, apple: [String] = []) {
         self.addresses = []
         self.enabled = enabled
         self.mode = mode
+        self.useApple = useApple
         for a in addresses { add(a) }
+        self.apple = AppleBlockList.clean(apple)
+    }
+
+    private enum CodingKeys: String, CodingKey { case addresses, enabled, mode, useApple }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        addresses = try c.decode([String].self, forKey: .addresses)
+        enabled = try c.decode(Bool.self, forKey: .enabled)
+        mode = try c.decode(BlockedSenders.Mode.self, forKey: .mode)
+        useApple = try c.decodeIfPresent(Bool.self, forKey: .useApple) ?? true
+    }
+
+    /// 지금 쓰는 Apple 항목 (켜져 있을 때만, 앱 목록에 이미 있는 것은 뺀다)
+    public var appleInUse: [String] { useApple ? apple.filter { !addresses.contains($0) } : [] }
+
+    /// 거르는 데 쓰는 모든 항목: 앱 목록 다음에 Apple 목록
+    public var allEntries: [String] { addresses + appleInUse }
+
+    /// Apple 목록에만 있어 이 앱에서는 풀 수 없는 주소인가
+    public func onlyApple(_ address: String?) -> Bool {
+        matches(address) && !BlockList(addresses: addresses).matches(address)
     }
 
     /// 입력을 정리한다: 앞뒤 공백·꺾쇠·mailto: 를 떼고 소문자로. 주소나 도메인 꼴이 아니면 nil.
@@ -252,7 +281,7 @@ public struct BlockList: Codable, Equatable, Sendable {
     /// 이 주소가 목록에 걸리는가 (대소문자 무시, 도메인 항목은 그 도메인과 하위 도메인)
     public func matches(_ address: String?) -> Bool {
         guard let a = address?.trimmingCharacters(in: .whitespaces).lowercased(), a.contains("@") else { return false }
-        return addresses.contains { entry in
+        return allEntries.contains { entry in
             if Self.isDomain(entry) {
                 let domain = String(entry.dropFirst())
                 let host = a.split(separator: "@").last.map(String.init) ?? ""
@@ -286,9 +315,9 @@ public struct BlockList: Codable, Equatable, Sendable {
 
     /// 서버 규칙이 이 목록과 같은가 (주소 순서는 따지지 않는다)
     public func sameAsRule(_ rule: MessageRule?) -> Bool {
-        guard let rule else { return addresses.isEmpty }
+        guard let rule else { return allEntries.isEmpty }
         let ruleSet = Set(BlockedSenders.addresses(in: rule).map { $0.lowercased() })
-        return ruleSet == Set(addresses) && BlockedSenders.mode(of: rule) == mode && (rule.isEnabled ?? true) == enabled
+        return ruleSet == Set(allEntries) && BlockedSenders.mode(of: rule) == mode && (rule.isEnabled ?? true) == enabled
     }
 
     /// 처음 한 번: 예전 버전이 서버 규칙에만 두었던 목록을 앱 목록으로 가져온다.
@@ -299,5 +328,36 @@ public struct BlockList: Codable, Equatable, Sendable {
             enabled = rule.isEnabled ?? true
         }
         for a in BlockedSenders.addresses(in: rule) { add(a) }
+    }
+}
+
+// MARK: Apple 연락처의 차단 목록 (읽기만)
+
+/// macOS가 연락처·메시지·FaceTime·전화·Mail에 함께 쓰는 차단 목록. iCloud로 다른 기기와 맞춰진다.
+/// 공개 API가 없어 환경설정 도메인 `com.apple.cmfsyncagent`의 값을 읽는다 (샌드박스를 쓰지 않는 앱만 읽힌다).
+/// 꼴: { __kCMFBlockListStoreArrayKey: [ { __kCMFItemEmailUnformattedKey: "a@b.com", ... }, ... ] }
+/// 전화번호 항목은 건너뛴다. 꼴이 바뀌어 읽지 못하면 빈 목록 (앱 목록만 쓴다).
+public enum AppleBlockList {
+    public static let domain = "com.apple.cmfsyncagent"
+    public static let topKey = "__kCMFBlockListStoreTopLevelKey"
+    static let arrayKey = "__kCMFBlockListStoreArrayKey"
+    static let emailKey = "__kCMFItemEmailUnformattedKey"
+
+    /// 최상위 값(`topKey`의 값)에서 이메일 주소를 꺼낸다
+    public static func emails(fromTopLevel value: Any?) -> [String] {
+        guard let top = value as? [String: Any], let items = top[arrayKey] as? [[String: Any]] else { return [] }
+        return clean(items.compactMap { $0[emailKey] as? String })
+    }
+
+    /// plist 파일 내용에서 꺼낸다
+    public static func emails(fromPlist data: Data) -> [String] {
+        let root = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        return emails(fromTopLevel: root?[topKey])
+    }
+
+    /// 주소 꼴로 정리하고 겹치는 것을 뺀다
+    static func clean(_ raw: [String]) -> [String] {
+        var seen = Set<String>()
+        return raw.compactMap(BlockList.normalize).filter { seen.insert($0).inserted }
     }
 }

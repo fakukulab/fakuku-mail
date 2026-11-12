@@ -1077,3 +1077,12 @@
 "완료" = "Done";
 "연락처 차단 해제" = "Unblock Contact";
 "연락처 차단" = "Block Contact";
+
+/* 차단됨: Apple 연락처의 차단 목록 */
+"Apple 연락처에서 차단됨" = "Blocked in Apple Contacts";
+"Apple 연락처:" = "Apple Contacts:";
+"Apple 연락처의 차단 목록도 사용" = "Also use the blocked list in Apple Contacts";
+"연락처·메시지·FaceTime에서 차단한 이메일 주소가 없습니다." = "No email addresses are blocked in Contacts, Messages, or FaceTime.";
+"연락처·메시지·FaceTime에서 차단한 이메일 주소 %@개. 차단 해제는 연락처 앱 > 설정 > 차단됨에서 합니다." = "%@ email addresses blocked in Contacts, Messages, or FaceTime. To unblock one, go to Contacts > Settings > Blocked.";
+"연락처·메시지·FaceTime에서 차단한 주소. 연락처 앱 > 설정 > 차단됨에서 풉니다." = "Blocked in Contacts, Messages, or FaceTime. Unblock it in Contacts > Settings > Blocked.";
+"%@개 차단됨 (Apple 연락처 %@개)" = "%@ blocked (%@ from Apple Contacts)";

@@ -191,7 +191,10 @@ struct MessageListView: View {
             }
             .disabled(single == nil)
             if let m = single {
-                if model.blockList.matches(m.from?.emailAddress.address) {
+                if model.blockList.onlyApple(m.from?.emailAddress.address) {
+                    // Apple 연락처에서 차단한 주소는 이 앱에서 풀 수 없다 (연락처 앱 > 설정 > 차단됨에서 푼다)
+                    Button(L("Apple 연락처에서 차단됨")) {}.disabled(true)
+                } else if model.blockList.matches(m.from?.emailAddress.address) {
                     Button(L("보낸 사람 차단 해제")) { Task { await model.unblock(address: m.from?.emailAddress.address ?? "") } }
                 } else {
                     Button(L("보낸 사람 차단")) { Task { await model.blockSender(of: m, undoManager: undoManager) } }
