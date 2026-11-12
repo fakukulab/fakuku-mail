@@ -30,7 +30,7 @@ struct MessageListView: View {
                     ConversationRow(conversation: c, me: model.auth.email, vip: model.mailboxes.vip(for: c.latest),
                                     flagColor: c.messages.last(where: \.isFlagged).flatMap { model.flagColor(for: $0) },
                                     previewLines: previewLines, boldUnread: boldUnread,
-                                    knownCount: model.threadCounts[c.id])
+                                    knownCount: model.threadCounts[c.id], blocked: model.isBlocked(c.latest))
                         .tag(c.latest.id)
                         .draggable(model.dragPayload(for: c.latest.id))
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -47,7 +47,8 @@ struct MessageListView: View {
                 let tail = Set(model.messages.suffix(10).map(\.id))
                 ForEach(model.messages) { m in
                     MessageRow(message: m, folderTag: model.folderTag(for: m), vip: model.mailboxes.vip(for: m),
-                               flagColor: model.flagColor(for: m), previewLines: previewLines, boldUnread: boldUnread)
+                               flagColor: model.flagColor(for: m), previewLines: previewLines, boldUnread: boldUnread,
+                               blocked: model.isBlocked(m))
                         .tag(m.id)
                         .draggable(model.dragPayload(for: m.id))
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -190,7 +191,14 @@ struct MessageListView: View {
             }
             .disabled(single == nil)
             if let m = single {
-                Button(L("보낸 사람 차단")) { Task { await model.blockSender(of: m, undoManager: undoManager) } }
+                if model.blockList.onlyApple(m.from?.emailAddress.address) {
+                    // Apple 연락처에서 차단한 주소는 이 앱에서 풀 수 없다 (연락처 앱 > 설정 > 차단됨에서 푼다)
+                    Button(L("Apple 연락처에서 차단됨")) {}.disabled(true)
+                } else if model.blockList.matches(m.from?.emailAddress.address) {
+                    Button(L("보낸 사람 차단 해제")) { Task { await model.unblock(address: m.from?.emailAddress.address ?? "") } }
+                } else {
+                    Button(L("보낸 사람 차단")) { Task { await model.blockSender(of: m, undoManager: undoManager) } }
+                }
             }
             // VIP (S-045)
             if let m = single {
@@ -333,6 +341,8 @@ struct MessageRow: View {
     /// 설정 > 보기 > 목록 미리보기 줄 수, 볼드체로 읽지 않은 메시지 표시 (목록이 넘긴다)
     var previewLines = 2
     var boldUnread = true
+    /// 차단된 보낸 사람 (설정 > 정크 메일 > 차단됨에서 "받은 편지함에 유지"일 때 보인다)
+    var blocked = false
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.sm) {
@@ -350,6 +360,9 @@ struct MessageRow: View {
                         .fontWeight(message.isUnread && boldUnread ? .semibold : .regular)
                         .lineLimit(1)
                     Spacer(minLength: Space.xs)
+                    if blocked {
+                        BlockedBadge()
+                    }
                     if let flagColor {
                         Image(systemName: "flag.fill")
                             .font(.caption)
@@ -391,6 +404,17 @@ struct MessageRow: View {
     }
 }
 
+/// 목록 줄의 차단 표시 (보낸 사람이 차단 목록에 있다)
+struct BlockedBadge: View {
+    var body: some View {
+        Image(systemName: "nosign")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel(L("차단된 보낸 사람"))
+            .help(L("차단된 보낸 사람"))
+    }
+}
+
 /// 대화 한 줄 (S-025): 참여자, 메일 수, 제목, 최근 메일 미리보기.
 struct ConversationRow: View {
     let conversation: Conversation
@@ -403,6 +427,8 @@ struct ConversationRow: View {
     var boldUnread = true
     /// 대화를 열어 서버에서 확인한 수 (있으면 이것을 보인다)
     var knownCount: Int? = nil
+    /// 최근 메일의 보낸 사람이 차단됨
+    var blocked = false
 
     private var count: Int { knownCount ?? conversation.count }
 
@@ -431,6 +457,9 @@ struct ConversationRow: View {
                             .accessibilityLabel(L("메일 \(count)통"))
                     }
                     Spacer(minLength: Space.xs)
+                    if blocked {
+                        BlockedBadge()
+                    }
                     if let flagColor {
                         Image(systemName: "flag.fill")
                             .font(.caption)

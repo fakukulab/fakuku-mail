@@ -51,6 +51,8 @@ extension AppModel {
         if only == nil, !Store.isDemo, Prefs.bool(Prefs.calendarAddAccepted, true) {
             MacCalendar.shared.removeSyncedDuplicates()
         }
+        // 차단 목록을 아직 Exchange 서버 규칙과 맞추지 못했으면 맞춘다 (앱을 켠 직후, 오프라인이었을 때)
+        if only == nil { await syncBlockRulesIfNeeded() }
         var anyFresh = false
         for account in accounts.accounts where only == nil || account.id == only {
             let key = account.email.lowercased()
@@ -58,12 +60,15 @@ extension AppModel {
             let inboxID = accountFolders[account.id]?.first { $0.kind == "inbox" }?.id ?? "inbox"
             guard let page = try? await account.service.messages(folderID: inboxID, search: nil) else { continue }
             router.noteOwner(page.messages, account: account.id)
-            let fresh = tracker.take(page.messages)
+            // iCloud·Gmail: 차단된 보낸 사람의 메일은 앱이 지운 편지함으로 옮긴다 (Exchange는 서버 규칙이)
+            let swept = await sweepBlocked(page.messages, account: account)
+            let fresh = tracker.take(page.messages.filter { !swept.contains($0.id) })
             trackers[key] = tracker
             saveTracker(tracker, key: key)
             if notifyNewMail && notificationPermission == .allowed {
                 // 알림을 끈 대화의 메일은 알리지 않는다 (메시지 > 알림 비활성화).
-                let wanted = fresh.filter { !mutedConversations.contains($0.conversationId ?? "") }
+                // 차단된 보낸 사람의 메일도 알리지 않는다 (받은 편지함에 두는 방식이어도).
+                let wanted = fresh.filter { !mutedConversations.contains($0.conversationId ?? "") && !isBlocked($0) }
                 for n in MailNotification.make(for: wanted) { notifier.post(n, sound: notifySound) }
             }
             if !fresh.isEmpty { anyFresh = true }

@@ -1050,3 +1050,39 @@
 "%@님의 회의 초대" = "Meeting invitation from %@";
 "회의 초대" = "Meeting Invitation";
 "참석자" = "Attendee";
+
+/* 1.0.6 차단된 보낸 사람 (설정 > 정크 메일 > 차단됨) */
+"보낸 사람 차단 해제" = "Unblock Sender";
+"정크 메일 동작" = "Junk Mail Behavior";
+"차단됨" = "Blocked";
+"정크 메일 설정" = "Junk mail settings";
+"안전한 보낸 사람 목록은 Outlook 웹에서 관리합니다. 이 Mac과 다른 기기에 모두 적용됩니다." = "Manage safe senders in Outlook on the web. They apply on this Mac and on your other devices.";
+"차단된 메일로 표시하지만, 받은 편지함에 유지" = "Mark as blocked mail, but leave it in my Inbox";
+"차단된 보낸 사람 관리…" = "Manage Blocked Senders…";
+"차단한 보낸 사람이 없습니다." = "No blocked senders.";
+"%@개 차단됨" = "%@ blocked";
+"차단 목록은 이 Mac의 앱이 보관해 모든 계정에 적용합니다. " = "The app keeps the blocked list on this Mac and applies it to every account. ";
+"Exchange 계정은 받은 편지함 규칙 \"%@\"에도 넣어 앱이 꺼져 있어도 서버가 거릅니다. " = "For Exchange accounts it is also saved as the inbox rule \"%@\", so the server filters mail even when the app is closed. ";
+"iCloud·Gmail 계정은 앱이 새 메일을 확인할 때 거릅니다." = "For iCloud and Gmail accounts, the app filters mail when it checks for new mail.";
+"차단된 보낸 사람" = "Blocked Senders";
+"찾기" = "Search";
+"목록의 주소에서 온 메일은 차단됨 설정대로 거릅니다. @example.com처럼 넣으면 그 도메인의 모든 주소를 막습니다." = "Mail from these addresses is filtered as set in Blocked. Enter @example.com to block every address at that domain.";
+"도메인 전체" = "Entire domain";
+"차단한 보낸 사람 없음" = "No Blocked Senders";
+"메일을 오른쪽 클릭해 \"보낸 사람 차단\"을 고르거나 아래에 주소를 넣으세요." = "Control-click a message and choose \"Block Sender\", or enter an address below.";
+"고른 항목 차단 해제 (⌫)" = "Unblock the selected items (⌫)";
+"차단할 주소" = "Address to block";
+"주소 또는 @도메인" = "Address or @domain";
+"spam@example.com 또는 @example.com 꼴로 넣으세요." = "Enter it as spam@example.com or @example.com.";
+"완료" = "Done";
+"연락처 차단 해제" = "Unblock Contact";
+"연락처 차단" = "Block Contact";
+
+/* 차단됨: Apple 연락처의 차단 목록 */
+"Apple 연락처에서 차단됨" = "Blocked in Apple Contacts";
+"Apple 연락처:" = "Apple Contacts:";
+"Apple 연락처의 차단 목록도 사용" = "Also use the blocked list in Apple Contacts";
+"연락처·메시지·FaceTime에서 차단한 이메일 주소가 없습니다." = "No email addresses are blocked in Contacts, Messages, or FaceTime.";
+"연락처·메시지·FaceTime에서 차단한 이메일 주소 %@개. 차단 해제는 연락처 앱 > 설정 > 차단됨에서 합니다." = "%@ email addresses blocked in Contacts, Messages, or FaceTime. To unblock one, go to Contacts > Settings > Blocked.";
+"연락처·메시지·FaceTime에서 차단한 주소. 연락처 앱 > 설정 > 차단됨에서 풉니다." = "Blocked in Contacts, Messages, or FaceTime. Unblock it in Contacts > Settings > Blocked.";
+"%@개 차단됨 (Apple 연락처 %@개)" = "%@ blocked (%@ from Apple Contacts)";

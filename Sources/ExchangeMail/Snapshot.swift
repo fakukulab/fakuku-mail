@@ -135,6 +135,22 @@ enum Snapshot {
                         try? await Task.sleep(for: .seconds(1))
                         let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet }
                         capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
+                        if tab == .junk {
+                            // 정크 메일 > 차단됨 칸과 차단된 보낸 사람 관리 시트
+                            let saved = model.blockList
+                            model.blockList = BlockList(addresses: ["spam@junk.example", "@ads.example", "promo@shop.example"],
+                                                        apple: ["caller@apple.example"])
+                            model.junkPage = .blocked
+                            try? await Task.sleep(for: .seconds(1))
+                            capture(to: "\(dir)/settings-junk-blocked-\(mode).png", window: settings)
+                            model.showBlockedManager = true
+                            try? await Task.sleep(for: .seconds(1))
+                            capture(to: "\(dir)/settings-junk-blocked-manager-\(mode).png", window: settings?.attachedSheet ?? settings)
+                            model.showBlockedManager = false
+                            try? await Task.sleep(for: .seconds(0.6))
+                            model.junkPage = .actions
+                            model.blockList = saved
+                        }
                     }
                 }
             }

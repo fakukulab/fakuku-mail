@@ -1,5 +1,7 @@
 # Fix log
 
+## 2026-11-12 메시지 회수 기능을 넣었다가 뺐다: Graph beta `POST /me/mailFolders/sentitems/messages/{id}/recall`은 서버가 받지 않는다 ("Resource not found for the segment 'recall'", 2025-11 Microsoft Q&A에도 같은 보고). 다시 넣으려면 먼저 실제 계정으로 이 주소가 202를 주는지 확인하고, Content-Type과 본문 `{}`를 보낼 것.
+
 ## 2026-11-08 "작업을 완료할 수 없습니다. 소켓이 연결되지 않았음" 알림 (iCloud·Gmail, 1.0.4)
 
 증상: 1.0.4에서 오류 알림. NSPOSIXErrorDomain 57(ENOTCONN)의 시스템 문구다.
