@@ -516,11 +516,12 @@ final class GraphMailService: MailService {
     }
 
     /// 메시지 회수는 Graph beta에만 있다 (2026-11 기준 v1.0에 없음). 성공하면 202.
-    /// 본문은 필요 없지만 Graph는 쓰기 요청에 Content-Type을 요구한다 (없으면 400): /send처럼 빈 본문을 보낸다.
+    /// 문서에는 본문이 없다고 되어 있지만, 실제 서버는 Content-Type이 없으면 400, 본문이 비어도 400
+    /// ("Empty Payload. JSON content expected.")이라 빈 JSON 객체 `{}`를 보낸다 (FIXLOG 2026-11-12).
     /// https://learn.microsoft.com/graph/api/message-recall
     func recall(id: String) async throws {
         _ = try await request("POST", "https://graph.microsoft.com/beta/me/mailFolders/sentitems/messages/\(GraphPath.segment(id))/recall",
-                              body: Data())
+                              body: try json([:]))
     }
 
     private let rulesPath = "/me/mailFolders/inbox/messageRules"

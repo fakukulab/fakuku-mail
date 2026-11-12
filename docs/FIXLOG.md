@@ -6,6 +6,8 @@
 원인: 문서대로 본문 없이 POST했는데, `request()`는 본문이 있을 때만 Content-Type을 붙인다. Graph는 DELETE가 아닌 쓰기 요청에 Content-Type을 요구한다.
 데모 서비스는 HTTP를 거치지 않아 셀프 테스트로는 잡히지 않았다.
 고침: `/send`처럼 빈 본문(`Data()`)을 보내 Content-Type: application/json이 붙게 했다 (`GraphMailService.recall`).
+이어서 "메일 서버 오류 (400): Empty Payload. JSON content expected." 서버는 본문이 비어도 거절한다.
+다시 고침: 빈 JSON 객체 `{}`를 보낸다. 문서("본문을 넣지 말 것")와 실제 서버가 다르다.
 
 ## 2026-11-08 "작업을 완료할 수 없습니다. 소켓이 연결되지 않았음" 알림 (iCloud·Gmail, 1.0.4)
 
