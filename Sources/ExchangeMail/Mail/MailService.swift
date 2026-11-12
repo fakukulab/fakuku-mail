@@ -515,11 +515,12 @@ final class GraphMailService: MailService {
         _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(ScheduledSend.patchBody(sendAt: date)))
     }
 
-    /// 메시지 회수는 Graph beta에만 있다 (2026-11 기준 v1.0에 없음). 본문 없이 POST, 성공하면 202.
+    /// 메시지 회수는 Graph beta에만 있다 (2026-11 기준 v1.0에 없음). 성공하면 202.
+    /// 본문은 필요 없지만 Graph는 쓰기 요청에 Content-Type을 요구한다 (없으면 400): /send처럼 빈 본문을 보낸다.
     /// https://learn.microsoft.com/graph/api/message-recall
     func recall(id: String) async throws {
         _ = try await request("POST", "https://graph.microsoft.com/beta/me/mailFolders/sentitems/messages/\(GraphPath.segment(id))/recall",
-                              headers: ["Content-Length": "0"])
+                              body: Data())
     }
 
     private let rulesPath = "/me/mailFolders/inbox/messageRules"
