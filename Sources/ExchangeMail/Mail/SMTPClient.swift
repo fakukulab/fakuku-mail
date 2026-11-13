@@ -49,7 +49,7 @@ actor SMTPClient {
         }
         try await command("DATA", expect: [354])
         guard let task else { throw SMTPError.closed }
-        try await task.write(SMTP.dataPayload(SMTP.removingBcc(mime)), timeout: 300)
+        try await task.writeOnce(SMTP.dataPayload(SMTP.removingBcc(mime)), timeout: 300)
         try check(try await readReply(timeout: 300), expect: [250])
         _ = try? await command("QUIT", expect: [221])
     }
@@ -95,7 +95,7 @@ actor SMTPClient {
     @discardableResult
     private func command(_ line: String, expect codes: Set<Int>) async throws -> SMTP.Reply {
         guard let task else { throw SMTPError.closed }
-        try await task.write(Data((line + "\r\n").utf8), timeout: 60)
+        try await task.writeOnce(Data((line + "\r\n").utf8), timeout: 60)
         let reply = try await readReply()
         try check(reply, expect: codes)
         return reply
@@ -116,7 +116,7 @@ actor SMTPClient {
                 if let reply = SMTP.reply(from: lines) { return reply }
             }
             guard let task else { throw SMTPError.closed }
-            let (data, atEOF) = try await task.readData(ofMinLength: 1, maxLength: 64 * 1024, timeout: timeout)
+            let (data, atEOF) = try await task.readOnce(ofMinLength: 1, maxLength: 64 * 1024, timeout: timeout)
             if let data, !data.isEmpty { buffer.append(data) } else if atEOF { throw SMTPError.closed }
         }
     }

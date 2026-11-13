@@ -1,5 +1,11 @@
 # Fix log
 
+## 2026-11-13 잠자기에서 깬 직후 앱이 꺼짐 (1.0.5, iCloud·Gmail)
+
+증상: 깨고 57초 뒤 EXC_BREAKPOINT. 꺼진 곳은 NSURLSession-delegate 큐의 `CheckedContinuation.resume(throwing:)`, 완료 처리 모양은 `(NSData?, Bool, NSError?)` = `URLSessionStreamTask.readData`.
+원인: 끊긴 연결에서 읽기 완료 처리가 두 번 왔고, Swift가 자동으로 만든 async `readData`/`write`는 두 번째에 앱을 멈춘다.
+고침: `Mail/StreamTask+Once.swift`의 `readOnce`/`writeOnce`가 완료 처리를 직접 받아 처음 한 번만 넘긴다. IMAP·SMTP는 이것만 쓴다.
+
 ## 2026-11-12 메시지 회수 기능을 넣었다가 뺐다: Graph beta `POST /me/mailFolders/sentitems/messages/{id}/recall`은 서버가 받지 않는다 ("Resource not found for the segment 'recall'", 2025-11 Microsoft Q&A에도 같은 보고). 다시 넣으려면 먼저 실제 계정으로 이 주소가 202를 주는지 확인하고, Content-Type과 본문 `{}`를 보낼 것.
 
 ## 2026-11-08 "작업을 완료할 수 없습니다. 소켓이 연결되지 않았음" 알림 (iCloud·Gmail, 1.0.4)

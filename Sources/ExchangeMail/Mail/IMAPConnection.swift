@@ -202,7 +202,7 @@ actor IMAPConnection {
         _ = try await runLocked(select: path, [])
         guard let task else { throw IMAPError.closed }
         let tag = nextTag()
-        try await task.write(Data("\(tag) IDLE\r\n".utf8), timeout: 60)
+        try await task.writeOnce(Data("\(tag) IDLE\r\n".utf8), timeout: 60)
         // "+ idling"
         waitPlus: while true {
             switch try await readResponse() {
@@ -230,7 +230,7 @@ actor IMAPConnection {
             return false
         }
         // 알림을 받았다: DONE을 보내고 IDLE을 끝낸다
-        try await task.write(Data("DONE\r\n".utf8), timeout: 60)
+        try await task.writeOnce(Data("DONE\r\n".utf8), timeout: 60)
         while true {
             if case .tagged(let t, _, _) = try await readResponse(), t == tag { break }
         }
@@ -271,7 +271,7 @@ actor IMAPConnection {
             case .literal(let data):
                 // {n} 을 보내고 서버의 "+" 를 기다린 뒤 덩어리를 보낸다
                 line.append(Data("{\(data.count)}\r\n".utf8))
-                try await task.write(line, timeout: 60)
+                try await task.writeOnce(line, timeout: 60)
                 line = Data()
                 waitPlus: while true {
                     switch try await readResponse() {
@@ -285,7 +285,7 @@ actor IMAPConnection {
             }
         }
         line.append(Data("\r\n".utf8))
-        try await task.write(line, timeout: 60)
+        try await task.writeOnce(line, timeout: 60)
         while true {
             switch try await readResponse() {
             case .untagged(let v):
@@ -324,7 +324,7 @@ actor IMAPConnection {
                 }
             }
             guard let task else { throw IMAPError.closed }
-            let (data, atEOF) = try await task.readData(ofMinLength: 1, maxLength: 1 << 20, timeout: timeout)
+            let (data, atEOF) = try await task.readOnce(ofMinLength: 1, maxLength: 1 << 20, timeout: timeout)
             if let data, !data.isEmpty { buffer.append(data) } else if atEOF { disconnect(); throw IMAPError.closed }
         }
     }
