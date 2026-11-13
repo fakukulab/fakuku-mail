@@ -521,7 +521,8 @@ final class AppModel {
         // 비어 있으면 저장된 목록을 먼저 보여 주고 서버 응답으로 바꾼다 (S-026).
         // 필터가 켜져 있으면 저장된 목록에도 건다 (1.0.2: 거르지 않은 목록이 잠깐, 오프라인이면 계속 보였다)
         if messages.isEmpty, search.isEmpty, let saved = cachedService?.cache?.list(folderID: folderID) {
-            messages = listFilter.isActive ? arrange(saved.messages, serverFiltered: false) : saved.messages
+            let list = withPendingDrafts(saved.messages, folderID: folderID)
+            messages = listFilter.isActive ? arrange(list, serverFiltered: false) : list
         }
         isLoading = true
         defer { isLoading = false }
@@ -541,7 +542,8 @@ final class AppModel {
             guard folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) else { return }
             // 서버 폴더가 아닌 상자·모든 폴더 검색은 서버 필터를 쓰지 않으므로 앱이 다 건다.
             let serverFiltered = page.serverFiltered && !VirtualMailbox.isVirtual(folderID) && search.isEmpty
-            messages = arrange(page.messages, serverFiltered: serverFiltered)
+            messages = arrange(search.isEmpty ? withPendingDrafts(page.messages, folderID: folderID) : page.messages,
+                               serverFiltered: serverFiltered)
             Task { await loadRelated(for: folderID, searching: !search.isEmpty) }
             // iCloud·Gmail 받은 편지함: 차단된 보낸 사람의 메일을 지운 편지함으로 (설정 > 정크 메일 > 차단됨)
             Task { await sweepVisibleBlocked() }
@@ -557,6 +559,11 @@ final class AppModel {
                 selectedMessageID = nil
             }
         } catch {
+            // 오프라인이어도 이 Mac에만 저장된 초안은 임시 보관함에 보인다 (S-072)
+            if folderID == selectedFolderID, search.isEmpty {
+                let merged = withPendingDrafts(messages, folderID: folderID)
+                if merged.map(\.id) != messages.map(\.id) { messages = arrange(merged, serverFiltered: false) }
+            }
             report(error)
         }
     }
@@ -619,6 +626,15 @@ final class AppModel {
         }
         // 이 메일의 계정이 지금 계정이 된다: 답장·회의 응답이 그 계정으로 간다 (모든 받은 편지함, M23)
         activateAccount(router.accountID(forMessage: id))
+        // 이 Mac에만 저장된 초안 (S-072): 서버에 묻지 않고 저장된 본문을 보인다
+        if let pendingID = PendingDrafts.id(fromMessageID: id) {
+            let m = PendingDrafts.load(pendingID)?.message ?? messages.first { $0.id == id }
+            detail = m
+            detailAttachments = []
+            detailBody = MailContent.displayBody(m?.body, attachments: [])
+            updateMenu()
+            return
+        }
         // 한 번 열었거나 미리 받은 메일: 서버를 기다리지 않고 바로 보인다.
         if let hit = detailCache.get(id) {
             let m = withCurrentState(hit.message)

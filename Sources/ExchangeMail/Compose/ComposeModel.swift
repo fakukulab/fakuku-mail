@@ -54,6 +54,8 @@ final class ComposeModel {
     init(draft: ComposeDraft) {
         self.draft = draft
         savedDraftID = draft.draftMessageID
+        // 이 Mac에만 저장된 초안을 이어 쓰면: 서버에 올릴 것이 남아 있다 (손대지 않고 닫아도 사본을 지우지 않게, S-072)
+        savedOnlyOnMac = PendingDrafts.load(draft.id) != nil
     }
 
     // MARK: 시작
@@ -75,6 +77,10 @@ final class ComposeModel {
             }
             if mode == "cc" { cc = adding(cc) }
             if mode == "bcc" { bcc = adding(bcc) }
+        }
+        if let pending = PendingDrafts.load(draft.id) {
+            replyTo = pending.replyTo ?? ""
+            importance = pending.importance ?? "normal"
         }
         showBcc = !bcc.isEmpty
         subject = draft.subject
@@ -335,7 +341,11 @@ final class ComposeModel {
             id: draft.id, accountID: account(app)?.id, replacing: savedDraftID, subject: p.subject, to: p.to, cc: p.cc,
             bodyHTML: p.bodyHTML, mime: plan.mime,
             uploads: plan.uploads.map { .init(filename: $0.filename, mimeType: $0.mimeType, data: $0.data) },
-            savedAt: Date()))
+            savedAt: Date(), toText: to, ccText: cc, bccText: bcc, replyTo: replyTo, importance: importance,
+            inReplyTo: draft.inReplyTo, references: draft.references, files: files.map(\.path),
+            forwarded: forwarded.compactMap { a in
+                a.data.map { .init(filename: a.name, mimeType: a.contentType ?? "application/octet-stream", data: $0) }
+            }))
         if saved { localFingerprint = snapshot }
         return saved
     }
@@ -393,6 +403,8 @@ final class ComposeModel {
         saveLocally(app: app)
         if hasUnsavedChanges || savedOnlyOnMac { await saveDraft(app: app) }
         app.openComposeIDs.remove(draft.id)
+        // 오프라인이라 이 Mac에만 남았으면 임시 보관함 목록에 바로 보이게
+        if savedOnlyOnMac { await app.draftsChanged() }
     }
 
     /// 다시 연 초안에 남아 있는 서명 블록의 서명.

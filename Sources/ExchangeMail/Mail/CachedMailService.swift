@@ -96,12 +96,18 @@ final class CachedMailService: MailService {
     }
 
     func message(id: String) async throws -> MailMessage {
-        try await read({ try await remote.message(id: id) }, save: { $0.saveMessage($1) },
+        // 이 Mac에만 저장된 초안 (S-072)
+        if let p = PendingDrafts.id(fromMessageID: id) {
+            guard let saved = PendingDrafts.load(p) else { throw GraphError(status: 404, code: nil, message: "") }
+            return saved.message
+        }
+        return try await read({ try await remote.message(id: id) }, save: { $0.saveMessage($1) },
                        fallback: { $0.message(id: id)?.message })
     }
 
     func attachments(messageID: String) async throws -> [FileAttachment] {
-        try await read({ try await remote.attachments(messageID: messageID) },
+        if PendingDrafts.id(fromMessageID: messageID) != nil { return [] }
+        return try await read({ try await remote.attachments(messageID: messageID) },
                        save: { $0.saveAttachments($1, messageID: messageID) },
                        fallback: { $0.message(id: messageID)?.attachments })
     }
@@ -147,7 +153,8 @@ final class CachedMailService: MailService {
     }
 
     func mimeContent(id: String) async throws -> Data {
-        try await write(L("원본을 불러올")) { try await remote.mimeContent(id: id) }
+        if let p = PendingDrafts.id(fromMessageID: id), let saved = PendingDrafts.load(p) { return saved.mime }
+        return try await write(L("원본을 불러올")) { try await remote.mimeContent(id: id) }
     }
 
     func scheduleDraft(id: String, at date: Date) async throws {
@@ -203,6 +210,7 @@ final class CachedMailService: MailService {
     }
 
     func setRead(id: String, read: Bool) async throws {
+        if PendingDrafts.id(fromMessageID: id) != nil { return }
         try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(id: id, read: read) }
     }
 
@@ -211,7 +219,14 @@ final class CachedMailService: MailService {
     }
 
     func move(id: String, to destination: String) async throws -> String {
-        try await write(L("옮길")) { try await remote.move(id: id, to: destination) }
+        // 이 Mac에만 저장된 초안 (S-072): 지운 편지함으로 보내면 버린다. 다른 곳으로는 서버에 올라간 뒤에 옮긴다.
+        if let p = PendingDrafts.id(fromMessageID: id) {
+            let kind = cache?.folders()?.first { $0.id == destination }?.kind ?? destination
+            guard kind == "deleteditems" else { throw PendingDrafts.Problem.cannotMove }
+            PendingDrafts.remove(p)
+            return id
+        }
+        return try await write(L("옮길")) { try await remote.move(id: id, to: destination) }
     }
 
     func sendMIME(_ mime: Data) async throws {
@@ -223,6 +238,8 @@ final class CachedMailService: MailService {
     }
 
     func deleteMessage(id: String) async throws {
+        // 이 Mac에만 저장된 초안은 그 파일을 지운다 (인터넷 없이도)
+        if let p = PendingDrafts.id(fromMessageID: id) { PendingDrafts.remove(p); return }
         try await write(L("지울")) { try await remote.deleteMessage(id: id) }
     }
 

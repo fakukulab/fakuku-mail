@@ -436,11 +436,41 @@ enum SelfTest {
             await closed.windowClosed(app: model)
             check("S-072 오프라인에 창을 닫아도 이 Mac에 남는다",
                   PendingDrafts.load(closed.draft.id) != nil && !model.openComposeIDs.contains(closed.draft.id))
+            // 인터넷이 없는 채로 임시 보관함을 열면 그 초안이 보이고, 열어서 이어 쓸 수 있다
+            let pendingRow = PendingDrafts.prefix + closed.draft.id.uuidString
+            model.selectedFolderID = "drafts"
+            try? await Task.sleep(for: .seconds(0.5))
+            await model.loadMessages()
+            check("S-072 오프라인에 닫은 초안이 임시 보관함에 바로 보인다",
+                  model.messages.contains { $0.id == pendingRow }, model.messages.map(\.id).joined(separator: ","))
+            await open(pendingRow)
+            check("S-072 그 초안을 열면 본문이 보인다", model.detail?.subject == "오프라인에 닫은 초안" && model.detailBody != nil)
+            if let again = model.resumeDraft() {
+                check("S-072 이어 쓰면 같은 초안을 고친다", again.id == closed.draft.id && again.subject == "오프라인에 닫은 초안")
+                let r = ComposeModel(draft: again)
+                await r.setUp(app: model, fixDefault: true)
+                check("S-072 다시 연 초안은 아직 이 Mac에만 있다고 안다", r.savedOnlyOnMac)
+                r.subject = "오프라인에 고친 초안"
+                await r.windowClosed(app: model)
+                check("S-072 다시 고쳐 닫으면 같은 파일이 바뀌고 한 줄만 남는다",
+                      PendingDrafts.load(closed.draft.id)?.subject == "오프라인에 고친 초안"
+                          && model.messages.filter { $0.id == pendingRow }.count == 1)
+            } else {
+                check("S-072 이어 쓰기 값이 만들어진다", false)
+            }
+            let tossed = ComposeModel(draft: ComposeDraft())
+            await tossed.setUp(app: model, fixDefault: true)
+            tossed.subject = "오프라인에 버릴 초안"
+            await tossed.windowClosed(app: model)
+            await model.move([PendingDrafts.prefix + tossed.draft.id.uuidString], to: "deleteditems",
+                             undoManager: nil, undoName: "지우기")
+            check("S-072 이 Mac에만 있는 초안을 지우면 파일도 지운다", PendingDrafts.load(tossed.draft.id) == nil)
+            model.selectedFolderID = "inbox"
             demo.simulateOffline = false
             await model.uploadPendingDrafts()
             try? await Task.sleep(for: .seconds(0.3))
             let closedDrafts = (try? await model.service.messages(folderID: "drafts", search: nil).messages
-                .filter { $0.subject == "오프라인에 닫은 초안" }) ?? []
+                .filter { $0.subject == "오프라인에 고친 초안" }) ?? []
             check("S-072 닫은 창의 초안도 연결되면 임시 보관함에 올라간다",
                   PendingDrafts.load(closed.draft.id) == nil && closedDrafts.count == 1)
             for m in closedDrafts { try? await model.service.deleteMessage(id: m.id) }

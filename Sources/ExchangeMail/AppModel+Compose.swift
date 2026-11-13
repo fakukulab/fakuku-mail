@@ -36,6 +36,8 @@ extension AppModel {
     /// 임시 보관함의 고른 초안을 이어서 쓰는 시작 값.
     func resumeDraft() -> ComposeDraft? {
         guard isDraftSelected, let m = detail else { return nil }
+        // 이 Mac에만 저장된 초안 (S-072): 저장된 그대로 이어 쓴다
+        if let id = PendingDrafts.id(fromMessageID: m.id) { return PendingDrafts.load(id)?.composeDraft() }
         return ReplyBuilder.resume(draft: m, bodyHTML: detailBody?.content ?? "")
     }
 
