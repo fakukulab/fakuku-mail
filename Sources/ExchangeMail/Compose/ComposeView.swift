@@ -137,16 +137,21 @@ struct ComposeView: View {
             } else {
                 compose.editor.focusStart()
             }
-            // 쓰는 동안 30초마다 초안을 저장한다 (S-022). 바뀐 것이 없으면 아무것도 하지 않는다.
+            // 쓰는 동안 5초마다 이 Mac에 저장하고(S-072, 인터넷과 상관없이), 30초마다 임시 보관함에 저장한다 (S-022).
+            // 바뀐 것이 없으면 아무것도 하지 않는다. 이 Mac에만 저장된 것은 연결되면 다음 30초에 올라간다.
+            var tick = 0
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(30))
+                try? await Task.sleep(for: .seconds(5))
                 if Task.isCancelled { break }
-                await compose.saveDraft(app: model)
+                tick += 1
+                compose.saveLocally(app: model)
+                if tick % 6 == 0 { await compose.saveDraft(app: model) }
             }
         }
         // 창을 닫으면 쓰던 것을 초안으로 남긴다. 창이 사라져도 저장은 끝까지 간다.
         .onDisappear {
             let compose = compose, app = model
+            compose.saveLocally(app: app)   // 바로: 앱이 곧 끝나도 남게 (S-072)
             Task { await compose.windowClosed(app: app) }
         }
     }
@@ -356,6 +361,9 @@ struct ComposeView: View {
             return compose.uploadFraction.map { "\(status) · \(Int(($0 * 100).rounded()))%" } ?? status
         }
         if compose.savingDraft { return L("초안 저장 중…") }
+        if compose.savedOnlyOnMac, let date = compose.lastDraftSave {
+            return L("오프라인: 이 Mac에 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale))) · 연결되면 임시 보관함에 올립니다")
+        }
         if let date = compose.lastDraftSave {
             return L("초안 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale)))")
         }

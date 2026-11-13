@@ -38,6 +38,10 @@ final class ComposeModel {
     private(set) var lastDraftSave: Date?
     /// 마지막으로 저장한(또는 처음 연) 내용. 지금 내용과 다르면 저장할 것이 있다.
     @ObservationIgnored private var savedFingerprint = ""
+    /// 이 Mac에 마지막으로 저장한 내용 (S-072)
+    @ObservationIgnored private var localFingerprint = ""
+    /// 이 Mac에만 저장되어 있고 서버의 임시 보관함에는 아직 없다 (S-072: 오프라인에 저장했을 때)
+    private(set) var savedOnlyOnMac = false
     /// 보냈거나 버렸으면 창을 닫아도 저장하지 않는다.
     private(set) var finished = false
     /// 사람이 본문을 고친 횟수. 웹 편집기는 넣은 HTML을 정리해서 돌려주므로 HTML 문자열로 비교하지 않는다.
@@ -93,6 +97,8 @@ final class ComposeModel {
         appliedSignatureID = signatureID
         didSetUp = true
         savedFingerprint = fingerprint
+        localFingerprint = fingerprint
+        app.openComposeIDs.insert(draft.id)
         if let source = draft.forwardAttachmentsFrom {
             do {
                 // 큰 파일은 목록에 내용이 빠져 오므로 하나씩 받아 채운다 (빠뜨리고 전달하지 않게).
@@ -226,6 +232,8 @@ final class ComposeModel {
     /// 보낸 뒤: 받는 사람을 주소록에 남기고, 임시 보관함의 초안은 지운다 (실패해도 보낸 것은 그대로다).
     private func afterSending(app: AppModel) async {
         finished = true
+        PendingDrafts.remove(draft.id)
+        savedOnlyOnMac = false
         let sentTo = [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
         app.addressBook.noteSent(sentTo, me: account(app)?.email)
         app.threadCache = [:]   // 방금 보낸 답장이 대화 내역에 들어가게
@@ -304,12 +312,42 @@ final class ComposeModel {
     /// 처음 연 뒤나 마지막 저장 뒤로 바뀐 것이 있는지.
     var hasUnsavedChanges: Bool { didSetUp && !finished && fingerprint != savedFingerprint }
 
+    /// 이 Mac에 저장한 뒤로 바뀐 것이 있는지 (S-072)
+    var hasUnsavedLocalChanges: Bool { didSetUp && !finished && fingerprint != localFingerprint }
+
+    /// 쓰는 내용을 이 Mac에 저장한다 (S-072). 인터넷과 상관없이 바로 끝난다. 바뀐 것이 없으면 아무것도 하지 않는다.
+    /// 서버에 저장되면 지우고, 남아 있으면 연결될 때 `AppModel.uploadPendingDrafts`가 올린다.
+    @discardableResult
+    func saveLocally(app: AppModel, force: Bool = false) -> Bool {
+        guard didSetUp, !finished, !sending else { return true }
+        guard force || hasUnsavedLocalChanges else { return true }
+        // 서버에 저장한 그대로로 돌아왔으면 이 Mac 사본은 필요 없다
+        if !force, fingerprint == savedFingerprint, !savedOnlyOnMac {
+            PendingDrafts.remove(draft.id)
+            localFingerprint = fingerprint
+            return true
+        }
+        let snapshot = fingerprint
+        guard let plan = try? ComposeSender.prepare(input(app: app), options: .off, forDraft: true,
+                                                    requestLimit: requestLimit(app)) else { return false }
+        let p = preview
+        let saved = PendingDrafts.save(PendingDraft(
+            id: draft.id, accountID: account(app)?.id, replacing: savedDraftID, subject: p.subject, to: p.to, cc: p.cc,
+            bodyHTML: p.bodyHTML, mime: plan.mime,
+            uploads: plan.uploads.map { .init(filename: $0.filename, mimeType: $0.mimeType, data: $0.data) },
+            savedAt: Date()))
+        if saved { localFingerprint = snapshot }
+        return saved
+    }
+
     /// 임시 보관함에 저장한다. 바뀐 것이 없으면 그냥 true. 실패하면 false와 `error`.
+    /// 먼저 이 Mac에 저장하므로, 오프라인이면 오류 없이 이 Mac에 남겨 두고 true (S-072).
     @discardableResult
     func saveDraft(app: AppModel, force: Bool = false) async -> Bool {
         guard didSetUp, !finished, !savingDraft, !sending else { return true }
-        guard force || hasUnsavedChanges else { return true }
+        guard force || hasUnsavedChanges || savedOnlyOnMac else { return true }
         let snapshot = fingerprint
+        saveLocally(app: app, force: true)
         savingDraft = true
         defer { savingDraft = false }
         let draftInput = input(app: app)
@@ -320,7 +358,15 @@ final class ComposeModel {
             if !plan.uploads.isEmpty { try await upload(plan.uploads, to: newID, app: app) }
             savedFingerprint = snapshot
             lastDraftSave = Date()
+            savedOnlyOnMac = false
+            // 저장하는 사이 더 쓴 것이 없으면 이 Mac 사본은 지운다 (더 썼으면 다음 저장 때까지 남긴다)
+            if fingerprint == snapshot { PendingDrafts.remove(draft.id) }
             await app.draftsChanged()
+            return true
+        } catch where OfflineError.isOffline(error) {
+            // 인터넷이 없다: 이 Mac에 저장한 것으로 됐다. 연결되면 다음 저장 때(또는 창을 닫은 뒤 앱이) 올린다.
+            savedOnlyOnMac = true
+            lastDraftSave = Date()
             return true
         } catch {
             errorTitle = L("초안을 저장하지 못했습니다")
@@ -332,6 +378,8 @@ final class ComposeModel {
     /// 이 메일을 버린다: 저장된 초안이 있으면 지우고, 창을 닫아도 다시 저장하지 않는다.
     func discard(app: AppModel) async {
         finished = true
+        PendingDrafts.remove(draft.id)
+        savedOnlyOnMac = false
         if let id = savedDraftID {
             try? await service(app).deleteMessage(id: id)
             savedDraftID = nil
@@ -340,9 +388,11 @@ final class ComposeModel {
     }
 
     /// 창이 닫힐 때: 쓰던 것이 있으면 초안으로 남긴다. 아무것도 안 쓴 새 창은 남기지 않는다.
+    /// 이 Mac에는 먼저 바로 저장하므로 앱이 곧 끝나도 쓰던 것은 남는다 (S-072).
     func windowClosed(app: AppModel) async {
-        guard hasUnsavedChanges else { return }
-        await saveDraft(app: app)
+        saveLocally(app: app)
+        if hasUnsavedChanges || savedOnlyOnMac { await saveDraft(app: app) }
+        app.openComposeIDs.remove(draft.id)
     }
 
     /// 다시 연 초안에 남아 있는 서명 블록의 서명.

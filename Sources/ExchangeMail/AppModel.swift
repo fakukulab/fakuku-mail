@@ -360,6 +360,9 @@ final class AppModel {
 
     /// 네트워크가 없어 저장된 메일을 보여 주는 중
     var isOffline = false
+    /// 열려 있는 작성 창 (S-072: 그 창의 초안은 창이 올린다)
+    @ObservationIgnored var openComposeIDs: Set<UUID> = []
+    @ObservationIgnored var uploadingPendingDrafts = false
     static var cacheEnabled: Bool { UserDefaults.standard.object(forKey: "cache.enabled") as? Bool ?? true }
     /// 지금 계정의 메일 서비스 (오프라인 캐시)
     var cachedService: CachedMailService? { accounts.active?.service }
@@ -474,6 +477,8 @@ final class AppModel {
         folders = accounts.active.flatMap { accountFolders[$0.id] } ?? []
         updateBadge()
         updateMenu()
+        // 이 Mac에만 저장된 초안이 있으면 임시 보관함에 올린다 (S-072: 연결이 돌아왔거나 앱을 다시 켰을 때)
+        if !isOffline, !uploadingPendingDrafts { Task { await uploadPendingDrafts() } }
     }
 
     /// 이 폴더·메일의 계정을 지금 계정으로 (보내기·답장·회의 응답이 그 계정으로 가게)

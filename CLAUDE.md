@@ -7,7 +7,7 @@ the code (Swift package, modules, folders) keeps the code name `ExchangeMail`. K
 A native macOS mail client in SwiftUI for Microsoft Exchange Online.
 Mail stays on the server (Microsoft Graph). Local data: signatures in
 `~/Library/Application Support/FAKUKUMail/signatures.json`, VIPs and smart mailboxes in `.../FAKUKUMail/mailboxes.json`, individual-sending templates and groups in `.../FAKUKUMail/merge.json`, imported mailboxes (On My Mac, 나의 Mac에) in `.../FAKUKUMail/local/` (`index.json` plus one `.mbox` each, kept on sign-out), an offline cache of recent mail in
-`.../FAKUKUMail/cache/` (cleared on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean, and English when the Mac is in English (`docs/GLOSSARY.md` for words).
+`.../FAKUKUMail/cache/` (cleared on sign-out), drafts not yet on the server in `.../FAKUKUMail/pending-drafts/` (S-072, kept on sign-out), tokens in the Keychain, settings in UserDefaults. UI language: Korean, and English when the Mac is in English (`docs/GLOSSARY.md` for words).
 Every Korean UI string is wrapped in `L("…")` (`ExchangeMailKit/Localization.swift`); the Korean text is the key and the English is in
 `Localization/en.lproj/Localizable.strings` (interpolated values become `%@`, a literal `%` becomes `%%`). Strings that are data
 (comparisons, CSV column names, placeholders like {{이름}}, names stored on the server) get `// l10n: data`.

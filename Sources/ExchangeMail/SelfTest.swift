@@ -408,6 +408,44 @@ enum SelfTest {
             check("S-022 삭제하면 저장된 초안도 지우고 다시 저장하지 않는다",
                   afterDiscard == draftsBefore && !thrown.hasUnsavedChanges)
 
+            // S-072: 인터넷이 없어도 초안이 이 Mac에 저장되고, 연결되면 임시 보관함에 올라간다
+            let draftsBeforeOffline = await draftCount()
+            let off = ComposeModel(draft: ComposeDraft())
+            await off.setUp(app: model, fixDefault: true)
+            off.subject = "오프라인 초안"
+            off.saveLocally(app: model)
+            check("S-072 쓰면 바로 이 Mac에 저장된다", PendingDrafts.load(off.draft.id)?.subject == "오프라인 초안")
+            demo.simulateOffline = true
+            off.subject = "오프라인 초안 2"
+            let offSaved = await off.saveDraft(app: model)
+            check("S-072 오프라인에 저장해도 오류 없이 이 Mac에 남는다",
+                  offSaved && off.error == nil && off.savedOnlyOnMac
+                      && PendingDrafts.load(off.draft.id)?.subject == "오프라인 초안 2", off.error ?? "")
+            demo.simulateOffline = false
+            await off.saveDraft(app: model)
+            let afterOnline = await draftCount()
+            check("S-072 연결되면 임시 보관함에 올리고 이 Mac 사본은 지운다",
+                  !off.savedOnlyOnMac && off.savedDraftID != nil && PendingDrafts.load(off.draft.id) == nil
+                      && afterOnline == draftsBeforeOffline + 1)
+            await off.discard(app: model)
+
+            let closed = ComposeModel(draft: ComposeDraft())
+            await closed.setUp(app: model, fixDefault: true)
+            closed.subject = "오프라인에 닫은 초안"
+            demo.simulateOffline = true
+            await closed.windowClosed(app: model)
+            check("S-072 오프라인에 창을 닫아도 이 Mac에 남는다",
+                  PendingDrafts.load(closed.draft.id) != nil && !model.openComposeIDs.contains(closed.draft.id))
+            demo.simulateOffline = false
+            await model.uploadPendingDrafts()
+            try? await Task.sleep(for: .seconds(0.3))
+            let closedDrafts = (try? await model.service.messages(folderID: "drafts", search: nil).messages
+                .filter { $0.subject == "오프라인에 닫은 초안" }) ?? []
+            check("S-072 닫은 창의 초안도 연결되면 임시 보관함에 올라간다",
+                  PendingDrafts.load(closed.draft.id) == nil && closedDrafts.count == 1)
+            for m in closedDrafts { try? await model.service.deleteMessage(id: m.id) }
+            await model.draftsChanged()
+
             // S-023: 4MB가 넘는 메일 (5MB 첨부)
             let bigDir = FileManager.default.temporaryDirectory.appending(path: "selftest-big", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: bigDir, withIntermediateDirectories: true)
