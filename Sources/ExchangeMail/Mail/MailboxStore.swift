@@ -8,12 +8,15 @@ final class MailboxStore {
     private let url: URL
     private(set) var vips: [VIP] = []
     private(set) var smart: [SmartMailbox] = []
+    /// 즐겨찾기 (S-073): 서버 폴더 id
+    private(set) var favorites: [String] = []
 
     init(url: URL) {
         self.url = url
         if let data = try? Data(contentsOf: url), let saved = try? JSONDecoder().decode(LocalMailboxes.self, from: data) {
             vips = saved.vips
             smart = saved.smart
+            favorites = saved.favorites
         }
     }
 
@@ -50,10 +53,23 @@ final class MailboxStore {
         write()
     }
 
+    func isFavorite(_ folderID: String) -> Bool { favorites.contains(folderID) }
+
+    func addFavorite(_ folderID: String) {
+        guard !favorites.contains(folderID) else { return }
+        favorites.append(folderID)
+        write()
+    }
+
+    func removeFavorite(_ folderID: String) {
+        favorites.removeAll { $0 == folderID }
+        write()
+    }
+
     private func write() {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? encoder.encode(LocalMailboxes(vips: vips, smart: smart)) else { return }
+        guard let data = try? encoder.encode(LocalMailboxes(vips: vips, smart: smart, favorites: favorites)) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
     }

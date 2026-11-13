@@ -46,6 +46,8 @@ enum Snapshot {
                 window.close()
             }
             main?.makeKeyAndOrderFront(nil)
+            // 사이드바 즐겨찾기 구역 (S-073)
+            if model.mailboxes.favorites.isEmpty { model.mailboxes.addFavorite("inbox") }
 
             for mode in ["light", "dark"] {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)

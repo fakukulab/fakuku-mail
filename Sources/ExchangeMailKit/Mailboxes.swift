@@ -184,9 +184,22 @@ public struct SmartMailbox: Codable, Hashable, Identifiable, Sendable {
 public struct LocalMailboxes: Codable, Equatable, Sendable {
     public var vips: [VIP] = []
     public var smart: [SmartMailbox] = []
-    public init(vips: [VIP] = [], smart: [SmartMailbox] = []) {
+    /// 사이드바 맨 위 "즐겨찾기"에 둔 서버 폴더 id (S-073), 넣은 차례
+    public var favorites: [String] = []
+    public init(vips: [VIP] = [], smart: [SmartMailbox] = [], favorites: [String] = []) {
         self.vips = vips
         self.smart = smart
+        self.favorites = favorites
+    }
+
+    private enum CodingKeys: String, CodingKey { case vips, smart, favorites }
+
+    /// 즐겨찾기가 없던 예전 파일도 읽는다
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        vips = try c.decodeIfPresent([VIP].self, forKey: .vips) ?? []
+        smart = try c.decodeIfPresent([SmartMailbox].self, forKey: .smart) ?? []
+        favorites = try c.decodeIfPresent([String].self, forKey: .favorites) ?? []
     }
 }
 

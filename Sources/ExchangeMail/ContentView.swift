@@ -120,6 +120,9 @@ struct MailSplitView: View {
 struct FolderSidebar: View {
     @Environment(AppModel.self) private var model
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.openSettings) private var openSettings
+    /// 즐겨찾기 줄을 눌러 고른 폴더 (같은 폴더가 계정 구역에도 있어 둘 다 칠해지지 않게, S-073)
+    @State private var pickedFavorite = false
     /// 접어 둔 구역 (줄마다 하나: "smart", "vip", "local", "account.<id>"). 맥 Mail처럼 구역 이름에 마우스를 올리면 ⌄·›가 보인다.
     @AppStorage("sidebar.collapsed") private var collapsedRaw = ""
 
@@ -135,8 +138,26 @@ struct FolderSidebar: View {
     }
 
     var body: some View {
-        @Bindable var model = model
-        List(selection: $model.selectedFolderID) {
+        List(selection: selection) {
+            // 즐겨찾기 (S-073): 오른쪽 클릭 > 즐겨찾기에 추가
+            if !model.favoriteFolders.isEmpty {
+                Section {
+                    if expanded("favorites").wrappedValue {
+                        ForEach(model.favoriteFolders) { folder in
+                            Label(folder.displayName, systemImage: folder.symbol)
+                                .badge(folder.unreadItemCount ?? 0)
+                                .tag(Self.favoritePrefix + folder.id)
+                                .dropDestination(for: String.self) { payloads, _ in
+                                    Task { await model.dropped(payloads, onto: folder.id, undoManager: undoManager) }
+                                    return folder.id != model.selectedFolderID
+                                }
+                                .contextMenu { folderMenu(folder) }
+                        }
+                    }
+                } header: {
+                    SidebarSectionHeader(title: L("즐겨찾기"), isExpanded: expanded("favorites"))
+                }
+            }
             Section {
                 if expanded("smart").wrappedValue {
                 // 계정이 둘 이상이면 모든 계정의 받은 편지함을 한곳에 (M23)
@@ -256,10 +277,65 @@ struct FolderSidebar: View {
         }
     }
 
+    static let favoritePrefix = "fav:"
+
+    /// 사이드바 선택: 즐겨찾기 줄은 "fav:" 꼬리표로 구별하고, 모델에는 폴더 id만 넘긴다
+    private var selection: Binding<String?> {
+        Binding(get: {
+            guard let id = model.selectedFolderID else { return nil }
+            return pickedFavorite && model.mailboxes.isFavorite(id) ? Self.favoritePrefix + id : id
+        }, set: { value in
+            if let value, value.hasPrefix(Self.favoritePrefix) {
+                pickedFavorite = true
+                model.selectedFolderID = String(value.dropFirst(Self.favoritePrefix.count))
+            } else {
+                pickedFavorite = false
+                model.selectedFolderID = value
+            }
+        })
+    }
+
+    /// 메일상자 오른쪽 클릭 (S-073): 맥 Mail과 같은 차례. 이 폴더만의 것(하위 폴더, 이름 변경, 지우기)은 맨 아래.
     @ViewBuilder
     private func folderMenu(_ folder: MailFolder) -> some View {
-        Button(L("새 하위 폴더…")) { newFolder(parent: folder) }
+        let account = model.account(ofFolder: folder)
+        let accountName = account.map { model.accounts.title(for: $0) } ?? L("계정")
+        Button(L("새로운 메일상자…")) {
+            if let account { newFolder(parent: nil, account: account) } else { newFolder(parent: nil) }
+        }
+        Button(L("즐겨찾기 메일상자 추가…")) { model.chooseFavorite() }
         Divider()
+        Button(model.mailboxes.isFavorite(folder.id) ? L("즐겨찾기에서 제거") : L("즐겨찾기에 추가")) {
+            model.toggleFavorite(folder)
+        }
+        Button(L("메일상자 내보내기…")) { model.exportFolder(folder) }
+        Divider()
+        Button(L("삭제된 항목 지우기…")) { if let account { model.emptyFolder(kind: "deleteditems", account: account) } }
+            .disabled(account == nil)
+        Button(L("정크 메일 지우기…")) { if let account { model.emptyFolder(kind: "junkemail", account: account) } }
+            .disabled(account == nil)
+        Button(L("모든 메시지를 읽음으로 표시")) { Task { await model.markAllReadInFolder(folder.id) } }
+            .disabled((folder.unreadItemCount ?? 0) == 0)
+        Divider()
+        Button(L("‘\(accountName)’ 동기화")) { if let account { Task { await model.syncAccount(account) } } }
+            .disabled(account == nil)
+        Button(L("‘\(accountName)’ 편집…")) {
+            model.settingsAccountID = account?.id
+            model.settingsTab = .account
+            openSettings()
+        }
+        Button(L("부재 중…")) {
+            model.activateAccount(account?.id)
+            model.settingsTab = .autoReply
+            openSettings()
+        }
+        // 자동 응답은 Exchange만 (iCloud·Gmail은 웹에서 설정한다)
+        .disabled(account?.imap != nil)
+        Divider()
+        Button(L("계정 정보 가져오기")) { if let account { model.showAccountInfo(account) } }
+            .disabled(account == nil)
+        Divider()
+        Button(L("새 하위 폴더…")) { newFolder(parent: folder) }
         Button(L("이름 변경…")) {
             if let name = TextPrompt.ask(L("폴더 이름 변경"), initial: folder.displayName, confirm: L("변경")) {
                 Task { await model.renameFolder(folder, to: name) }

@@ -307,6 +307,8 @@ final class AppModel {
     var junkPage: JunkPage = JunkPage(rawValue: UserDefaults.standard.string(forKey: "settings.junkPage") ?? "") ?? .actions {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(junkPage.rawValue, forKey: "settings.junkPage") } }
     }
+    /// 설정 > 계정을 열 때 고를 계정 (사이드바 "'계정' 편집…", S-073)
+    var settingsAccountID: String?
     /// 설정 > 정크 메일 > 차단됨 > 차단된 보낸 사람 관리 시트
     var showBlockedManager = false
 

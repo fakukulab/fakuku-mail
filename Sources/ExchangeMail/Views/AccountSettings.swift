@@ -37,7 +37,22 @@ struct AccountSettings: View {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .onAppear { if selection == nil { selection = model.accounts.active?.id } }
+        .onAppear {
+            if let id = model.settingsAccountID {
+                selection = id
+                page = .info
+                model.settingsAccountID = nil
+            } else if selection == nil {
+                selection = model.accounts.active?.id
+            }
+        }
+        // 설정 창이 이미 열려 있을 때 사이드바에서 "'계정' 편집…"을 고르면
+        .onChange(of: model.settingsAccountID) { _, id in
+            guard let id else { return }
+            selection = id
+            page = .info
+            model.settingsAccountID = nil
+        }
         .sheet(item: $addingIMAP) { provider in
             IMAPAccountSheet(provider: provider) { selection = $0 }
         }

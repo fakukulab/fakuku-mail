@@ -1164,6 +1164,39 @@ enum SelfTest {
             } else {
                 check("M17 받은 편지함에 고를 메일이 있다", false, model.messages.map(\.id).joined(separator: ","))
             }
+            // S-073: 메일상자 오른쪽 클릭 메뉴
+            if let inbox = model.folders.first(where: { $0.kind == "inbox" }) {
+                model.mailboxes.addFavorite(inbox.id)
+                let reread = MailboxStore(url: Store.directory.appending(path: "mailboxes.json"))
+                check("S-073 즐겨찾기에 추가하면 사이드바에 보이고 저장된다",
+                      model.favoriteFolders.map(\.id) == [inbox.id] && reread.favorites == [inbox.id])
+                model.toggleFavorite(inbox)
+                check("S-073 즐겨찾기에서 제거", model.favoriteFolders.isEmpty && !model.mailboxes.isFavorite(inbox.id))
+
+                let mboxURL = FileManager.default.temporaryDirectory.appending(path: "selftest-export.mbox")
+                let inboxCount = (try? await model.service.messages(folderID: inbox.id, search: nil))?.messages.count ?? -1
+                let exported = await model.exportFolder(inbox, to: mboxURL)
+                let mbox = (try? Data(contentsOf: mboxURL)) ?? Data()
+                check("S-073 메일상자 내보내기는 모든 메일을 .mbox로 저장한다",
+                      exported == inboxCount && inboxCount > 0 && mbox.starts(with: Data("From ".utf8))
+                          && MailArchive.split(mbox).count == inboxCount,
+                      "\(exported ?? -1) / \(inboxCount)")
+                try? FileManager.default.removeItem(at: mboxURL)
+
+                model.selectedFolderID = "archive"
+                try? await Task.sleep(for: .seconds(0.4))
+                var unreadOnly = MailFilter()
+                unreadOnly.unread = true
+                await model.markAllReadInFolder(inbox.id)
+                let inboxUnread = (try? await model.service.messages(folderID: inbox.id, search: nil, filter: unreadOnly,
+                                                                     oldestFirst: false))?.messages.filter(\.isUnread).count ?? -1
+                check("S-073 고르지 않은 메일상자도 모두 읽음으로 표시한다",
+                      inboxUnread == 0 && model.selectedFolderID == "archive")
+                if let account = model.account(ofFolder: inbox) {
+                    await model.syncAccount(account)
+                    check("S-073 계정 동기화 뒤에도 폴더가 그대로 있다", !(model.accountFolders[account.id] ?? []).isEmpty)
+                }
+            }
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(0.6))
             await model.markAllReadInFolder()

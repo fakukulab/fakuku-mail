@@ -88,8 +88,10 @@ extension AppModel {
     // MARK: 메일상자
 
     /// 모든 메시지를 읽음으로 표시: 지금 폴더의 읽지 않은 메일 (서버 폴더만)
-    func markAllReadInFolder() async {
-        guard let folderID = selectedFolderID, !VirtualMailbox.isVirtual(folderID) else { return }
+    /// `folder`를 주면 그 폴더 (사이드바 오른쪽 클릭, S-073), 아니면 지금 폴더.
+    func markAllReadInFolder(_ folder: String? = nil) async {
+        guard let folderID = folder ?? selectedFolderID, !VirtualMailbox.isVirtual(folderID) else { return }
+        if folder != nil { activateAccount(router.accountID(forFolder: folderID)) }
         var unread = MailFilter()
         unread.unread = true
         progressText = L("읽음으로 표시하는 중…")
