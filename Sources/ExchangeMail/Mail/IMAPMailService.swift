@@ -372,8 +372,9 @@ final class IMAPMailService: MailService {
         try await searchFolders([.text("FROM "), .literalOrQuoted(address)])
     }
 
-    /// 스마트 메일상자 (S-078): 조건을 IMAP SEARCH로 바꿔 서버가 맞는 메일만 고르게 하고, 그 메일의 요약만 받는다.
-    /// 서버가 못 거는 조건(첨부 등)은 앱이 `SmartMailbox.matches`로 다시 건다.
+    /// 스마트 메일상자 (S-078): 조건에 맞는 모든 메일.
+    /// 서버 SEARCH는 읽지 않음·깃발·기간만 쓴다. 보낸 사람·제목의 "포함"은 Gmail이 낱말 단위로만 찾고
+    /// iCloud는 한글 검색에 답하지 않아 메일을 놓쳤다: 그런 조건은 머리글(ENVELOPE)만 가볍게 받아 앱이 건다.
     /// 폴더를 고르지 않았으면 모든 폴더 (지운 편지함·정크 제외). Gmail은 라벨마다 같은 메일이 겹쳐 보이므로
     /// 모든 메일이 들어 있는 전체 보관함 하나만 찾는다.
     func collectMessages(folderID: String?, query: SmartQuery) async throws -> MessagePage {
@@ -391,12 +392,15 @@ final class IMAPMailService: MailService {
                     .map { IMAP.decodeFolderName($0.path) }
             }
         }
-        // 한글 제목·이름도 찾게 UTF-8로 묻는다
-        let criteria: [IMAPPart] = [.text("CHARSET UTF-8 ")] + Self.searchCriteria(query)
+        let criteria = Self.searchCriteria(query)
+        let screen = Self.screenItems(query)
         // 폴더마다 동시에 찾는다 (연결 여러 개가 나눠 맡는다)
         let tasks = paths.map { path in
             Task { () throws -> [MailMessage] in
-                let uids = try await self.searchUIDs(path: path, criteria: criteria)
+                var uids = try await self.searchUIDs(path: path, criteria: criteria)
+                if let screen, let smart = query.smart {
+                    uids = try await self.screen(path: path, uids: uids, items: screen, smart: smart, vips: query.vips)
+                }
                 var out: [MailMessage] = []
                 var rest = uids[...]
                 while !rest.isEmpty {
@@ -418,58 +422,88 @@ final class IMAPMailService: MailService {
         return MessagePage(messages: all, nextLink: nil, serverFiltered: false)
     }
 
-    /// 스마트 메일상자 조건 → IMAP SEARCH 조건. "모두"면 걸 수 있는 것만 이어 붙이고(AND), "하나라도"면 OR로 묶는다.
-    /// "하나라도"에 서버가 못 거는 조건이 하나라도 있으면 ALL (앱이 거른다).
+    /// 서버 검색이 고른 메일 중 조건에 맞는 것의 UID. 머리글만 받아(본문·첨부 없이) 앱이 판정한다.
+    private func screen(path: String, uids: [Int], items: String, smart: SmartMailbox, vips: Set<String>) async throws -> [Int] {
+        var hits: [Int] = []
+        var rest = uids[...]
+        while !rest.isEmpty {
+            let chunk = Array(rest.suffix(Self.screenChunk))
+            rest = rest.dropLast(chunk.count)
+            let reply = try await run(select: path, "UID FETCH \(Self.uidSet(chunk)) (\(items))")
+            for fields in reply.untagged.compactMap(IMAP.fetchItems) {
+                guard let m = IMAP.summary(fields, account: accountID, path: path), smart.matches(m, vips: vips),
+                      let uid = fields["UID"]?.int else { continue }
+                hits.append(uid)
+            }
+        }
+        return hits.sorted()
+    }
+
+    /// UID 목록을 짧게 (1,2,3,7 → 1:3,7)
+    static func uidSet(_ uids: [Int]) -> String {
+        var out: [String] = []
+        var i = 0
+        let list = uids.sorted()
+        while i < list.count {
+            var j = i
+            while j + 1 < list.count, list[j + 1] == list[j] + 1 { j += 1 }
+            out.append(i == j ? "\(list[i])" : "\(list[i]):\(list[j])")
+            i = j + 1
+        }
+        return out.joined(separator: ",")
+    }
+
+    /// 서버가 정확히 거는 조건 (읽지 않음, 깃발, 기간). 나머지는 앱이 건다.
+    static func serverExact(_ c: SmartMailbox.Condition) -> Bool {
+        [.unread, .flagged, .receivedWithinDays].contains(c.field)
+    }
+
+    /// 앱이 다시 걸어야 하면 머리글을 받을 FETCH 항목, 아니면 nil. 첨부 조건이 있을 때만 BODYSTRUCTURE도.
+    static func screenItems(_ query: SmartQuery) -> String? {
+        guard let smart = query.smart, !smart.usable.allSatisfy(serverExact) else { return nil }
+        var items = "UID FLAGS INTERNALDATE ENVELOPE BODY.PEEK[HEADER.FIELDS (IMPORTANCE X-PRIORITY)]"  // l10n: data
+        if smart.usable.contains(where: { $0.field == .attachments }) { items += " BODYSTRUCTURE" }  // l10n: data
+        return items
+    }
+
+    /// 스마트 메일상자 조건 → IMAP SEARCH 조건 (서버가 정확히 거는 것만).
+    /// "모두"면 그런 조건을 이어 붙이고(AND), "하나라도"면 모두 그런 조건일 때만 OR로 묶고 아니면 ALL (앱이 거른다).
     static func searchCriteria(_ query: SmartQuery, now: Date = Date()) -> [IMAPPart] {
         guard let smart = query.smart else { return [.text("ALL")] }
-        let parts = smart.usable.map { criterion(for: $0, vips: query.vips, now: now) }
+        let list = smart.usable
+        let exact = list.filter(serverExact).compactMap { criterion(for: $0, now: now) }
         if smart.matchAll {
-            let known = parts.compactMap { $0 }
-            guard !known.isEmpty else { return [.text("ALL")] }
-            var out: [IMAPPart] = []
-            for (i, p) in known.enumerated() {
-                if i > 0 { out.append(.text(" ")) }
-                out += p
-            }
-            return out
+            guard !exact.isEmpty else { return [.text("ALL")] }
+            return [.text(exact.joined(separator: " "))]
         }
-        let known = parts.compactMap { $0 }
-        guard !known.isEmpty, known.count == parts.count else { return [.text("ALL")] }
-        return orChain(known)
+        guard !exact.isEmpty, exact.count == list.count else { return [.text("ALL")] }
+        return [.text(orChain(exact))]
     }
 
-    /// OR a b → OR a (OR b c) ...
-    static func orChain(_ list: [[IMAPPart]]) -> [IMAPPart] {
-        guard let first = list.first else { return [.text("ALL")] }
+    /// OR a b → OR (a) (OR (b) (c)) ...
+    static func orChain(_ list: [String]) -> String {
+        guard let first = list.first else { return "ALL" }
         guard list.count > 1 else { return first }
-        return [.text("OR (")] + first + [.text(") (")] + orChain(Array(list.dropFirst())) + [.text(")")]
+        return "OR (\(first)) (\(orChain(Array(list.dropFirst()))))"
     }
 
-    /// 조건 하나. 서버가 못 거는 조건은 nil.
-    static func criterion(for c: SmartMailbox.Condition, vips: Set<String>, now: Date) -> [IMAPPart]? {
-        let value = c.value.trimmingCharacters(in: .whitespaces)
+    /// 서버가 정확히 거는 조건 하나
+    static func criterion(for c: SmartMailbox.Condition, now: Date) -> String? {
         switch c.field {
-        case .sender: return [.text("FROM "), IMAPPart.literalOrQuoted(value)]
-        case .subject: return [.text("SUBJECT "), IMAPPart.literalOrQuoted(value)]
-        case .unread: return [.text("UNSEEN")]
-        case .flagged: return [.text("FLAGGED")]
-        case .highImportance:
-            return [.text("OR HEADER IMPORTANCE \"high\" HEADER X-PRIORITY \"1\"")]
-        case .vip:
-            let list = vips.sorted()
-            guard !list.isEmpty else { return nil }
-            return orChain(list.map { [.text("FROM "), IMAPPart.literalOrQuoted($0)] })
+        case .unread: return "UNSEEN"
+        case .flagged: return "FLAGGED"
         case .receivedWithinDays:
-            guard let days = Int(value), days > 0 else { return nil }
+            guard let days = Int(c.value.trimmingCharacters(in: .whitespaces)), days > 0 else { return nil }
             let f = DateFormatter()
             f.locale = Locale(identifier: "en_US_POSIX")
             f.dateFormat = "d-MMM-yyyy"
-            return [.text("SINCE " + f.string(from: now.addingTimeInterval(-Double(days) * 86_400)))]
-        case .attachments, .folder: return nil
+            return "SINCE " + f.string(from: now.addingTimeInterval(-Double(days) * 86_400))
+        default: return nil
         }
     }
 
     private static let collectChunk = 500
+    private static let screenChunk = 2000
 
     func categories() async throws -> [String] { [] }
 

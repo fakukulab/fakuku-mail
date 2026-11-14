@@ -10,3 +10,11 @@ func smartCollectPageSize() {
     #expect(r.query["$filter"] == "isRead eq false")
     #expect(GraphQuery.collectPageSize * GraphQuery.collectMaxPages >= 100_000)
 }
+
+@Test("IMAP 머리글의 중요도를 Graph와 같은 값으로 읽는다")
+func imapImportance() {
+    #expect(IMAP.importance(importance: "High", priority: nil) == "high")
+    #expect(IMAP.importance(importance: nil, priority: "1 (Highest)") == "high")
+    #expect(IMAP.importance(importance: nil, priority: "5") == "low")
+    #expect(IMAP.importance(importance: nil, priority: nil) == "normal")
+}

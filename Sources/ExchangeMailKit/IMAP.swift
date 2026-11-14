@@ -436,7 +436,7 @@ public enum IMAP {
 
 extension IMAP {
     /// 목록에 쓰는 FETCH 항목 (본문 없이)
-    public static let summaryItems = "UID FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (REFERENCES IN-REPLY-TO)]"
+    public static let summaryItems = "UID FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (REFERENCES IN-REPLY-TO IMPORTANCE X-PRIORITY)]"
 
     /// FETCH 결과 → 목록의 메일 (본문 없음)
     public static func summary(_ items: [String: IMAPValue], account: String, path: String) -> MailMessage? {
@@ -465,7 +465,18 @@ extension IMAP {
             m.conversationId = conversationID(account: account, root: "gm-" + thread)
         }
         m.flag = marks.contains("\\flagged") ? .flagged : .notFlagged
+        m.importance = importance(importance: head?.header("importance"), priority: head?.header("x-priority"))
         return m
+    }
+
+    /// Importance·X-Priority 머리글 → Graph와 같은 "high"·"normal"·"low"
+    public static func importance(importance: String?, priority: String?) -> String {
+        let i = (importance ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        if ["high", "low"].contains(i) { return i }   // l10n: data
+        let p = (priority ?? "").trimmingCharacters(in: .whitespaces).prefix(1)
+        if p == "1" || p == "2" { return "high" }   // l10n: data
+        if p == "4" || p == "5" { return "low" }   // l10n: data
+        return "normal"   // l10n: data
     }
 
     /// 원본 MIME → 본문을 채운 메일과 첨부. 본문의 cid: 그림은 data: 주소로 넣는다.
