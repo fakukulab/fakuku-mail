@@ -119,7 +119,7 @@ struct SmartMailboxEditor: View {
             } header: {
                 Text(L("조건"))
             } footer: {
-                Text(L("모든 폴더의 최근 메일 100통에서 찾습니다. 폴더 조건이 없으면 지운 편지함과 정크 메일은 뺍니다."))
+                Text(L("모든 폴더의 모든 메일에서 찾습니다. 메일이 많으면 처음 열 때 시간이 걸립니다. 폴더 조건이 없으면 지운 편지함과 정크 메일은 뺍니다."))
             }
             Section(L("아이콘")) {
                 SymbolPicker(symbol: $box.symbol)

@@ -1259,3 +1259,6 @@
 "적용 안 함" = "Don't Apply";
 "받은 편지함에 적용하는 중…" = "Applying to the Inbox…";
 "받은 편지함에 적용하지 못했습니다: %@" = "Couldn't apply the rule to the Inbox: %@";
+
+/* S-078 smart mailboxes search all mail */
+"모든 폴더의 모든 메일에서 찾습니다. 메일이 많으면 처음 열 때 시간이 걸립니다. 폴더 조건이 없으면 지운 편지함과 정크 메일은 뺍니다." = "Searches all mail in every folder. With a lot of mail, it can take a while to open. Without a folder condition, Deleted Items and Junk Email are skipped.";

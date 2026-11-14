@@ -158,7 +158,11 @@ public enum GraphQuery {
     }
     /// 스마트 메일상자 (S-046): 모든 폴더에서 최근 메일. `$filter`가 있으면 `$orderby`를 빼고 정렬은 앱에서 한다
     /// (모든 폴더 요청에 둘을 함께 쓰면 Graph가 거절할 수 있다).
-    public static func collect(filter: String?, top: Int = 100) -> Request {
+    /// 스마트 메일상자가 한 번에 받는 수와 따라가는 쪽 수의 끝 (1,000통 × 500쪽 = 50만 통, 끝없이 돌지 않게)
+    public static let collectPageSize = 1000
+    public static let collectMaxPages = 500
+
+    public static func collect(filter: String?, top: Int = collectPageSize) -> Request {
         var q = ["$select": listSelect, "$top": "\(top)"]
         if let filter, !filter.isEmpty { q["$filter"] = filter } else { q["$orderby"] = "receivedDateTime desc" }
         return Request(query: q, headers: [:])

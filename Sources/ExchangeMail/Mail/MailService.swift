@@ -507,15 +507,25 @@ final class GraphMailService: MailService {
         return MessagePage(messages: list.value, nextLink: list.nextLink)
     }
 
+    /// 스마트 메일상자 (S-046, S-078): 최근 몇 통이 아니라 조건에 맞는 모든 메일. 다음 쪽 링크를 끝까지 따라간다.
+    /// 한 번에 1,000통씩 (Graph 메시지 목록의 최대 쪽 크기).
     func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
+        let top = GraphQuery.collectPageSize
         let r = folderID == nil
-            ? GraphQuery.collect(filter: filter)
-            : GraphQuery.messageList(search: nil, filter: filter, oldestFirst: false, top: 100)
+            ? GraphQuery.collect(filter: filter, top: top)
+            : GraphQuery.messageList(search: nil, filter: filter, oldestFirst: false, top: top)
         let path = folderID.map { "/me/mailFolders/\(GraphPath.segment($0))/messages" } ?? "/me/messages"
-        let data = try await request("GET", path, query: r.query, headers: r.headers)
-        let list = try await decodedOffMain(GraphList<MailMessage>.self, from: data)
-        let sorted = list.value.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
-        return MessagePage(messages: sorted, nextLink: list.nextLink, serverFiltered: false)
+        var list = try await decodedOffMain(GraphList<MailMessage>.self,
+                                            from: try await request("GET", path, query: r.query, headers: r.headers))
+        var all = list.value
+        var pages = 1
+        while let next = list.nextLink, pages < GraphQuery.collectMaxPages {
+            list = try await decodedOffMain(GraphList<MailMessage>.self, from: try await request("GET", next, headers: r.headers))
+            all += list.value
+            pages += 1
+        }
+        let sorted = all.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+        return MessagePage(messages: sorted, nextLink: nil, serverFiltered: false)
     }
 
     func messages(fromSender address: String) async throws -> MessagePage {

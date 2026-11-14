@@ -372,13 +372,44 @@ final class IMAPMailService: MailService {
         try await searchFolders([.text("FROM "), .literalOrQuoted(address)])
     }
 
-    /// 스마트 메일상자: Graph `$filter`는 IMAP에 없으므로 폴더의 최근 메일을 주고 앱이 거른다.
+    /// 스마트 메일상자 (S-078): Graph `$filter`는 IMAP에 없으므로 폴더의 모든 메일을 주고 앱이 거른다.
+    /// 폴더를 고르지 않았으면 모든 폴더 (지운 편지함·정크 제외). Gmail은 라벨마다 같은 메일이 겹쳐 보이므로
+    /// 모든 메일이 들어 있는 전체 보관함 하나만 읽는다.
     func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
-        guard let folderID else { return MessagePage(messages: [], nextLink: nil, serverFiltered: false) }
-        var page = try await messages(folderID: folderID, search: nil, filter: nil, oldestFirst: false)
-        page.nextLink = nil
-        return page
+        var ids: [String]
+        if let folderID {
+            ids = [folderID]
+        } else {
+            let list = try await folders()
+            if isGmail, let all = allMailPath {
+                ids = [IMAP.folderID(account: accountID, path: all)]
+            } else {
+                ids = list.filter { !["deleteditems", "junkemail"].contains($0.kind ?? "") }.map(\.id)
+            }
+        }
+        var all: [MailMessage] = []
+        for id in ids { all += try await everyMessage(folderID: id) }
+        all.sort { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+        return MessagePage(messages: all, nextLink: nil, serverFiltered: false)
     }
+
+    /// 폴더의 모든 메일 요약 (본문 없음), 500통씩 나눠 받는다
+    private func everyMessage(folderID: String) async throws -> [MailMessage] {
+        let path = try await folderPath(folderID)
+        // 첫 묶음은 폴더를 열며 받는다 (메일 수를 그때 안다)
+        let (first, reply) = try await latest(in: path, count: Self.collectChunk)
+        var out = summaries(reply, path: path)
+        var top = first - 1
+        while top > 0 {
+            let low = max(1, top - Self.collectChunk + 1)
+            let reply = try await run(select: path, "FETCH \(low):\(top) (\(summaryItems))")
+            out += summaries(reply, path: path)
+            top = low - 1
+        }
+        return out
+    }
+
+    private static let collectChunk = 500
 
     func categories() async throws -> [String] { [] }
 
