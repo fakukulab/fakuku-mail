@@ -44,10 +44,12 @@ extension AppModel {
             guard let smart = mailboxes.smart.first(where: { $0.id == id }) else {
                 return MessagePage(messages: [], nextLink: nil, serverFiltered: false)
             }
-            let page = try await service.collectMessages(folderID: smart.serverFolderID, filter: smart.graphFilter())
+            let vips = mailboxes.vipAddresses
+            progressText = L("'\(smart.name)'에 맞는 메일을 찾는 중…")
+            defer { progressText = nil }
+            let page = try await service.collectMessages(folderID: smart.serverFolderID, query: SmartQuery(smart: smart, vips: vips))
             // 폴더를 고르지 않았으면 지운 편지함과 정크 메일은 뺀다 (맥 Mail과 같다).
             let skipped = smart.usable.contains { $0.field == .folder } ? Set<String>() : skippedFolderIDs
-            let vips = mailboxes.vipAddresses
             let kept = page.messages.filter { m in
                 !(m.parentFolderId.map { skipped.contains($0) } ?? false) && smart.matches(m, vips: vips)
             }

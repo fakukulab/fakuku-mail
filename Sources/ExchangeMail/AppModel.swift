@@ -49,6 +49,10 @@ final class AppModel {
                     self.activateAccount(self.router.accountID(forFolder: id))
                 }
                 self.threadCounts = [:]
+                // 바로 전 상자의 목록을 지운다: 새 상자를 받는 동안(스마트 메일상자는 오래 걸릴 수 있다)
+                // 다른 상자의 메일이 그대로 보여 조건이 안 걸린 것처럼 보였다 (S-078). 서버 폴더는 저장된 목록이 바로 채운다.
+                self.messages = []
+                self.nextLink = nil
                 self.updateMenu()
                 await self.loadMessages()
             }

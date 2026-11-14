@@ -44,6 +44,17 @@ extension MailService {
     }
 }
 
+/// 스마트 메일상자 요청 (S-046, S-078): 서버가 미리 좁힐 수 있게 상자의 조건과 VIP 주소를 함께 넘긴다.
+/// 서버가 좁힌 결과도 앱이 `SmartMailbox.matches`로 다시 건다.
+struct SmartQuery {
+    var smart: SmartMailbox?
+    var vips: Set<String> = []
+    /// Graph `$filter` ("모두"일 때 읽음·깃발·첨부·중요도·기간)
+    var graphFilter: String? { smart?.graphFilter() }
+    /// 조건 없이 모든 메일
+    static let everything = SmartQuery()
+}
+
 /// 메일 서버와의 대화. 실제 계정은 GraphMailService, 데모·테스트는 DemoMailService.
 protocol MailService: AnyObject {
     func folders() async throws -> [MailFolder]
@@ -90,7 +101,7 @@ protocol MailService: AnyObject {
     /// 사서함 전체 검색 (S-033). 결과에는 parentFolderId가 있다.
     func searchAll(_ text: String) async throws -> MessagePage
     /// 스마트 메일상자 (S-046): `folderID`가 nil이면 모든 폴더. 최근 순. `filter`는 Graph `$filter`.
-    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage
+    func collectMessages(folderID: String?, query: SmartQuery) async throws -> MessagePage
     /// 한 사람이 보낸 메일, 모든 폴더, 최근 순 (S-045 VIP)
     func messages(fromSender address: String) async throws -> MessagePage
     /// 폴더 만들기·이름 바꾸기·지우기 (S-031). `parentID`가 nil이면 맨 위에 만든다.
@@ -509,11 +520,11 @@ final class GraphMailService: MailService {
 
     /// 스마트 메일상자 (S-046, S-078): 최근 몇 통이 아니라 조건에 맞는 모든 메일. 다음 쪽 링크를 끝까지 따라간다.
     /// 한 번에 1,000통씩 (Graph 메시지 목록의 최대 쪽 크기).
-    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
+    func collectMessages(folderID: String?, query: SmartQuery) async throws -> MessagePage {
         let top = GraphQuery.collectPageSize
         let r = folderID == nil
-            ? GraphQuery.collect(filter: filter, top: top)
-            : GraphQuery.messageList(search: nil, filter: filter, oldestFirst: false, top: top)
+            ? GraphQuery.collect(filter: query.graphFilter, top: top)
+            : GraphQuery.messageList(search: nil, filter: query.graphFilter, oldestFirst: false, top: top)
         let path = folderID.map { "/me/mailFolders/\(GraphPath.segment($0))/messages" } ?? "/me/messages"
         var list = try await decodedOffMain(GraphList<MailMessage>.self,
                                             from: try await request("GET", path, query: r.query, headers: r.headers))

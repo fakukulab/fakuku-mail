@@ -925,6 +925,33 @@ enum SelfTest {
             } else {
                 check("S-039 규칙을 만든다", false)
             }
+            // S-078 스마트 메일상자: iCloud·Gmail은 조건을 IMAP SEARCH로 바꿔 서버가 고른다
+            func rendered(_ parts: [IMAPPart]) -> String {
+                parts.map { if case .text(let t) = $0 { t } else { "{literal}" } }.joined()
+            }
+            let allBox = SmartMailbox(name: "a", conditions: [.init(field: .sender, value: "kim"), .init(field: .unread),
+                                                              .init(field: .attachments)])
+            check("S-078 '모두' 조건은 서버가 걸 수 있는 것만 이어 붙인다",
+                  rendered(IMAPMailService.searchCriteria(SmartQuery(smart: allBox))) == "FROM \"kim\" UNSEEN")
+            let anyBox = SmartMailbox(name: "b", matchAll: false, conditions: [.init(field: .flagged), .init(field: .subject, value: "견적")])
+            check("S-078 '하나라도' 조건은 OR로 묶는다 (한글은 덩어리로)",
+                  rendered(IMAPMailService.searchCriteria(SmartQuery(smart: anyBox))) == "OR (FLAGGED) (SUBJECT {literal})")
+            let anyAttach = SmartMailbox(name: "c", matchAll: false, conditions: [.init(field: .flagged), .init(field: .attachments)])
+            check("S-078 '하나라도'에 서버가 못 거는 조건이 있으면 모든 메일에서 앱이 거른다",
+                  rendered(IMAPMailService.searchCriteria(SmartQuery(smart: anyAttach))) == "ALL")
+            // 스마트 메일상자를 고르면 바로 전 상자의 목록이 남아 있지 않다
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(1))
+            let smartBox = SmartMailbox(name: "견적 메일", conditions: [.init(field: .subject, value: "견적")])
+            model.mailboxes.save(smartBox)
+            model.selectedFolderID = smartBox.id
+            try? await Task.sleep(for: .seconds(1.5))
+            check("S-078 스마트 메일상자는 조건에 맞는 메일만 보인다",
+                  !model.messages.isEmpty && model.messages.allSatisfy { $0.subject?.contains("견적") == true })
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(1))
+            model.mailboxes.removeSmart(id: smartBox.id)
+
             // S-075 Outlook과 같은 규칙: 조건·예외·동작 여러 개, 편집, 차례, 지금 실행 (설정 > 규칙이 쓰는 함수 그대로)
             if let account = model.ruleAccount(nil) {
                 var form = RuleForm(name: "견적 정리")

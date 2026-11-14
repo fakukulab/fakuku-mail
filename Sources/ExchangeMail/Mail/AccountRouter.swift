@@ -115,7 +115,7 @@ final class AccountRouter: MailService {
         case flagged
         case search(String)
         case sender(String)
-        case collect(filter: String?)
+        case collect(SmartQuery)
     }
 
     private func ask(_ query: Query, _ s: any MailService) async throws -> MessagePage {
@@ -123,7 +123,7 @@ final class AccountRouter: MailService {
         case .flagged: try await s.flaggedMessages()
         case .search(let text): try await s.searchAll(text)
         case .sender(let address): try await s.messages(fromSender: address)
-        case .collect(let filter): try await s.collectMessages(folderID: nil, filter: filter)
+        case .collect(let query): try await s.collectMessages(folderID: nil, query: query)
         }
     }
 
@@ -155,13 +155,13 @@ final class AccountRouter: MailService {
     func searchAll(_ text: String) async throws -> MessagePage { try await everyAccount(.search(text)) }
     func messages(fromSender address: String) async throws -> MessagePage { try await everyAccount(.sender(address)) }
 
-    func collectMessages(folderID: String?, filter: String?) async throws -> MessagePage {
+    func collectMessages(folderID: String?, query: SmartQuery) async throws -> MessagePage {
         if let folderID {
-            let page = try await forFolder(folderID).collectMessages(folderID: folderID, filter: filter)
+            let page = try await forFolder(folderID).collectMessages(folderID: folderID, query: query)
             note(page.messages, account: folderOwner[folderID])
             return page
         }
-        return try await everyAccount(.collect(filter: filter))
+        return try await everyAccount(.collect(query))
     }
 
     /// 모든 받은 편지함: 계정마다 받은 편지함 첫 쪽을 합친다.
