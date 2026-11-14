@@ -102,8 +102,14 @@ struct SmartMailboxEditor: View {
                 }
             }
             Section {
-                ForEach($box.conditions) { $condition in
-                    ConditionRow(condition: $condition, folders: model.folders) {
+                ForEach(box.conditions) { condition in
+                    // 위치가 아니라 id로 찾는다: 글자를 넣던 줄을 빼도 꺼지지 않게 (docs/FIXLOG.md 2026-11-15)
+                    ConditionRow(condition: Binding(
+                        get: { box.conditions.first { $0.id == condition.id } ?? condition },
+                        set: { new in
+                            if let i = box.conditions.firstIndex(where: { $0.id == condition.id }) { box.conditions[i] = new }
+                        }
+                    ), folders: model.folders) {
                         box.conditions.removeAll { $0.id == condition.id }
                     }
                 }

@@ -297,8 +297,8 @@ struct RuleEditor: View {
                 TextField(L("이름"), text: $form.name, prompt: Text(L("비우면 첫 조건")))
             }
             Section {
-                ForEach($form.conditions) { $c in
-                    RuleConditionRow(condition: $c) { form.conditions.removeAll { $0.id == c.id } }
+                ForEach(form.conditions) { c in
+                    RuleConditionRow(condition: binding(c, in: \.conditions)) { form.conditions.removeAll { $0.id == c.id } }
                 }
                 addConditionMenu(exceptions: false)
             } header: {
@@ -310,8 +310,8 @@ struct RuleEditor: View {
                     .foregroundStyle(.secondary)
             }
             Section {
-                ForEach($form.actions) { $a in
-                    RuleActionRow(action: $a, folders: folders) { form.actions.removeAll { $0.id == a.id } }
+                ForEach(form.actions) { a in
+                    RuleActionRow(action: binding(a, in: \.actions), folders: folders) { form.actions.removeAll { $0.id == a.id } }
                 }
                 addActionMenu
                 Toggle(L("다음 규칙은 처리하지 않음"), isOn: $form.stopProcessing)
@@ -319,8 +319,8 @@ struct RuleEditor: View {
                 Text(L("동작"))
             }
             Section {
-                ForEach($form.exceptions) { $c in
-                    RuleConditionRow(condition: $c) { form.exceptions.removeAll { $0.id == c.id } }
+                ForEach(form.exceptions) { c in
+                    RuleConditionRow(condition: binding(c, in: \.exceptions)) { form.exceptions.removeAll { $0.id == c.id } }
                 }
                 addConditionMenu(exceptions: true)
             } header: {
@@ -349,6 +349,17 @@ struct RuleEditor: View {
                     .disabled(!form.isValid)
             }
         }
+    }
+
+    /// 줄 하나의 값. 위치(index)가 아니라 id로 찾는다: 글자를 넣던 줄을 빼도 입력 칸이 사라진 위치를 읽다 꺼지지 않게
+    /// (`ForEach($array)`는 줄을 지운 뒤 입력 칸이 마지막으로 값을 읽을 때 범위를 벗어난다, docs/FIXLOG.md 2026-11-15).
+    private func binding<Item: Identifiable>(_ item: Item, in path: WritableKeyPath<RuleForm, [Item]>) -> Binding<Item> {
+        Binding(
+            get: { form[keyPath: path].first { $0.id == item.id } ?? item },
+            set: { new in
+                if let i = form[keyPath: path].firstIndex(where: { $0.id == item.id }) { form[keyPath: path][i] = new }
+            }
+        )
     }
 
     private func addConditionMenu(exceptions isException: Bool) -> some View {

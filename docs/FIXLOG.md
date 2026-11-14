@@ -305,3 +305,11 @@ Rule: Types used as `GraphList<T>` or sent across actors go in ExchangeMailKit, 
   `updateMenu`, 깃발 색, 대화 음소거, 도구 막대, 끌어 놓기, 메뉴 이름이 모두 이것을 쓴다.
 - 규칙: 계산 속성을 `filter`·`map`의 클로저 안에서 부르지 않는다. 먼저 한 번 계산해 `Set`으로 만든 다음 쓴다.
   셀프 테스트에 2,000통(대화 400개)을 모두 골라 0.5초 안에 끝나는지 검사가 있다.
+
+## 2026-11-15 규칙 편집 창에서 조건 줄을 빼면 앱이 꺼짐
+- 증상: 설정 > 규칙 > 편집 창에서 글자를 넣던 조건(또는 동작·예외) 줄의 빼기(⊖)를 누르면 앱이 꺼졌다.
+  크래시: `Array._checkSubscript` ← `Binding.subscript.getter` ← `SystemTextField.body` (메인 스레드, EXC_BREAKPOINT).
+- 원인: `ForEach($form.conditions) { $c in TextField(text: $c.text) }`는 배열 위치(index)로 값을 읽는 바인딩을 만든다.
+  줄을 지운 뒤 사라지는 입력 칸이 마지막으로 값을 한 번 더 읽을 때 그 위치가 배열 밖이라 꺼졌다.
+- 고침: `ForEach(form.conditions) { c in … }`에 id로 찾는 바인딩을 넘긴다 (없으면 마지막 값). 스마트 메일상자 조건 줄도 같게 고쳤다.
+- 규칙: 줄을 지울 수 있는 목록에서는 `ForEach($array)`를 쓰지 않는다. id로 찾는 바인딩을 쓴다.
