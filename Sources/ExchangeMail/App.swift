@@ -179,6 +179,8 @@ struct MailCommands: Commands {
     @FocusedValue(\.emlDocument) private var eml
     /// 앞에 있는 작성 창의 편집기. 포맷 메뉴가 쓴다.
     @FocusedValue(\.richTextEditor) private var editor
+    /// 앞에 있는 작성 창 (편집 > 첨부 파일)
+    @FocusedValue(\.composeModel) private var composeModel
     @Binding var threaded: Bool
     @Binding var fieldCc: Bool
     @Binding var fieldBcc: Bool
@@ -211,6 +213,8 @@ struct MailCommands: Commands {
             .keyboardShortcut("p")
             .disabled(eml != nil || reader == nil && !menu.canPrint)
         }
+        // 편집 메뉴 (맥 Mail): 붙여넣기 다음에 작성 창용 항목
+        CommandGroup(after: .pasteboard) { editMenu }
         CommandMenu(L("메일상자")) { mailboxMenu }
         CommandMenu(L("메시지")) { messageMenu }
         CommandMenu(L("포맷")) { formatMenu }
@@ -554,6 +558,33 @@ struct MailCommands: Commands {
     }
 
     // MARK: 포맷 (작성 창)
+
+    @ViewBuilder
+    private var editMenu: some View {
+        Divider()
+        Button(L("인용문으로 붙여넣기")) { editor?.pasteAsQuotation() }
+            .keyboardShortcut("v", modifiers: [.command, .shift])
+            .disabled(editor == nil)
+        Button(L("붙여넣고 스타일 일치")) { editor?.pasteMatchingStyle() }
+            .keyboardShortcut("v", modifiers: [.command, .shift, .option])
+            .disabled(editor == nil)
+        Divider()
+        // 메인 창에서 고른 메일을 쓰고 있는 메일 끝에 인용으로 붙인다
+        Button(L("선택 메시지 추가")) {
+            if let editor { Task { await model.appendSelectedMessages(to: editor) } }
+        }
+        .keyboardShortcut("i", modifiers: [.command, .option])
+        .disabled(editor == nil || !menu.hasMessage)
+        Button(L("링크 추가…")) { editor?.promptLink() }
+            .keyboardShortcut("k")
+            .disabled(editor == nil)
+        Menu(L("첨부 파일")) {
+            Button(L("파일 첨부…")) { composeModel?.chooseFiles() }
+            Button(L("모든 첨부 파일 제거")) { composeModel?.removeAllAttachments() }
+                .disabled(!(composeModel?.hasAttachments ?? false))
+        }
+        .disabled(composeModel == nil)
+    }
 
     @ViewBuilder
     private var formatMenu: some View {

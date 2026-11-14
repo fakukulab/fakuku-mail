@@ -1,3 +1,4 @@
+import AppKit
 import ExchangeMailKit
 import Foundation
 import Observation
@@ -154,6 +155,22 @@ final class ComposeModel {
     }
 
     func removeFile(_ url: URL) { files.removeAll { $0 == url } }
+
+    /// 편집 > 첨부 파일 > 파일 첨부…
+    func chooseFiles() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        if panel.runModal() == .OK { addFiles(panel.urls) }
+    }
+
+    /// 편집 > 첨부 파일 > 모든 첨부 파일 제거
+    func removeAllAttachments() {
+        files = []
+        forwarded = []
+    }
+
+    var hasAttachments: Bool { !files.isEmpty || !forwarded.isEmpty }
     func removeForwarded(_ a: FileAttachment) { forwarded.removeAll { $0.id == a.id } }
 
     /// 서명 메뉴를 바꾸면 본문의 서명 블록을 바꾼다.

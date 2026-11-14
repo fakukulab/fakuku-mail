@@ -75,24 +75,40 @@ extension AppModel {
         updateBadge()
     }
 
-    /// 계정 정보 가져오기: 계정 종류, 주소, 메일상자와 메일 수
+    /// 계정 정보 가져오기: 메일상자마다 메시지 수와 크기를 보이는 창 (S-074, 맥 Mail처럼)
     func showAccountInfo(_ account: MailAccount) {
-        let list = accountFolders[account.id] ?? []
-        let total = list.reduce(0) { $0 + ($1.totalItemCount ?? 0) }
-        let unread = list.reduce(0) { $0 + ($1.unreadItemCount ?? 0) }
-        let alert = NSAlert()
-        alert.messageText = accounts.title(for: account)
-        var lines = [
-            L("종류: \(account.kindName)"),
-            L("주소: \(account.email)"),
-            L("메일상자: \(list.count)개"),
-            L("메일: \(total)통 (읽지 않음 \(unread)통)"),
-        ]
-        if let imap = account.imap { lines.append(L("서버: \(imap.imapHost)")) }
-        lines.append(isOffline ? L("상태: 오프라인") : L("상태: 연결됨"))
-        alert.informativeText = lines.joined(separator: "\n")
-        alert.addButton(withTitle: L("확인"))
-        alert.runModal()
+        accountInfo = AccountInfoRequest(id: account.id)
+    }
+
+    /// 그 계정의 폴더 크기 (바이트). 실패하면 빈 값 (창은 메시지 수만 보인다).
+    func folderSizes(of account: MailAccount) async -> [String: Int64] {
+        let ids = (accountFolders[account.id] ?? []).map(\.id)
+        do {
+            return try await account.service.folderSizes(ids)
+        } catch {
+            report(error)
+            return [:]
+        }
+    }
+
+    // MARK: 선택 메시지 추가
+
+    /// 편집 > 선택 메시지 추가 (⌥⌘I): 메인 창에서 고른 메일을 쓰고 있는 메일 끝에 전달 형식의 인용으로 붙인다
+    func appendSelectedMessages(to editor: RichTextController) async {
+        let ids = selectedIDs.isEmpty ? (detail.map { [$0.id] } ?? []) : selectedIDs
+        for id in ids {
+            do {
+                let m = try await service.message(id: id)
+                let body = m.body
+                let html = body?.isHTML == true
+                    ? body?.content ?? ""
+                    : "<pre style=\"white-space:pre-wrap\">\(HTMLProcessor.escape(body?.content ?? ""))</pre>"
+                editor.appendHTML(ReplyBuilder.quoteHTML(for: .forward, message: m, bodyHTML: html))
+            } catch {
+                report(error, quietIfOffline: false)
+                return
+            }
+        }
     }
 
     // MARK: 내보내기

@@ -67,6 +67,10 @@ final class CachedMailService: MailService {
 
     // MARK: 읽기
 
+    func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64] {
+        try await write(L("크기를 셀")) { try await remote.folderSizes(folderIDs) }
+    }
+
     func folders() async throws -> [MailFolder] {
         try await read({ try await remote.folders() }, save: { $0.saveFolders($1) }, fallback: { $0.folders() })
     }

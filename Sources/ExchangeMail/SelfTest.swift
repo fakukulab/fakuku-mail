@@ -408,6 +408,15 @@ enum SelfTest {
             check("S-022 삭제하면 저장된 초안도 지우고 다시 저장하지 않는다",
                   afterDiscard == draftsBefore && !thrown.hasUnsavedChanges)
 
+            // 편집 > 첨부 파일 > 모든 첨부 파일 제거 (S-074)
+            let withFiles = ComposeModel(draft: ComposeDraft())
+            await withFiles.setUp(app: model, fixDefault: true)
+            withFiles.addFiles([URL(fileURLWithPath: "/etc/hosts")])
+            let hadFiles = withFiles.hasAttachments
+            withFiles.removeAllAttachments()
+            check("S-074 모든 첨부 파일 제거", hadFiles && !withFiles.hasAttachments)
+            await withFiles.discard(app: model)
+
             // S-072: 인터넷이 없어도 초안이 이 Mac에 저장되고, 연결되면 임시 보관함에 올라간다
             let draftsBeforeOffline = await draftCount()
             let off = ComposeModel(draft: ComposeDraft())
@@ -1223,6 +1232,16 @@ enum SelfTest {
                 check("S-073 고르지 않은 메일상자도 모두 읽음으로 표시한다",
                       inboxUnread == 0 && model.selectedFolderID == "archive")
                 if let account = model.account(ofFolder: inbox) {
+                    // S-074: 계정 정보 창 (메일상자마다 메시지 수와 크기)
+                    model.showAccountInfo(account)
+                    check("S-074 계정 정보 가져오기는 그 계정의 정보 창을 연다", model.accountInfo?.id == account.id)
+                    model.accountInfo = nil
+                    let sizes = await model.folderSizes(of: account)
+                    let inboxMessages = (try? await model.service.messages(folderID: inbox.id, search: nil))?.messages.count ?? 0
+                    check("S-074 메일상자마다 크기를 센다 (메일이 있으면 0보다 크다)",
+                          (sizes[inbox.id] ?? 0) > 0 && inboxMessages > 0
+                              && sizes.count == (model.accountFolders[account.id] ?? []).count,
+                          "\(sizes)")
                     await model.syncAccount(account)
                     check("S-073 계정 동기화 뒤에도 폴더가 그대로 있다", !(model.accountFolders[account.id] ?? []).isEmpty)
                 }

@@ -47,6 +47,8 @@ extension MailService {
 /// 메일 서버와의 대화. 실제 계정은 GraphMailService, 데모·테스트는 DemoMailService.
 protocol MailService: AnyObject {
     func folders() async throws -> [MailFolder]
+    /// 폴더마다 차지한 크기(바이트). 계정 정보 창이 쓴다 (S-074). 모르는 폴더는 빠진다.
+    func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64]
     /// 폴더 목록. `filter`는 서버에서 걸 수 있는 부분만 서버가 건다 (S-041), `oldestFirst`는 날짜 오름차순 (S-042).
     func messages(folderID: String, search: String?, filter: MailFilter?, oldestFirst: Bool) async throws -> MessagePage
     /// Outlook 범주 이름 (S-041)
@@ -111,6 +113,10 @@ protocol MailService: AnyObject {
     /// 부재중 자동 응답 (S-040)
     func automaticReplies() async throws -> AutomaticReplies
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws
+}
+
+extension MailService {
+    func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64] { [:] }
 }
 
 struct GraphError: LocalizedError {
@@ -217,6 +223,21 @@ final class GraphMailService: MailService {
     }
 
     // MARK: 읽기
+
+    /// 폴더 크기: Exchange 속성 PR_MESSAGE_SIZE_EXTENDED (0x0E08)를 폴더마다 묻는다 (S-074)
+    func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64] {
+        var out: [String: Int64] = [:]
+        for id in folderIDs {
+            let data = try await request("GET", "/me/mailFolders/\(GraphPath.segment(id))",
+                                         query: ["$select": "id",
+                                                 "$expand": "singleValueExtendedProperties($filter=id eq 'Long 0x0E08')"])  // l10n: data
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let props = json["singleValueExtendedProperties"] as? [[String: Any]],
+                  let value = props.first?["value"] else { continue }
+            if let s = value as? String, let n = Int64(s) { out[id] = n } else if let n = value as? NSNumber { out[id] = n.int64Value }
+        }
+        return out
+    }
 
     func folders() async throws -> [MailFolder] {
         let ids = await loadWellKnownIDs()

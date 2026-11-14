@@ -53,6 +53,8 @@ final class RichTextController: NSObject, WKNavigationDelegate {
       ed.querySelectorAll('font[size="7"]').forEach(f=>{f.removeAttribute('size');f.style.fontSize=px+'px'});
       post(true)}
     function insertHTML(h){ed.focus();document.execCommand('insertHTML',false,h);post(true)}
+    function insertPlain(t){ed.focus();document.execCommand('insertText',false,t);post(true)}
+    function appendHTML(h){ed.insertAdjacentHTML('beforeend',h);post(true)}
     function replaceSignature(h){
       const old=ed.querySelectorAll('[data-signature]');
       const anchor=old.length?old[0]:null;
@@ -205,6 +207,44 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     }
 
     func insertHTML(_ h: String) { js("insertHTML(\(literal(h)))") }
+
+    // MARK: 편집 메뉴 (맥 Mail)
+
+    /// 클립보드의 글 (서식 없이)
+    private var clipboardText: String? {
+        NSPasteboard.general.string(forType: .string).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// 인용문으로 붙여넣기 (⇧⌘V): 클립보드의 글을 인용 막대가 있는 단락으로
+    func pasteAsQuotation() {
+        guard let text = clipboardText else { return }
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+            .map { HTMLAttr.escape($0) }.joined(separator: "<br>")
+        insertHTML("<blockquote type=\"cite\">\(lines)</blockquote><div><br></div>")
+    }
+
+    /// 붙여넣고 스타일 일치 (⌥⇧⌘V): 클립보드의 글만, 커서 자리의 서체로
+    func pasteMatchingStyle() {
+        guard let text = clipboardText else { return }
+        js("insertPlain(\(literal(text)))")
+    }
+
+    /// 본문 끝에 덧붙인다 (선택 메시지 추가)
+    func appendHTML(_ h: String) { js("appendHTML(\(literal(h)))") }
+
+    /// 링크 추가… (⌘K): 주소를 묻고 고른 글자에 건다
+    func promptLink() {
+        let alert = NSAlert()
+        alert.messageText = L("링크 넣기")
+        alert.informativeText = L("고른 글자에 연결할 주소를 넣으세요.")
+        alert.addButton(withTitle: L("넣기"))
+        alert.addButton(withTitle: L("취소"))
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        field.stringValue = "https://"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        if alert.runModal() == .alertFirstButtonReturn { insertLink(field.stringValue) }
+    }
 }
 
 /// WKUserContentController는 핸들러를 강하게 잡는다. 컨트롤러가 풀리도록 약한 참조로 넘긴다.
@@ -331,17 +371,7 @@ struct FormatToolbar: View {
         if panel.runModal() == .OK { panel.urls.forEach { controller.insertImage(url: $0) } }
     }
 
-    private func addLink() {
-        let alert = NSAlert()
-        alert.messageText = L("링크 넣기")
-        alert.informativeText = L("고른 글자에 연결할 주소를 넣으세요.")
-        alert.addButton(withTitle: L("넣기"))
-        alert.addButton(withTitle: L("취소"))
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
-        field.stringValue = "https://"
-        alert.accessoryView = field
-        if alert.runModal() == .alertFirstButtonReturn { controller.insertLink(field.stringValue) }
-    }
+    private func addLink() { controller.promptLink() }
 }
 
 /// 앞에 있는 작성 창의 편집기. 포맷 메뉴가 이 편집기에 동작한다 (M17).
@@ -354,4 +384,13 @@ extension FocusedValues {
         get { self[RichTextEditorKey.self] }
         set { self[RichTextEditorKey.self] = newValue }
     }
+    /// 앞에 있는 작성 창. 편집 > 첨부 파일이 쓴다.
+    nonisolated var composeModel: ComposeModel? {
+        get { self[ComposeModelKey.self] }
+        set { self[ComposeModelKey.self] = newValue }
+    }
+}
+
+nonisolated struct ComposeModelKey: FocusedValueKey {
+    typealias Value = ComposeModel
 }

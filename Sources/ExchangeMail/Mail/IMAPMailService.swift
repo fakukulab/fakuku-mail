@@ -219,6 +219,26 @@ final class IMAPMailService: MailService {
         return out
     }
 
+    /// 폴더 크기: 메일마다 RFC822.SIZE를 받아 더한다 (S-074). 빈 폴더는 0.
+    func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64] {
+        var out: [String: Int64] = [:]
+        for id in folderIDs {
+            guard let path = IMAP.parseID(id)?.path, IMAP.parseID(id)?.account == accountID else { continue }
+            let count = await status(of: path).flatMap { items -> Int? in
+                var k = 0
+                while k + 1 < items.count {
+                    if items[k].text?.uppercased() == "MESSAGES" { return items[k + 1].int }
+                    k += 2
+                }
+                return nil
+            } ?? 0
+            guard count > 0 else { out[id] = 0; continue }
+            let reply = try await run(select: path, "FETCH 1:* (RFC822.SIZE)")  // l10n: data
+            out[id] = reply.untagged.compactMap { IMAP.fetchItems($0)?["RFC822.SIZE"]?.int }.reduce(Int64(0)) { $0 + Int64($1) }
+        }
+        return out
+    }
+
     private func status(of path: String) async -> [IMAPValue]? {
         guard let status = try? await run([.text("STATUS " + IMAP.quote(IMAP.encodeFolderName(path)) + " (MESSAGES UNSEEN)")]),
               let line = status.untagged.first(where: { $0.first?.text?.uppercased() == "STATUS" }) else { return nil }

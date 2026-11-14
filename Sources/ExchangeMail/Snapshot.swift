@@ -127,6 +127,18 @@ enum Snapshot {
                 }
             }
 
+            // 계정 정보 (S-074): accountinfo-light.png, -dark.png
+            if wanted("accountinfo"), let account = model.accounts.accounts.first {
+                model.accountInfo = AccountInfoRequest(id: account.id)
+                for mode in ["light", "dark"] {
+                    NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                    try? await Task.sleep(for: .seconds(1.2))
+                    capture(to: "\(dir)/accountinfo-\(mode).png", window: main?.attachedSheet ?? main)
+                }
+                model.accountInfo = nil
+                try? await Task.sleep(for: .seconds(0.6))
+            }
+
             if only == nil || only?.contains("settings") == true {
                 openSettings()
                 try? await Task.sleep(for: .seconds(1))

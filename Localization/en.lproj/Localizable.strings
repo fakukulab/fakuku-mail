@@ -1111,3 +1111,13 @@
 "계정 정보 가져오기" = "Get Account Info";
 "이 Mac에만 저장됨 · " = "Saved only on this Mac · ";
 "이 Mac에만 저장된 초안은 옮길 수 없습니다. 인터넷에 연결되어 임시 보관함에 올라간 뒤 옮기세요." = "A draft saved only on this Mac can’t be moved. Move it after you’re back online and it’s in Drafts.";
+"인용문으로 붙여넣기" = "Paste as Quotation";
+"붙여넣고 스타일 일치" = "Paste and Match Style";
+"선택 메시지 추가" = "Append Selected Messages";
+"링크 추가…" = "Add Link…";
+"파일 첨부…" = "Attach Files…";
+"모든 첨부 파일 제거" = "Remove All Attachments";
+"크기를 셀" = "count sizes";
+"메시지 표시" = "Show Messages";
+"메시지 %@개 · 크기를 세는 중…" = "%@ messages · Counting sizes…";
+"%@(%@개의 메시지)" = "%@ (%@ messages)";

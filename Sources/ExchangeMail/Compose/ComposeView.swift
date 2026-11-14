@@ -95,6 +95,7 @@ struct ComposeView: View {
         .quickLookPreview($previewURL)
         // 포맷 메뉴가 이 창의 편집기에 동작한다 (M17).
         .focusedSceneValue(\.richTextEditor, compose.editor)
+        .focusedSceneValue(\.composeModel, compose)
         .alert(compose.errorTitle, isPresented: Binding(get: { compose.error != nil },
                                                          set: { if !$0 { compose.error = nil } })) {
             Button(L("확인"), role: .cancel) {}

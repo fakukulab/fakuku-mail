@@ -107,6 +107,10 @@ struct MailSplitView: View {
         .sheet(item: $model.editingVIP) { vip in
             VIPEditor(vip: vip, isNew: model.mailboxes.vip(address: vip.address) == nil)
         }
+        // 계정 정보 (S-074)
+        .sheet(item: $model.accountInfo) { info in
+            AccountInfoSheet(accountID: info.id)
+        }
         .sheet(item: $model.editingSmart) { box in
             SmartMailboxEditor(box: box, isNew: !model.mailboxes.smart.contains { $0.id == box.id })
         }

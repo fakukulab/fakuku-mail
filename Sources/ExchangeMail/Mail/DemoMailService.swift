@@ -191,6 +191,17 @@ final class DemoMailService: MailService {
         return folderList
     }
 
+    /// 데모: 본문 글자 수에 메일마다 2KB 머리글을 더한 크기 (S-074)
+    func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64] {
+        try checkOnline()
+        var out: [String: Int64] = [:]
+        for id in folderIDs {
+            let list = store[id] ?? []
+            out[id] = list.reduce(Int64(0)) { $0 + Int64(($1.body?.content.utf8.count ?? 0) + 2048) }
+        }
+        return out
+    }
+
     func categories() async throws -> [String] {
         try checkOnline()
         return ["빨강 범주", "파랑 범주"]
