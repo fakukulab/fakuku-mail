@@ -1251,3 +1251,11 @@
 "차단된 보낸 사람은 설정 > 정크 메일 > 차단됨에서 관리합니다." = "Manage blocked senders in Settings > Junk Mail > Blocked.";
 "편집" = "Edit";
 "활성" = "Active";
+
+/* S-077 apply new rules to mail already received */
+"받은 편지함의 메시지에 규칙을 적용하시겠습니까?" = "Do you want to apply your rule to messages in the Inbox?";
+"규칙은 새로 오는 메일에 서버가 적용합니다. 이미 받은 메일에도 지금 적용할 수 있습니다." = "The server applies rules to new mail. You can also apply this rule now to mail you've already received.";
+"적용" = "Apply";
+"적용 안 함" = "Don't Apply";
+"받은 편지함에 적용하는 중…" = "Applying to the Inbox…";
+"받은 편지함에 적용하지 못했습니다: %@" = "Couldn't apply the rule to the Inbox: %@";

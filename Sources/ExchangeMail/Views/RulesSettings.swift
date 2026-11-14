@@ -1,3 +1,4 @@
+import AppKit
 import ExchangeMailKit
 import SwiftUI
 
@@ -15,6 +16,10 @@ struct RulesSettings: View {
     @State private var editing: Editing?
     @State private var running: MessageRule?
     @State private var showHelp = false
+    /// 진행 중 글 (저장, 받은 메일에 적용)
+    @State private var progress: String?
+    /// 방금 한 일의 결과 (받은 메일에 적용한 수)
+    @State private var notice: String?
 
     /// 편집 창에 넘기는 값: 새 규칙이면 `old`가 nil
     struct Editing: Identifiable {
@@ -77,6 +82,7 @@ struct RulesSettings: View {
             takeSeed()
         }
         .onChange(of: model.ruleSeed) { takeSeed() }
+        .onChange(of: selection) { notice = nil }
         .onChange(of: model.ruleEditorCloseRequest) { editing = nil }
         .sheet(item: $editing) { e in
             RuleEditor(form: e.form, isNew: e.old == nil, folders: account.map(model.ruleFolders) ?? []) { form in
@@ -151,10 +157,15 @@ struct RulesSettings: View {
         } else if busy {
             HStack(spacing: Space.sm) {
                 ProgressView().controlSize(.small)
-                Text(L("서버에 저장하는 중…"))
+                Text(progress ?? L("서버에 저장하는 중…"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+        } else if let notice {
+            Label(notice, systemImage: "checkmark.circle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
         } else if let rule = selected {
             Text(rule.summary(folderName: folderName))
                 .font(.callout)
@@ -182,6 +193,28 @@ struct RulesSettings: View {
 
     // MARK: 동작
 
+    /// 맥 Mail과 같은 질문. 적용을 고르면 true.
+    static func askApplyToInbox() -> Bool {
+        let alert = NSAlert()
+        alert.messageText = L("받은 편지함의 메시지에 규칙을 적용하시겠습니까?")
+        alert.informativeText = L("규칙은 새로 오는 메일에 서버가 적용합니다. 이미 받은 메일에도 지금 적용할 수 있습니다.")
+        alert.addButton(withTitle: L("적용"))
+        alert.addButton(withTitle: L("적용 안 함"))
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    /// 받은 편지함에 이미 있는 메일에 규칙을 적용하고 결과를 표 아래에 보여 준다.
+    private func applyToInbox(_ rule: MessageRule, account: MailAccount) async {
+        let inbox = model.ruleFolders(of: account).first { $0.kind == "inbox" }?.id ?? "inbox"
+        progress = L("받은 편지함에 적용하는 중…")
+        do {
+            let report = try await model.runRuleNow(rule, account: account, folderID: inbox) { progress = $0 }
+            notice = RuleRunSheet.describe(report)
+        } catch {
+            problem = L("받은 편지함에 적용하지 못했습니다: \(error.localizedDescription)")
+        }
+    }
+
     private func isLocked(_ rule: MessageRule) -> Bool { rule.isReadOnly == true }
 
     private func folderName(_ id: String) -> String? {
@@ -197,7 +230,7 @@ struct RulesSettings: View {
     private func duplicate(_ rule: MessageRule) {
         var form = RuleForm(rule: rule)
         form.name = rule.displayName + L(" 사본")
-        Task { await save(form, replacing: nil) }
+        Task { await save(form, replacing: nil, askToApply: false) }
     }
 
     private func takeSeed() {
@@ -263,15 +296,25 @@ struct RulesSettings: View {
         }
     }
 
-    private func save(_ form: RuleForm, replacing old: MessageRule?) async {
+    /// 저장한 뒤 맥 Mail처럼 "받은 편지함의 메시지에 규칙을 적용하시겠습니까?"를 묻는다 (S-077).
+    /// 서버 규칙은 새로 오는 메일에만 적용되므로, 이미 받은 메일은 여기서 이 Mac이 적용한다.
+    private func save(_ form: RuleForm, replacing old: MessageRule?, askToApply: Bool = true) async {
         guard let account else { return }
         busy = true
-        defer { busy = false }
+        progress = nil
+        notice = nil
+        defer {
+            busy = false
+            progress = nil
+        }
         do {
             let saved = try await model.saveRule(form, replacing: old, in: account, existing: rules)
             problem = nil
             await load()
             selection = saved.id
+            if askToApply, saved.isEnabled ?? true, Self.askApplyToInbox() {
+                await applyToInbox(saved, account: account)
+            }
         } catch {
             problem = old == nil
                 ? L("규칙을 만들지 못했습니다: \(error.localizedDescription)")
