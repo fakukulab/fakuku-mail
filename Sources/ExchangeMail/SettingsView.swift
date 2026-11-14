@@ -29,15 +29,21 @@ struct SettingsView: View {
     @ViewBuilder
     private func page(_ tab: SettingsTab) -> some View {
         switch tab {
-        case .signatures, .account:
-            // 왼쪽 목록 + 오른쪽 내용 (맥 Mail의 서명·계정 탭과 같은 틀)
-            Group { if tab == .account { AccountSettings() } else { SignatureSettings() } }
+        case .signatures, .account, .rules:
+            // 왼쪽 목록 + 오른쪽 내용 (맥 Mail의 서명·계정·규칙 탭과 같은 틀)
+            Group {
+                switch tab {
+                case .account: AccountSettings()
+                case .rules: RulesSettings()
+                default: SignatureSettings()
+                }
+            }
                 .padding(.horizontal, Self.marginX)
                 .padding(.vertical, Self.marginY)
                 .frame(width: Self.size.width, height: Self.size.height)
-        case .rules, .autoReply:
+        case .autoReply:
             Form {
-                if tab == .rules { RulesSettings() } else { AutoReplySettings() }
+                AutoReplySettings()
             }
             .formStyle(.grouped)
             // 목록 위아래에도 여백을 두어 첫 줄과 마지막 단추가 가장자리에 붙지 않게 한다.

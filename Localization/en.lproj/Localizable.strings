@@ -1239,3 +1239,15 @@
 "회의 요청" = "Meeting request";
 "회의 응답" = "Meeting response";
 "후속 조치" = "Follow up";
+
+/* S-076 Mail-style rules tab */
+"규칙 추가" = "Add Rule";
+"규칙을 두 번 클릭하면 편집합니다. 오른쪽 클릭하면 지금 실행하거나 위·아래로 옮길 수 있습니다." = "Double-click a rule to edit it. Right-click to run it now or move it up or down.";
+"규칙이 없습니다. 규칙 추가를 누르세요." = "No rules. Click Add Rule.";
+"복제" = "Duplicate";
+"서버에 저장하는 중…" = "Saving to the server…";
+"오른쪽 클릭하면 지금 실행하거나 차례를 바꿀 수 있습니다." = "Right-click a rule to run it now or change its order.";
+"제거…" = "Remove…";
+"차단된 보낸 사람은 설정 > 정크 메일 > 차단됨에서 관리합니다." = "Manage blocked senders in Settings > Junk Mail > Blocked.";
+"편집" = "Edit";
+"활성" = "Active";

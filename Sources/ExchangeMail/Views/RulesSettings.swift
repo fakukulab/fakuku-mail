@@ -1,17 +1,20 @@
 import ExchangeMailKit
 import SwiftUI
 
-/// 설정 > 규칙 (S-039, S-075): Outlook과 같은 받은 편지함 규칙. 위에 있는 규칙부터 차례로 적용한다.
-/// Exchange 서버 규칙이라 앱이 꺼져 있어도 새 메일에 적용되고, Outlook에도 같은 규칙이 보인다.
+/// 설정 > 규칙 (S-039, S-075, S-076): 맥 Mail의 규칙 탭과 같은 틀. 왼쪽에 활성·설명 표, 오른쪽에 규칙 추가·편집·복제·제거.
+/// 위에 있는 규칙부터 차례로 적용한다. Exchange 서버 규칙이라 앱이 꺼져 있어도 새 메일에 적용되고, Outlook에도 같은 규칙이 보인다.
+/// 차단된 보낸 사람 규칙은 여기 보이지 않는다: 설정 > 정크 메일 > 차단됨이 관리한다.
 struct RulesSettings: View {
     @Environment(AppModel.self) private var model
     @State private var accountID: String?
     @State private var rules: [MessageRule] = []
+    @State private var selection: String?
     @State private var loading = true
     @State private var busy = false
     @State private var problem: String?
     @State private var editing: Editing?
     @State private var running: MessageRule?
+    @State private var showHelp = false
 
     /// 편집 창에 넘기는 값: 새 규칙이면 `old`가 nil
     struct Editing: Identifiable {
@@ -20,52 +23,53 @@ struct RulesSettings: View {
         var old: MessageRule?
     }
 
+    /// 오른쪽 단추 열 너비
+    private static let buttonWidth: CGFloat = 160
+
     private var account: MailAccount? { model.ruleAccount(accountID) }
+    private var selected: MessageRule? { rules.first { $0.id == selection } }
 
     var body: some View {
         if model.exchangeAccounts.isEmpty {
-            Section {
-                ContentUnavailableView(L("규칙을 쓸 Exchange 계정이 없습니다"), systemImage: "line.3.horizontal.decrease.circle",
-                                       description: Text(L("받은 편지함 규칙은 Microsoft Exchange 서버에 저장됩니다. iCloud·Gmail 계정에는 쓸 수 없습니다.")))
-            }
+            ContentUnavailableView(L("규칙을 쓸 Exchange 계정이 없습니다"), systemImage: "line.3.horizontal.decrease.circle",
+                                   description: Text(L("받은 편지함 규칙은 Microsoft Exchange 서버에 저장됩니다. iCloud·Gmail 계정에는 쓸 수 없습니다.")))
         } else {
             content
         }
     }
 
-    @ViewBuilder
     private var content: some View {
-        if model.exchangeAccounts.count > 1 {
-            Section {
-                Picker(L("계정"), selection: $accountID) {
-                    ForEach(model.exchangeAccounts) { a in
-                        Text(a.auth.email ?? a.id).tag(String?.some(a.id))
+        HStack(alignment: .top, spacing: Space.lg) {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                if model.exchangeAccounts.count > 1 {
+                    Picker(L("계정"), selection: $accountID) {
+                        ForEach(model.exchangeAccounts) { a in
+                            Text(a.auth.email ?? a.id).tag(String?.some(a.id))
+                        }
                     }
+                    .fixedSize()
                 }
+                table
+                status
             }
-        }
-        Section {
-            if loading {
-                ProgressView().frame(maxWidth: .infinity)
-            } else if rules.isEmpty {
-                Text(L("규칙이 없습니다."))
-                    .foregroundStyle(.secondary)
-            }
-            ForEach(rules) { rule in row(rule) }
-            HStack(spacing: Space.sm) {
-                Button(L("규칙 추가…")) { editing = Editing(form: RuleForm(), old: nil) }
+            VStack(spacing: Space.md) {
+                Button { editing = Editing(form: RuleForm(), old: nil) } label: { Text(L("규칙 추가")).frame(maxWidth: .infinity) }
                     .disabled(loading || account == nil)
-                if busy { ProgressView().controlSize(.small) }
+                Button { if let r = selected { edit(r) } } label: { Text(L("편집")).frame(maxWidth: .infinity) }
+                    .disabled(selected.map(isLocked) ?? true)
+                Button { if let r = selected { duplicate(r) } } label: { Text(L("복제")).frame(maxWidth: .infinity) }
+                    .disabled(selected.map(isLocked) ?? true)
+                Button { if let r = selected { delete(r) } } label: { Text(L("제거")).frame(maxWidth: .infinity) }
+                    .disabled(selected == nil)
+                Spacer()
+                HelpLink { showHelp = true }
+                    .popover(isPresented: $showHelp, arrowEdge: .leading) { help }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            if let problem {
-                Label(problem, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.secondary)
-            }
-        } header: {
-            Text(L("받은 편지함 규칙"))
-        } footer: {
-            Text(L("위에 있는 규칙부터 차례로 적용합니다. Exchange 서버 규칙이라 이 앱이 꺼져 있어도 적용되고, Outlook에도 같은 규칙이 보입니다."))
-                .foregroundStyle(.secondary)
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .frame(width: Self.buttonWidth)
+            .disabled(busy)
         }
         .task(id: account?.id) { await load() }
         .onAppear {
@@ -73,6 +77,7 @@ struct RulesSettings: View {
             takeSeed()
         }
         .onChange(of: model.ruleSeed) { takeSeed() }
+        .onChange(of: model.ruleEditorCloseRequest) { editing = nil }
         .sheet(item: $editing) { e in
             RuleEditor(form: e.form, isNew: e.old == nil, folders: account.map(model.ruleFolders) ?? []) { form in
                 editing = nil
@@ -86,73 +91,114 @@ struct RulesSettings: View {
         }
     }
 
-    // MARK: 줄
+    // MARK: 표
 
-    private func isLocked(_ rule: MessageRule) -> Bool { BlockedSenders.isBlockRule(rule) || rule.isReadOnly == true }
+    private var table: some View {
+        Table(rules, selection: $selection) {
+            TableColumn(L("활성")) { rule in
+                Toggle(L("활성"), isOn: Binding(get: { rule.isEnabled ?? true }, set: { on in toggle(rule, on) }))
+                    .toggleStyle(.checkbox)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+            }
+            .width(56)
+            TableColumn(L("설명")) { rule in
+                HStack(spacing: Space.xs) {
+                    Text(rule.displayName)
+                    if rule.hasError == true {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                            .help(L("Exchange가 이 규칙에 문제가 있다고 알립니다. 옮길 폴더가 지워졌는지 확인하세요."))
+                    }
+                }
+                .help(rule.summary(folderName: folderName))
+            }
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let rule = rules.first(where: { ids.contains($0.id) }) { menu(for: rule) }
+        } primaryAction: { ids in
+            if let rule = rules.first(where: { ids.contains($0.id) }), !isLocked(rule) { edit(rule) }
+        }
+        .overlay {
+            if loading && rules.isEmpty { ProgressView() }
+        }
+    }
+
+    @ViewBuilder
+    private func menu(for rule: MessageRule) -> some View {
+        let index = rules.firstIndex(of: rule) ?? 0
+        Button(L("편집…")) { edit(rule) }
+            .disabled(isLocked(rule))
+        Button(L("복제")) { duplicate(rule) }
+            .disabled(isLocked(rule))
+        Button(L("지금 실행…")) { running = rule }
+        Divider()
+        Button(L("위로 이동")) { move(rule, by: -1) }
+            .disabled(index == 0)
+        Button(L("아래로 이동")) { move(rule, by: 1) }
+            .disabled(index == rules.count - 1)
+        Divider()
+        Button(L("제거…"), role: .destructive) { delete(rule) }
+    }
+
+    /// 표 아래 한 줄: 고른 규칙의 설명, 진행 중, 오류
+    @ViewBuilder
+    private var status: some View {
+        if let problem {
+            Label(problem, systemImage: "exclamationmark.triangle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } else if busy {
+            HStack(spacing: Space.sm) {
+                ProgressView().controlSize(.small)
+                Text(L("서버에 저장하는 중…"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        } else if let rule = selected {
+            Text(rule.summary(folderName: folderName))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        } else {
+            Text(rules.isEmpty && !loading ? L("규칙이 없습니다. 규칙 추가를 누르세요.") : L("오른쪽 클릭하면 지금 실행하거나 차례를 바꿀 수 있습니다."))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var help: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text(L("규칙"))
+                .font(.headline)
+            Text(L("위에 있는 규칙부터 차례로 적용합니다. Exchange 서버 규칙이라 이 앱이 꺼져 있어도 적용되고, Outlook에도 같은 규칙이 보입니다."))
+            Text(L("규칙을 두 번 클릭하면 편집합니다. 오른쪽 클릭하면 지금 실행하거나 위·아래로 옮길 수 있습니다."))
+            Text(L("차단된 보낸 사람은 설정 > 정크 메일 > 차단됨에서 관리합니다."))
+        }
+        .font(.callout)
+        .frame(width: 320, alignment: .leading)
+        .padding(Space.lg)
+    }
+
+    // MARK: 동작
+
+    private func isLocked(_ rule: MessageRule) -> Bool { rule.isReadOnly == true }
 
     private func folderName(_ id: String) -> String? {
         guard let account else { return nil }
         return model.ruleFolders(of: account).first { $0.id == id || $0.kind == id }?.displayName
     }
 
-    private func row(_ rule: MessageRule) -> some View {
-        let index = rules.firstIndex(of: rule) ?? 0
-        return HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
-            Toggle(isOn: Binding(get: { rule.isEnabled ?? true }, set: { on in toggle(rule, on) })) {
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    HStack(spacing: Space.xs) {
-                        Text(rule.displayName)
-                        if rule.hasError == true {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.yellow)
-                                .help(L("Exchange가 이 규칙에 문제가 있다고 알립니다. 옮길 폴더가 지워졌는지 확인하세요."))
-                        }
-                    }
-                    Text(rule.summary(folderName: folderName))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    if BlockedSenders.isBlockRule(rule) {
-                        Text(L("설정 > 정크 메일의 차단 목록이 관리합니다."))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if rule.isReadOnly == true {
-                        Text(L("Outlook 데스크톱에서만 고칠 수 있는 규칙입니다."))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            Button(L("편집…"), systemImage: "pencil") { editing = Editing(form: RuleForm(rule: rule), old: rule) }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .disabled(isLocked(rule) || busy)
-                .help(L("이 규칙 편집"))
-            Menu {
-                Button(L("편집…")) { editing = Editing(form: RuleForm(rule: rule), old: rule) }
-                    .disabled(isLocked(rule))
-                Button(L("지금 실행…")) { running = rule }
-                Divider()
-                Button(L("위로 이동")) { move(rule, by: -1) }
-                    .disabled(index == 0)
-                Button(L("아래로 이동")) { move(rule, by: 1) }
-                    .disabled(index == rules.count - 1)
-                Divider()
-                Button(L("지우기…"), role: .destructive) { delete(rule) }
-                    .disabled(BlockedSenders.isBlockRule(rule))
-            } label: {
-                Label(L("더 보기"), systemImage: "ellipsis.circle")
-                    .labelStyle(.iconOnly)
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .disabled(busy)
-            .help(L("지금 실행, 차례 바꾸기, 지우기"))
-        }
-        .padding(.vertical, Space.xs)
+    private func edit(_ rule: MessageRule) {
+        editing = Editing(form: RuleForm(rule: rule), old: rule)
     }
 
-    // MARK: 동작
+    /// 복제: 같은 조건·동작으로 "사본" 규칙을 맨 끝에 만든다
+    private func duplicate(_ rule: MessageRule) {
+        var form = RuleForm(rule: rule)
+        form.name = rule.displayName + L(" 사본")
+        Task { await save(form, replacing: nil) }
+    }
 
     private func takeSeed() {
         guard let seed = model.ruleSeed else { return }
@@ -167,6 +213,7 @@ struct RulesSettings: View {
         defer { loading = false }
         do {
             rules = try await model.rules(of: account)
+            if let selection, !rules.contains(where: { $0.id == selection }) { self.selection = nil }
             problem = nil
         } catch {
             problem = L("규칙을 불러오지 못했습니다: \(error.localizedDescription)")
@@ -192,6 +239,7 @@ struct RulesSettings: View {
             defer { busy = false }
             do {
                 rules = try await model.moveRule(rule, by: offset, in: rules, account: account)
+                selection = rule.id
                 problem = nil
             } catch {
                 problem = L("차례를 바꾸지 못했습니다: \(error.localizedDescription)")
@@ -208,6 +256,7 @@ struct RulesSettings: View {
             do {
                 try await account.service.deleteRule(id: rule.id)
                 rules.removeAll { $0.id == rule.id }
+                selection = nil
             } catch {
                 problem = error.localizedDescription
             }
@@ -219,14 +268,16 @@ struct RulesSettings: View {
         busy = true
         defer { busy = false }
         do {
-            _ = try await model.saveRule(form, replacing: old, in: account, existing: rules)
+            let saved = try await model.saveRule(form, replacing: old, in: account, existing: rules)
             problem = nil
+            await load()
+            selection = saved.id
         } catch {
             problem = old == nil
                 ? L("규칙을 만들지 못했습니다: \(error.localizedDescription)")
                 : L("규칙을 고치지 못했습니다: \(error.localizedDescription)")
+            await load()
         }
-        await load()
     }
 }
 

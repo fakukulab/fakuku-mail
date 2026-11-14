@@ -1128,6 +1128,11 @@ enum SelfTest {
             check("차단: 보낸 사람을 막으면 서버 규칙이 생긴다",
                   model.blockedAddresses == ["spam@junk.example"] && model.blockMode == .keep
                       && rulesAfterBlock.contains(where: BlockedSenders.isBlockRule))
+            if let account = model.ruleAccount(nil) {
+                let shown = (try? await model.rules(of: account)) ?? []
+                check("S-076 차단 규칙은 설정 > 규칙 목록에 보이지 않는다 (정크 메일 > 차단됨이 관리)",
+                      !shown.contains(where: BlockedSenders.isBlockRule))
+            }
             await model.saveBlocked(addresses: model.blockedAddresses, mode: .trash, enabled: true)
             check("차단: 지운 편지함으로 옮기는 방식", model.blockedRule?.actions?.delete == true)
             await model.changeBlockList { $0.enabled = false }

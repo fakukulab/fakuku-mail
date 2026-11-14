@@ -173,11 +173,8 @@ enum Snapshot {
                             model.ruleSeed = RuleSeed(form: form, accountID: nil)
                             try? await Task.sleep(for: .seconds(1.2))
                             capture(to: "\(dir)/settings-rules-editor-\(mode).png", window: settings?.attachedSheet ?? settings)
-                            settings?.attachedSheet?.makeKeyAndOrderFront(nil)
-                            NSApp.sendAction(#selector(NSResponder.cancelOperation(_:)), to: nil, from: nil)
+                            model.ruleEditorCloseRequest += 1
                             try? await Task.sleep(for: .seconds(0.8))
-                            if let sheet = settings?.attachedSheet { settings?.endSheet(sheet) }
-                            try? await Task.sleep(for: .seconds(0.4))
                         }
                         if tab == .junk {
                             // 정크 메일 > 차단됨 칸과 차단된 보낸 사람 관리 시트

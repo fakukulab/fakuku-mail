@@ -35,9 +35,11 @@ extension AppModel {
     /// 지금 실행이 한 번에 살펴보는 메일 수
     static let ruleRunLimit = 5000
 
-    /// 이 계정의 규칙 (서버 차례대로)
+    /// 이 계정의 규칙 (서버 차례대로). 차단된 보낸 사람 규칙은 뺀다: 설정 > 정크 메일 > 차단됨이 관리한다.
     func rules(of account: MailAccount) async throws -> [MessageRule] {
-        try await account.service.rules().sorted { ($0.sequence ?? .max) < ($1.sequence ?? .max) }
+        try await account.service.rules()
+            .filter { !BlockedSenders.isBlockRule($0) }
+            .sorted { ($0.sequence ?? .max) < ($1.sequence ?? .max) }
     }
 
     /// 규칙을 둘 계정: 고른 계정, 지금 계정, 첫 Exchange 계정 차례
