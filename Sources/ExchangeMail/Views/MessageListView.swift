@@ -4,6 +4,7 @@ import SwiftUI
 struct MessageListView: View {
     @Environment(AppModel.self) var model
     @Environment(\.openWindow) var openWindow
+    @Environment(\.openSettings) var openSettings
     @Environment(\.undoManager) var undoManager
     /// 설정 > 서체 및 색상 > 메시지 목록 글자 크기
     @AppStorage(Prefs.listFontSize) private var listFontSize = 13
@@ -198,6 +199,13 @@ struct MessageListView: View {
                     Button(L("보낸 사람 차단 해제")) { Task { await model.unblock(address: m.from?.emailAddress.address ?? "") } }
                 } else {
                     Button(L("보낸 사람 차단")) { Task { await model.blockSender(of: m, undoManager: undoManager) } }
+                }
+            }
+            // 규칙 만들기 (S-075)
+            if let m = single, !model.exchangeAccounts.isEmpty {
+                Button(L("규칙 만들기…")) {
+                    model.seedRule(from: m)
+                    openSettings()
                 }
             }
             // VIP (S-045)

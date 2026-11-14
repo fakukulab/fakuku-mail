@@ -109,7 +109,11 @@ protocol MailService: AnyObject {
     func rules() async throws -> [MessageRule]
     func createRule(_ rule: MessageRule) async throws -> MessageRule
     func setRule(id: String, enabled: Bool) async throws
+    /// 이름·차례만 바꾼다 (S-075). 조건·동작을 바꾸려면 새로 만들고 옛것을 지운다.
+    func updateRule(id: String, displayName: String?, sequence: Int?) async throws
     func deleteRule(id: String) async throws
+    /// 메일의 범주를 바꾼다 (규칙 지금 실행의 범주 지정, S-075)
+    func setCategories(id: String, categories: [String]) async throws
     /// 부재중 자동 응답 (S-040)
     func automaticReplies() async throws -> AutomaticReplies
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws
@@ -553,6 +557,18 @@ final class GraphMailService: MailService {
 
     func deleteRule(id: String) async throws {
         _ = try await request("DELETE", "\(rulesPath)/\(GraphPath.segment(id))")
+    }
+
+    func updateRule(id: String, displayName: String?, sequence: Int?) async throws {
+        var body: [String: Any] = [:]
+        if let displayName { body["displayName"] = displayName }
+        if let sequence { body["sequence"] = sequence }
+        guard !body.isEmpty else { return }
+        _ = try await request("PATCH", "\(rulesPath)/\(GraphPath.segment(id))", body: try json(body))
+    }
+
+    func setCategories(id: String, categories: [String]) async throws {
+        _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(["categories": categories]))
     }
 
     func automaticReplies() async throws -> AutomaticReplies {

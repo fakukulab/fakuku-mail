@@ -140,6 +140,18 @@ enum Snapshot {
             }
 
             if only == nil || only?.contains("settings") == true {
+                // 설정 > 규칙에 보일 예시 규칙 (S-075)
+                let samples = [
+                    RuleForm(name: "견적 메일", conditions: [RuleCondition(kind: .subjectContains, text: "견적, 발주")],
+                             actions: [RuleAction(kind: .moveToFolder, folderID: "projects"),
+                                       RuleAction(kind: .assignCategories, text: "견적")]),
+                    RuleForm(name: "뉴스레터", conditions: [RuleCondition(kind: .senderContains, text: "news")],
+                             actions: [RuleAction(kind: .markAsRead)], exceptions: [RuleCondition(kind: .importance)],
+                             stopProcessing: false),
+                    RuleForm(name: "큰 첨부 보관", conditions: [RuleCondition(kind: .withinSizeRange, minKB: 5000)],
+                             actions: [RuleAction(kind: .copyToFolder, folderID: "archive")], isEnabled: false),
+                ]
+                for (n, form) in samples.enumerated() { _ = try? await model.service.createRule(form.rule(sequence: n + 1)) }
                 openSettings()
                 try? await Task.sleep(for: .seconds(1))
                 for mode in ["light", "dark"] {
@@ -149,6 +161,24 @@ enum Snapshot {
                         try? await Task.sleep(for: .seconds(1))
                         let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet }
                         capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
+                        if tab == .rules {
+                            // 규칙 편집 창: 조건·동작·예외 (S-075)
+                            var form = RuleForm(name: "견적 메일",
+                                                conditions: [RuleCondition(kind: .from, text: "minji.kim@fabrikam.com"),
+                                                             RuleCondition(kind: .subjectContains, text: "견적, 발주"),
+                                                             RuleCondition(kind: .hasAttachments)],
+                                                actions: [RuleAction(kind: .moveToFolder, folderID: "projects"),
+                                                          RuleAction(kind: .markImportance)])
+                            form.exceptions = [RuleCondition(kind: .importance, choice: "low")]
+                            model.ruleSeed = RuleSeed(form: form, accountID: nil)
+                            try? await Task.sleep(for: .seconds(1.2))
+                            capture(to: "\(dir)/settings-rules-editor-\(mode).png", window: settings?.attachedSheet ?? settings)
+                            settings?.attachedSheet?.makeKeyAndOrderFront(nil)
+                            NSApp.sendAction(#selector(NSResponder.cancelOperation(_:)), to: nil, from: nil)
+                            try? await Task.sleep(for: .seconds(0.8))
+                            if let sheet = settings?.attachedSheet { settings?.endSheet(sheet) }
+                            try? await Task.sleep(for: .seconds(0.4))
+                        }
                         if tab == .junk {
                             // 정크 메일 > 차단됨 칸과 차단된 보낸 사람 관리 시트
                             let saved = model.blockList

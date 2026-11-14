@@ -306,6 +306,12 @@ final class AccountRouter: MailService {
     func createRule(_ rule: MessageRule) async throws -> MessageRule { try await exchangeService().createRule(rule) }
     func setRule(id: String, enabled: Bool) async throws { try await exchangeService().setRule(id: id, enabled: enabled) }
     func deleteRule(id: String) async throws { try await exchangeService().deleteRule(id: id) }
+    func updateRule(id: String, displayName: String?, sequence: Int?) async throws {
+        try await exchangeService().updateRule(id: id, displayName: displayName, sequence: sequence)
+    }
+    func setCategories(id: String, categories: [String]) async throws {
+        try await forMessage(id).setCategories(id: id, categories: categories)
+    }
     func automaticReplies() async throws -> AutomaticReplies { try await exchangeService().automaticReplies() }
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws {
         try await exchangeService().setAutomaticReplies(settings)

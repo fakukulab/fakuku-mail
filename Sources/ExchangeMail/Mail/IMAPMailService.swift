@@ -710,6 +710,8 @@ final class IMAPMailService: MailService {
     func createRule(_ rule: MessageRule) async throws -> MessageRule { throw IMAPError.unsupported }
     func setRule(id: String, enabled: Bool) async throws { throw IMAPError.unsupported }
     func deleteRule(id: String) async throws { throw IMAPError.unsupported }
+    func updateRule(id: String, displayName: String?, sequence: Int?) async throws { throw IMAPError.unsupported }
+    func setCategories(id: String, categories: [String]) async throws { throw IMAPError.unsupported }
     func automaticReplies() async throws -> AutomaticReplies { throw IMAPError.unsupported }
     func setAutomaticReplies(_ settings: AutomaticReplies) async throws { throw IMAPError.unsupported }
 }

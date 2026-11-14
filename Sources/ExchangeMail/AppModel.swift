@@ -311,6 +311,8 @@ final class AppModel {
     var accountInfo: AccountInfoRequest?
     /// 설정 > 계정을 열 때 고를 계정 (사이드바 "'계정' 편집…", S-073)
     var settingsAccountID: String?
+    /// 메시지 > 규칙 만들기 (S-075): 설정 > 규칙이 열리면 이 값으로 편집 창을 연다.
+    var ruleSeed: RuleSeed?
     /// 설정 > 정크 메일 > 차단됨 > 차단된 보낸 사람 관리 시트
     var showBlockedManager = false
 

@@ -478,6 +478,19 @@ final class DemoMailService: MailService {
         ruleList.removeAll { $0.id == id }
     }
 
+    func updateRule(id: String, displayName: String?, sequence: Int?) async throws {
+        try checkOnline()
+        guard let i = ruleList.firstIndex(where: { $0.id == id }) else { throw URLError(.fileDoesNotExist) }
+        if let displayName { ruleList[i].displayName = displayName }
+        if let sequence { ruleList[i].sequence = sequence }
+    }
+
+    func setCategories(id: String, categories: [String]) async throws {
+        try checkOnline()
+        guard let (folder, index) = find(id) else { throw URLError(.fileDoesNotExist) }
+        store[folder]?[index].categories = categories
+    }
+
     func automaticReplies() async throws -> AutomaticReplies {
         try checkOnline()
         return autoReplies

@@ -181,6 +181,14 @@ final class CachedMailService: MailService {
         try await write(L("규칙을 지울")) { try await remote.deleteRule(id: id) }
     }
 
+    func updateRule(id: String, displayName: String?, sequence: Int?) async throws {
+        try await write(L("규칙을 바꿀")) { try await remote.updateRule(id: id, displayName: displayName, sequence: sequence) }
+    }
+
+    func setCategories(id: String, categories: [String]) async throws {
+        try await write(L("범주를 바꿀")) { try await remote.setCategories(id: id, categories: categories) }
+    }
+
     func automaticReplies() async throws -> AutomaticReplies {
         try await write(L("자동 응답을 불러올")) { try await remote.automaticReplies() }
     }

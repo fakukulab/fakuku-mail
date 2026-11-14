@@ -925,6 +925,90 @@ enum SelfTest {
             } else {
                 check("S-039 규칙을 만든다", false)
             }
+            // S-075 Outlook과 같은 규칙: 조건·예외·동작 여러 개, 편집, 차례, 지금 실행 (설정 > 규칙이 쓰는 함수 그대로)
+            if let account = model.ruleAccount(nil) {
+                var form = RuleForm(name: "견적 정리")
+                form.conditions = [RuleCondition(kind: .subjectContains, text: "견적"), RuleCondition(kind: .sentToMe)]
+                form.exceptions = [RuleCondition(kind: .importance, choice: "low")]
+                form.actions = [RuleAction(kind: .assignCategories, text: "견적"), RuleAction(kind: .markImportance, choice: "high")]
+                let start = (try? await model.rules(of: account)) ?? []
+                let made = try? await model.saveRule(form, replacing: nil, in: account, existing: start)
+                var list = (try? await model.rules(of: account)) ?? []
+                check("S-075 조건·예외·동작이 여러 개인 규칙을 만든다", made.map { m in
+                    list.contains { $0.id == m.id && $0.exceptions?.importance == "low" && $0.conditions?.sentToMe == true
+                        && $0.actions?.assignCategories == ["견적"] && $0.actions?.markImportance == "high" }
+                } ?? false)
+                if let made {
+                    var renamed = RuleForm(rule: made)
+                    renamed.name = "견적 메일 정리"
+                    let same = try? await model.saveRule(renamed, replacing: made, in: account, existing: list)
+                    list = (try? await model.rules(of: account)) ?? []
+                    check("S-075 이름만 바꾸면 같은 규칙을 고친다",
+                          same?.id == made.id && list.first { $0.id == made.id }?.displayName == "견적 메일 정리")
+                    var changed = RuleForm(rule: list.first { $0.id == made.id } ?? made)
+                    changed.conditions.append(RuleCondition(kind: .hasAttachments))
+                    let replaced = try? await model.saveRule(changed, replacing: list.first { $0.id == made.id }, in: account, existing: list)
+                    list = (try? await model.rules(of: account)) ?? []
+                    let now = list.first { $0.id == replaced?.id }
+                    check("S-075 조건을 바꾸면 같은 차례의 새 규칙으로 바뀐다",
+                          !list.contains { $0.id == made.id } && now?.sequence == made.sequence
+                              && now?.conditions?.hasAttachments == true && now?.displayName == "견적 메일 정리")
+                    let other = try? await model.saveRule(RuleForm(name: "뉴스레터", conditions: [RuleCondition(kind: .senderContains, text: "news")],
+                                                                   actions: [RuleAction(kind: .markAsRead)]),
+                                                          replacing: nil, in: account, existing: list)
+                    list = (try? await model.rules(of: account)) ?? []
+                    if let other, let moved = try? await model.moveRule(other, by: -1, in: list, account: account) {
+                        let server = (try? await model.rules(of: account)) ?? []
+                        check("S-075 규칙을 위로 옮기면 서버 차례도 바뀐다",
+                              moved.map(\.id) == server.map(\.id) && server.last?.id == replaced?.id
+                                  && server.map { $0.sequence ?? 0 } == Array(1...server.count))
+                    } else {
+                        check("S-075 규칙을 위로 옮긴다", false)
+                    }
+                    for r in (try? await model.rules(of: account)) ?? [] where r.id == other?.id || r.id == replaced?.id {
+                        try? await account.service.deleteRule(id: r.id)
+                    }
+                }
+
+                // 지금 실행: 받은 편지함의 "견적" 메일에 범주와 중요도를 붙이고, 전달은 하지 않는다
+                let original = (try? await account.service.messages(folderID: "inbox", search: nil).messages) ?? []
+                let run = RuleForm(conditions: [RuleCondition(kind: .subjectContains, text: "견적")],
+                                   actions: [RuleAction(kind: .assignCategories, text: "규칙 시험"),
+                                             RuleAction(kind: .markImportance, choice: "high"),
+                                             RuleAction(kind: .forwardTo, text: "someone@example.com")]).rule(sequence: 99)
+                let expected = original.filter { $0.subject?.contains("견적") == true }.map(\.id)
+                let sentBefore = demo.sent.count
+                let report = try? await model.runRuleNow(run, account: account, folderID: "inbox") { _ in }
+                let after = (try? await account.service.messages(folderID: "inbox", search: nil).messages) ?? []
+                let touched = after.filter { $0.categories?.contains("규칙 시험") == true }
+                check("S-075 지금 실행은 맞는 메일에만 동작을 적용하고 전달은 하지 않는다",
+                      !expected.isEmpty && report?.applied == expected.count && Set(touched.map(\.id)) == Set(expected)
+                          && touched.allSatisfy { $0.importance == "high" } && report?.skippedSending == true
+                          && demo.sent.count == sentBefore)
+                for m in original where expected.contains(m.id) {
+                    try? await account.service.setCategories(id: m.id, categories: m.categories ?? [])
+                    try? await account.service.setImportance(id: m.id, importance: m.importance ?? "normal")
+                }
+                var unsupportedError = false
+                do {
+                    _ = try await model.runRuleNow(RuleForm(conditions: [RuleCondition(kind: .sensitivity)],
+                                                            actions: [RuleAction(kind: .delete)]).rule(sequence: 1),
+                                                   account: account, folderID: "inbox") { _ in }
+                } catch RuleRunError.unsupported(let kinds) {
+                    unsupportedError = kinds == [.sensitivity]
+                } catch {}
+                check("S-075 서버만 아는 조건(민감도)은 지금 실행하지 않는다", unsupportedError)
+
+                // 메시지 > 규칙 만들기: 보낸 사람 조건으로 설정 > 규칙을 연다
+                if let m = original.first {
+                    model.seedRule(from: m)
+                    check("S-075 메일에서 규칙 만들기는 보낸 사람 조건으로 시작한다",
+                          model.settingsTab == .rules && model.ruleSeed?.form.conditions.first?.text == m.from?.emailAddress.address)
+                    model.ruleSeed = nil
+                }
+            } else {
+                check("S-075 규칙을 둘 Exchange 계정이 있다", false)
+            }
             let away = AutomaticReplies.make(on: true, start: Date(), end: Date().addingTimeInterval(86_400), audience: "contactsOnly",
                                              internalText: "휴가 중입니다.", externalText: "I am away.")
             try? await model.service.setAutomaticReplies(away)

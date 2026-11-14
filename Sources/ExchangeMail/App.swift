@@ -173,6 +173,7 @@ struct MailCommands: Commands {
     let model: AppModel
     let menu: MenuSnapshot
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     /// 앞에 있는 메시지 창 (S-043). 있으면 메시지 메뉴가 그 창의 메일에 동작한다.
     @FocusedValue(\.messageReader) private var reader
     /// 앞에 있는 .eml 창 (1.0.1). 있으면 답장·전달은 그 메일에, 목록 선택에 하는 동작은 끈다.
@@ -517,6 +518,15 @@ struct MailCommands: Commands {
         Button(L("이동…")) { model.showMovePicker = true }
             .keyboardShortcut("m", modifiers: [.command, .shift])
             .disabled(reader != nil || eml != nil || !menu.hasSelection)
+        // Outlook의 규칙 만들기 (S-075): 이 메일의 보낸 사람으로 시작하는 규칙을 설정 > 규칙에서 연다
+        Button(L("규칙 만들기…")) {
+            if let m = reader?.message ?? model.detail {
+                model.seedRule(from: m)
+                openSettings()
+            }
+        }
+        .keyboardShortcut("r", modifiers: [.command, .control])
+        .disabled(eml != nil || model.exchangeAccounts.isEmpty || (reader == nil && !menu.hasMessage))
         // Delete 키는 목록과 메시지 창의 onDeleteCommand가 맡는다 (메뉴 단축키로 쓰면 글자 입력 중에도 지워진다).
         Button(L("지우기")) {
             if let reader {

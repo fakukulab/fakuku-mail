@@ -641,7 +641,7 @@ func ruleDecode() throws {
     let json = #"{"value":[{"id":"r1","displayName":"견적","sequence":1,"isEnabled":true,"conditions":{"senderContains":["a@x.com"]},"actions":{"markAsRead":true,"stopProcessingRules":false}}]}"#
     let list = try GraphJSON.decoder().decode(GraphList<MessageRule>.self, from: Data(json.utf8))
     #expect(list.value.first?.conditions?.senderContains == ["a@x.com"])
-    #expect(list.value.first?.summary { _ in nil } == "보낸 사람에 'a@x.com' 포함 → 읽음으로 표시")
+    #expect(list.value.first?.summary { _ in nil } == "보낸 사람 주소에 'a@x.com' 포함 → 읽음으로 표시")
 }
 
 @Test("자동 응답: 기간이 있으면 scheduled, 글은 HTML로")
