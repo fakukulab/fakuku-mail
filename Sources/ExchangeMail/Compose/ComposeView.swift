@@ -158,11 +158,11 @@ struct ComposeView: View {
             askSave = true
             return false
         }
-        .alert(L("이 메시지를 초안으로 저장하겠습니까?"), isPresented: $askSave) {
+        .alert(L("메시지를 임시 저장하겠습니까?"), isPresented: $askSave) {
             Button(L("저장")) {
                 Task { if await compose.saveDraft(app: model) { closer.close() } }
             }
-            Button(L("저장 안 함"), role: .destructive) {
+            Button(L("저장하지 않음"), role: .destructive) {
                 Task {
                     await compose.discardChanges(app: model)
                     closer.close()
@@ -170,9 +170,7 @@ struct ComposeView: View {
             }
             Button(L("취소"), role: .cancel) {}
         } message: {
-            Text(compose.isReopenedDraft
-                 ? L("저장하지 않으면 이번에 고친 내용은 버리고, 임시 보관함의 초안은 그대로 둡니다.")
-                 : L("저장하지 않으면 이 메시지를 버립니다."))
+            Text(L("보내지 않은 메시지에 저장하지 않은 변경 사항이 있습니다. 나중에 이어서 작업하도록 임시 저장할 수 있습니다."))
         }
         // 창이 닫히면(앱을 끝낼 때 포함) 쓰던 것을 초안으로 남긴다. 창이 사라져도 저장은 끝까지 간다.
         // "저장 안 함"을 골랐으면 finished라 아무것도 하지 않는다.

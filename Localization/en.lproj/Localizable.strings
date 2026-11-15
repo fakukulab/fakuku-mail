@@ -1260,7 +1260,6 @@
 "'%@'에 맞는 메일을 찾는 중…" = "Finding mail for '%@'…";
 "외 %@명" = "and %@ more";
 "받는 사람과 참조를 모두 봅니다" = "Show all recipients and Cc";
-"이 메시지를 초안으로 저장하겠습니까?" = "Do you want to save this message as a draft?";
-"저장 안 함" = "Don't Save";
-"저장하지 않으면 이번에 고친 내용은 버리고, 임시 보관함의 초안은 그대로 둡니다." = "If you don't save, your changes are discarded and the draft in Drafts stays as it was.";
-"저장하지 않으면 이 메시지를 버립니다." = "If you don't save, this message is discarded.";
+"메시지를 임시 저장하겠습니까?" = "Do you want to save this message as a draft?";
+"보내지 않은 메시지에 저장하지 않은 변경 사항이 있습니다. 나중에 이어서 작업하도록 임시 저장할 수 있습니다." = "This message has unsent changes that haven't been saved. You can save it as a draft to continue working on it later.";
+"저장하지 않음" = "Don't Save";
