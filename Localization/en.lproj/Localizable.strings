@@ -64,7 +64,7 @@
 "전달" = "Forward";
 "첨부 파일로 전달" = "Forward as Attachment";
 "첨부 훑어보기" = "Quick Look Attachments";
-"초안 이어서 쓰기" = "Continue Draft";
+"메시지 이어서 쓰기" = "Continue Draft";
 "새 창에서 열기" = "Open in New Window";
 "읽음으로 표시" = "Mark as Read";
 "읽지 않음으로 표시" = "Mark as Unread";
@@ -508,7 +508,7 @@
 "메시지 %@개 선택됨" = "%@ messages selected";
 "보관, 지우기, 이동, 읽음, 깃발을 한 번에 할 수 있습니다." = "You can archive, delete, move, mark as read, or flag them all at once.";
 "메시지를 선택하세요" = "Select a Message";
-"저장된 초안입니다." = "This is a saved draft.";
+"저장된 메시지입니다." = "This is a saved draft.";
 "이어서 쓰기" = "Continue Writing";
 "작성 창에서 이어서 씁니다 (⌘O)" = "Continue in the compose window (⌘O)";
 "원격 이미지를 차단했습니다. 보낸 사람이 메일을 열었는지 알 수 없게 합니다." = "Remote images are blocked so the sender can’t tell whether you opened the message.";
@@ -608,7 +608,7 @@
 "폴더는 첨부할 수 없습니다: %@. 압축한 뒤 첨부하세요." = "Folders can’t be attached: %@. Compress them first.";
 "예약할 수 없습니다" = "Can’t Schedule";
 "1분 뒤 이후의 시각을 고르세요." = "Choose a time at least 1 minute from now.";
-"초안을 저장하지 못했습니다" = "Couldn’t Save Draft";
+"메시지를 저장하지 못했습니다" = "Couldn’t Save Draft";
 "보내는 중" = "Sending";
 "큰 첨부 올리는 중 %@/%@" = "Uploading large attachments %@/%@";
 "받는 사람을 한 명 이상 넣으세요." = "Add at least one recipient.";
@@ -636,12 +636,12 @@
 "큰 첨부 올리는 중" = "Uploading large attachments";
 "큰 첨부는 따로 올려 보냅니다. 보내기를 누른 뒤 창 제목 아래에서 진행률을 볼 수 있습니다." = "Large attachments are uploaded separately. After you click Send, you can see the progress under the window title.";
 "본문 그림 %@개가 일반 첨부로 나갑니다. 서명 그림은 본문에 남습니다." = "%@ inline images will be sent as regular attachments. Signature images stay in the body.";
-"초안 저장 중…" = "Saving draft…";
-"초안 저장됨 %@" = "Draft saved %@";
-"임시 보관함의 초안" = "Draft in Drafts";
+"메시지 저장 중…" = "Saving draft…";
+"메시지 저장됨 %@" = "Draft saved %@";
+"임시 보관함의 메시지" = "Draft in Drafts";
 "삭제" = "Delete";
-"이 메일과 저장된 초안을 버립니다" = "Discards this message and the saved draft";
-"초안 저장" = "Save Draft";
+"이 메일과 저장된 메시지를 버립니다" = "Discards this message and the saved draft";
+"메시지 저장" = "Save Draft";
 "임시 보관함에 저장 (⌘S)" = "Save to Drafts (⌘S)";
 "파일 첨부" = "Attach File";
 "파일 첨부 (⇧⌘A)" = "Attach File (⇧⌘A)";
@@ -689,7 +689,7 @@
 "읽음 상태를 바꿀" = "change read status";
 "옮길" = "move";
 "보낼" = "send";
-"초안을 저장할" = "save the draft";
+"메시지를 저장할" = "save the draft";
 "지울" = "delete";
 "첨부를 올릴" = "upload attachments";
 "Microsoft 계정 인증이 거절되었습니다. 다시 로그인하세요." = "Microsoft account authentication was refused. Sign in again.";
@@ -1105,7 +1105,7 @@
 "부재 중…" = "Out of Office…";
 "계정 정보 가져오기" = "Get Account Info";
 "이 Mac에만 저장됨 · " = "Saved only on this Mac · ";
-"이 Mac에만 저장된 초안은 옮길 수 없습니다. 인터넷에 연결되어 임시 보관함에 올라간 뒤 옮기세요." = "A draft saved only on this Mac can’t be moved. Move it after you’re back online and it’s in Drafts.";
+"이 Mac에만 저장된 메시지는 옮길 수 없습니다. 인터넷에 연결되어 임시 보관함에 올라간 뒤 옮기세요." = "A draft saved only on this Mac can’t be moved. Move it after you’re back online and it’s in Drafts.";
 "인용문으로 붙여넣기" = "Paste as Quotation";
 "붙여넣고 스타일 일치" = "Paste and Match Style";
 "선택 메시지 추가" = "Append Selected Messages";

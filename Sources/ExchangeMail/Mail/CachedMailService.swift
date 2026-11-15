@@ -320,7 +320,7 @@ final class CachedMailService: MailService {
     }
 
     func saveDraft(_ mime: Data, preview: DraftPreview, replacing oldID: String?) async throws -> String {
-        try await write(L("초안을 저장할")) { try await remote.saveDraft(mime, preview: preview, replacing: oldID) }
+        try await write(L("메시지를 저장할")) { try await remote.saveDraft(mime, preview: preview, replacing: oldID) }
     }
 
     func deleteMessage(id: String) async throws {

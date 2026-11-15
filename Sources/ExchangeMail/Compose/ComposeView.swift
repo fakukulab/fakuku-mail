@@ -385,14 +385,14 @@ struct ComposeView: View {
         if let status = compose.uploadStatus {
             return compose.uploadFraction.map { "\(status) · \(Int(($0 * 100).rounded()))%" } ?? status
         }
-        if compose.savingDraft { return L("초안 저장 중…") }
+        if compose.savingDraft { return L("메시지 저장 중…") }
         if compose.savedOnlyOnMac, let date = compose.lastDraftSave {
             return L("오프라인: 이 Mac에 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale))) · 연결되면 임시 보관함에 올립니다")
         }
         if let date = compose.lastDraftSave {
-            return L("초안 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale)))")
+            return L("메시지 저장됨 \(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale)))")
         }
-        return compose.savedDraftID != nil ? L("임시 보관함의 초안") : ""
+        return compose.savedDraftID != nil ? L("임시 보관함의 메시지") : ""
     }
 
     @ToolbarContentBuilder
@@ -404,8 +404,8 @@ struct ComposeView: View {
                     dismiss()
                 }
             }
-            .help(L("이 메일과 저장된 초안을 버립니다"))
-            Button(L("초안 저장"), systemImage: "square.and.arrow.down") {
+            .help(L("이 메일과 저장된 메시지를 버립니다"))
+            Button(L("메시지 저장"), systemImage: "square.and.arrow.down") {
                 Task { await compose.saveDraft(app: model, force: true) }
             }
             .keyboardShortcut("s")

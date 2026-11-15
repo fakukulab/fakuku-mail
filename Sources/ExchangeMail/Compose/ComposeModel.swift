@@ -400,7 +400,7 @@ final class ComposeModel {
             lastDraftSave = Date()
             return true
         } catch {
-            errorTitle = L("초안을 저장하지 못했습니다")
+            errorTitle = L("메시지를 저장하지 못했습니다")
             self.error = error.localizedDescription
             return false
         }

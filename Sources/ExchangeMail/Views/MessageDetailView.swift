@@ -86,7 +86,7 @@ struct MessageDetailView: View {
         HStack(spacing: Space.sm) {
             Image(systemName: "pencil.and.list.clipboard")
                 .foregroundStyle(.secondary)
-            Text(L("저장된 초안입니다."))
+            Text(L("저장된 메시지입니다."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()

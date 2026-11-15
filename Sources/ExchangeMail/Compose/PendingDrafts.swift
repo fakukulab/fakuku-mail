@@ -91,7 +91,7 @@ enum PendingDrafts {
     enum Problem: LocalizedError {
         case cannotMove
         var errorDescription: String? {
-            L("이 Mac에만 저장된 초안은 옮길 수 없습니다. 인터넷에 연결되어 임시 보관함에 올라간 뒤 옮기세요.")
+            L("이 Mac에만 저장된 메시지는 옮길 수 없습니다. 인터넷에 연결되어 임시 보관함에 올라간 뒤 옮기세요.")
         }
     }
 

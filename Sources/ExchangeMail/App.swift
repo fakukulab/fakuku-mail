@@ -438,7 +438,7 @@ struct MailCommands: Commands {
         .keyboardShortcut("y")
         .disabled(eml != nil || reader == nil && !menu.hasAttachments)
         // 임시 보관함의 초안은 작성 창에서, 그 밖의 메일은 메시지 창에서 연다 (S-022, S-043).
-        Button(menu.isDraft ? L("초안 이어서 쓰기") : L("새 창에서 열기")) { openSelected() }
+        Button(menu.isDraft ? L("메시지 이어서 쓰기") : L("새 창에서 열기")) { openSelected() }
             .keyboardShortcut("o")
             .disabled(reader != nil || eml != nil || !menu.hasMessage)
         Divider()
