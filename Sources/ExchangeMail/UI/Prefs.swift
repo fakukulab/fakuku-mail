@@ -59,10 +59,36 @@ enum Prefs {
         return UserDefaults.standard.bool(forKey: key)
     }
 
-    static func string(_ key: String, _ fallback: String) -> String {
+    static func int(_ key: String, _ fallback: Int) -> Int {
+        guard !Store.isOverridden, UserDefaults.standard.object(forKey: key) != nil else { return fallback }
+        return UserDefaults.standard.integer(forKey: key)
+    }
+
+        static func string(_ key: String, _ fallback: String) -> String {
         guard !Store.isOverridden else { return fallback }
         return UserDefaults.standard.string(forKey: key) ?? fallback
     }
+}
+
+/// 설정 > 서체 및 색상 > 메시지 서체. 메일 읽기, 작성 창 편집기, 보내는 메일 본문의 기본 서체가 모두 이것이다.
+struct MessageFont: Equatable {
+    /// 빈 문자열이면 시스템 서체
+    var family = ""
+    var size = 14
+
+    static var current: MessageFont {
+        let size = Prefs.int(Prefs.bodyFontSize, 14)
+        return MessageFont(family: Prefs.string(Prefs.bodyFontFamily, ""), size: (9...72).contains(size) ? size : 14)
+    }
+
+    /// CSS font-family 값. 서체 이름에서 따옴표·꺾쇠·세미콜론을 빼 HTML 속성에 그대로 넣어도 안전하다.
+    var cssFamily: String {
+        let name = family.filter { !"'\"<>;\\{}".contains($0) }.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? "-apple-system,'Apple SD Gothic Neo',sans-serif" : "'\(name)',-apple-system,'Apple SD Gothic Neo',sans-serif"
+    }
+
+    /// `font-family:…;font-size:…px`
+    var css: String { "font-family:\(cssFamily);font-size:\(size)px" }
 }
 
 /// 본문 웹 보기에 덧붙이는 읽기 스타일 (설정 > 서체 및 색상). 메일 HTML 뒤에 붙여 기본값만 바꾼다.
@@ -75,9 +101,7 @@ struct ReadingStyle: Equatable {
 
     var css: String {
         var rules: [String] = []
-        let fam = family.isEmpty ? "-apple-system,'Apple SD Gothic Neo',sans-serif"
-                                 : "'\(family.replacingOccurrences(of: "'", with: ""))',-apple-system,sans-serif"
-        rules.append("body{font-family:\(fam);font-size:\(size)px}")
+        rules.append("body{\(MessageFont(family: family, size: size).css)}")
         if plainMonospace { rules.append("pre{font-family:ui-monospace,Menlo,monospace !important}") }
         if quoteColors {
             let q = "blockquote[type=cite]"

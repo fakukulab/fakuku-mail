@@ -20,8 +20,16 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     @ObservationIgnored private var pendingHTML: String?
     @ObservationIgnored private var ready = false
     @ObservationIgnored private var pendingFocus = false
+    /// 편집기의 기본 서체 (설정 > 서체 및 색상 > 메시지 서체)
+    @ObservationIgnored private(set) var baseFont = MessageFont()
 
-    static let editorPage = """
+    /// 편집기 페이지. 기본 서체는 설정의 메시지 서체.
+    static func editorPage(font: MessageFont) -> String {
+        editorTemplate.replacingOccurrences(of: "body{font:14px -apple-system,'Apple SD Gothic Neo',sans-serif}",
+                                            with: "body{\(font.css)}")
+    }
+
+    private static let editorTemplate = """
     <!doctype html><html><head><meta charset="utf-8"><style>
     :root{color-scheme:light dark}
     html,body{margin:0;height:100%}
@@ -70,6 +78,7 @@ final class RichTextController: NSObject, WKNavigationDelegate {
         while(n&&n!==ed){if(n.nodeName==='BLOCKQUOTE'){n.setAttribute('type','cite');n.removeAttribute('style');break}n=n.parentNode}}
       post(true)}
     function setSpellcheck(on){ed.spellcheck=on}
+    function setBaseFont(fam,px){document.body.style.fontFamily=fam;document.body.style.fontSize=px+'px'}
     // 고른 글이 없으면 서명과 인용문을 뺀 본문을 고른다 (Siri로 글쓰기가 다룰 글).
     function selectForWriting(){
       const s=window.getSelection();
@@ -95,7 +104,8 @@ final class RichTextController: NSObject, WKNavigationDelegate {
         wv.unregisterDraggedTypes()
         wv.navigationDelegate = self
         wv.setValue(false, forKey: "drawsBackground")
-        wv.loadHTMLString(Self.editorPage, baseURL: nil)
+        baseFont = .current
+        wv.loadHTMLString(Self.editorPage(font: baseFont), baseURL: nil)
         webView = wv
         return wv
     }
@@ -117,6 +127,7 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
         webView.unregisterDraggedTypes()
+        js("setBaseFont(\(literal(baseFont.cssFamily)),\(baseFont.size))")
         js("setSpellcheck(\(spellcheck))")
         if let p = pendingHTML {
             pendingHTML = nil
@@ -150,6 +161,14 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     }
 
     func setFontFamily(_ family: String) { command("fontName", family) }
+
+    /// 설정에서 메시지 서체를 바꾸면 열린 편집기의 기본 서체도 바꾼다 (사람이 고른 글자 서체는 그대로)
+    func setBaseFont(_ font: MessageFont) {
+        guard font != baseFont else { return }
+        baseFont = font
+        guard ready else { return }   // 아직 페이지를 읽는 중이면 makeWebView가 넣은 서체가 쓰인다
+        js("setBaseFont(\(literal(font.cssFamily)),\(font.size))")
+    }
 
     /// 설정 > 작성 > 맞춤법 검사. 편집기가 아직 안 떴으면 뜰 때 건다.
     @ObservationIgnored var spellcheck = true {
@@ -280,9 +299,14 @@ enum HTMLAttr {
 
 struct RichTextEditor: NSViewRepresentable {
     let controller: RichTextController
+    // 설정 > 서체 및 색상 > 메시지 서체: 바꾸면 열린 편집기에도 바로 (updateNSView가 다시 불린다)
+    @AppStorage(Prefs.bodyFontFamily) private var family = ""
+    @AppStorage(Prefs.bodyFontSize) private var size = 14
 
     func makeNSView(context: Context) -> WKWebView { controller.makeWebView() }
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
+    func updateNSView(_ nsView: WKWebView, context: Context) {
+        controller.setBaseFont(.current)
+    }
 }
 
 /// 글꼴·크기·색·굵게·정렬·목록·링크·그림 도구 막대 (작성 창과 서명 편집기 공용).
@@ -290,8 +314,9 @@ struct FormatToolbar: View {
     let controller: RichTextController
     /// 서식 막대에 Siri로 글쓰기 단추를 둘지 (작성 창은 창 도구 막대에 둔다)
     var showsWritingTools = true
-    @State private var family = "Apple SD Gothic Neo"
-    @State private var size = 14
+    /// 처음에는 설정의 메시지 서체를 보인다 (빈 문자열 = 시스템 서체)
+    @State private var family = MessageFont.current.family
+    @State private var size = MessageFont.current.size
     @State private var color = Color.primary
 
     private let families = NSFontManager.shared.availableFontFamilies
@@ -307,14 +332,14 @@ struct FormatToolbar: View {
                     }
                 }
             } label: {
-                Text(family).lineLimit(1)
+                Text(family.isEmpty ? L("시스템 서체") : family).lineLimit(1)
             }
             .menuStyle(.button)
             .fixedSize()
             .help(L("글꼴"))
 
             Picker(L("크기"), selection: $size) {
-                ForEach(sizes, id: \.self) { Text("\($0)").tag($0) }
+                ForEach(Array(Set(sizes + [size])).sorted(), id: \.self) { Text("\($0)").tag($0) }
             }
             .labelsHidden()
             .fixedSize()

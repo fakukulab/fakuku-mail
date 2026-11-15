@@ -925,6 +925,20 @@ enum SelfTest {
             } else {
                 check("S-039 규칙을 만든다", false)
             }
+            // S-080 설정의 메시지 서체가 작성 창 편집기와 보내는 메일의 기본 서체가 된다
+            let nanum = MessageFont(family: "Nanum Gothic", size: 16)
+            check("S-080 보내는 메일 본문에 메시지 서체가 들어간다",
+                  ComposeSender.wrap("<p>안녕</p>", font: nanum).contains("<body style=\"font-family:'Nanum Gothic',-apple-system,'Apple SD Gothic Neo',sans-serif;font-size:16px\">"))
+            check("S-080 작성 창 편집기의 기본 서체가 메시지 서체다",
+                  RichTextController.editorPage(font: nanum).contains("body{font-family:'Nanum Gothic'")
+                  && !RichTextController.editorPage(font: nanum).contains("font:14px"))
+            check("S-080 시스템 서체면 시스템 서체를 쓴다",
+                  MessageFont().css == "font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;font-size:14px")
+            check("S-080 서체 이름의 따옴표·꺾쇠는 HTML을 깨지 않게 뺀다",
+                  !MessageFont(family: "A\"><script>", size: 14).css.contains("\"") && !MessageFont(family: "A\"><script>", size: 14).css.contains("<"))
+            check("S-080 읽기 화면도 같은 서체 규칙을 쓴다",
+                  ReadingStyle(family: "Nanum Gothic", size: 16).css.contains("body{\(nanum.css)}"))
+
             // S-078 스마트 메일상자: iCloud·Gmail은 읽지 않음·깃발·기간만 서버 SEARCH로 좁히고,
             // 보낸 사람·제목의 "포함"은 머리글을 받아 앱이 건다 (서버 검색은 낱말·한글을 놓쳤다)
             func rendered(_ parts: [IMAPPart]) -> String {

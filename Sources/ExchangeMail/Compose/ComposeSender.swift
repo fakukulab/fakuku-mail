@@ -57,8 +57,9 @@ struct ComposeSender {
         UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
     }
 
-    static func wrap(_ body: String) -> String {
-        "<html><head><meta charset=\"utf-8\"></head><body style=\"font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;font-size:14px\">\(body)</body></html>"
+    /// 보내는 HTML. 본문 기본 서체는 설정의 메시지 서체 (작성 창에서 보던 그대로 받는 사람에게 보이게)
+    static func wrap(_ body: String, font: MessageFont = .current) -> String {
+        "<html><head><meta charset=\"utf-8\"></head><body style=\"\(font.css)\">\(body)</body></html>"
     }
 
     static func build(_ input: Input, options: FixOptions, date: Date = Date()) throws -> Data {
