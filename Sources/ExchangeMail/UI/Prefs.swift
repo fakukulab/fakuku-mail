@@ -22,7 +22,6 @@ enum Prefs {
     static let selectNextAfterMove = "view.selectNextAfterMove" // Bool, true
     static let threadAllFolders = "view.threadAllFolders"   // Bool, true
     static let threadNewestFirst = "view.threadNewestFirst" // Bool, false
-    static let markRead = "view.markRead"                   // String: now, delay, never
     static let calendarAddAccepted = "calendar.addAccepted" // Bool, true (수락한 회의를 맥 캘린더에)
     static let calendarTarget = "calendar.target"           // String, "" (기본 캘린더)
     static let swipeRight = "view.swipeRight"               // SwipeAction, read (오른쪽으로 쓸기)

@@ -252,11 +252,6 @@
 "%@줄" = "%@ lines";
 "볼드체로 읽지 않은 메시지 표시" = "Show unread messages in bold";
 "메시지를 지우거나 보관한 후 자동으로 다음 메시지 보기" = "After deleting or archiving a message, show the next one";
-"'읽음으로 표시' 동작:" = "Mark as read:";
-"'읽음으로 표시' 동작" = "Mark as read";
-"메시지를 열면 바로" = "As soon as a message opens";
-"5초 동안 보고 있으면" = "After viewing it for 5 seconds";
-"직접 표시할 때만" = "Only when I mark it";
 "대화 보기:" = "Viewing conversations:";
 "관련된 메시지 포함" = "Include related messages";
 "끄면 대화에 지금 폴더의 메일만 보입니다. 켜면 보낸 편지함 같은 다른 폴더의 답장도 함께 보입니다." = "When off, conversations show only mail in the current folder. When on, replies in other folders such as Sent Items show too.";

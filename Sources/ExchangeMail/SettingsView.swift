@@ -618,7 +618,6 @@ struct ViewingSettings: View {
     @AppStorage(Prefs.previewLines) private var previewLines = 2
     @AppStorage(Prefs.boldUnread) private var boldUnread = true
     @AppStorage(Prefs.selectNextAfterMove) private var selectNext = true
-    @AppStorage(Prefs.markRead) private var markRead = "now"
     @AppStorage(Prefs.threadAllFolders) private var threadAllFolders = true
     @AppStorage(Prefs.threadNewestFirst) private var threadNewestFirst = false
     @AppStorage(Prefs.swipeRight) private var swipeRight = SwipeAction.read
@@ -662,15 +661,6 @@ struct ViewingSettings: View {
                     Toggle(L("메시지를 지우거나 보관한 후 자동으로 다음 메시지 보기"), isOn: $selectNext)
                 }
             }
-            LabeledContent(L("'읽음으로 표시' 동작:")) {
-                Picker(L("'읽음으로 표시' 동작"), selection: $markRead) {
-                    Text(L("메시지를 열면 바로")).tag("now")
-                    Text(L("5초 동안 보고 있으면")).tag("delay")
-                    Text(L("직접 표시할 때만")).tag("never")
-                }
-                    .labelsHidden()
-            }
-            .fixedSize()
         }
         Section {
             LabeledContent(L("오른쪽으로 쓸기:")) {

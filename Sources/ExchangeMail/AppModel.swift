@@ -1071,21 +1071,9 @@ final class AppModel {
         }
     }
 
-    /// 설정 > 보기 > '읽음으로 표시' 동작: 바로(기본), 5초 뒤(그때도 보고 있으면), 하지 않음
+    /// 메일을 열면 바로 읽음으로 (S-082: 따로 고르는 설정 없이 늘 바로)
     func markReadAfterOpening(_ id: String) async {
-        switch Prefs.string(Prefs.markRead, "now") {
-        case "never":
-            return
-        case "delay":
-            // 기다리는 동안 본문 불러오기(대화 등)를 막지 않게 따로 돈다.
-            Task {
-                try? await Task.sleep(for: .seconds(5))
-                guard displayedMessageID == id else { return }
-                await setRead(id: id, true)
-            }
-        default:
-            await setRead(id: id, true)
-        }
+        await setRead(id: id, true)
     }
 
     /// 내용이 있는 첨부. Graph 첨부 목록은 큰 파일과 첨부된 메일(itemAttachment)의 내용을 빼고 주므로,

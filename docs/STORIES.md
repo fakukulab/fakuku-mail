@@ -889,6 +889,13 @@ As the user, 메일을 읽으면 목록의 파란 점·사이드바 수·Dock �
 - [x] [selftest] S-081 세 가지, [unit] savedListsFollowRead
 - [ ] [manual] 실제 계정에서 읽자마자 수가 줄고, 2분 새로 고침 뒤에도 그대로인지
 
+### S-082 메일을 열면 늘 바로 읽음으로
+Status: built (2026-11-15)
+As the user, 메일을 열면 따로 정할 것 없이 바로 읽음으로 바뀐다.
+- [x] 설정 > 보기의 "'읽음으로 표시' 동작"(바로, 5초 뒤, 직접 표시할 때만)을 없앴다. 예전에 고른 값은 쓰지 않는다
+- [x] 본문 창, 별도 창(MessageReader) 모두 열면 바로 읽음
+- [ ] [manual] 설정 > 보기에 그 줄이 없고, 메일을 열면 바로 읽음이 되는지
+
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)

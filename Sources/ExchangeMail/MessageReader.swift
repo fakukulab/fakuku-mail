@@ -48,7 +48,7 @@ final class MessageReader {
             attachments = files
             body = MailContent.displayBody(m.body, attachments: files)
             failure = nil
-            if m.isUnread && Prefs.string(Prefs.markRead, "now") != "never" {
+            if m.isUnread {
                 await model.setRead(id: messageID, true)
                 message?.isRead = true
             }
