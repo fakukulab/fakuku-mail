@@ -85,6 +85,7 @@
 <h3>Message</h3>
 <ul>
   <li>The <strong>conversation strip</strong> above the message shows the rest of the conversation, including your replies in other mailboxes, and highlights the message you’re reading. Drag its bottom edge or press ⌥⌘↓ / ⌥⌘↑ to resize it.</li>
+  <li>With many recipients, the header shows the first 8; click <strong>and N more</strong> to show them all (<strong>Collapse</strong> to show fewer).</li>
   <li>Hover over a name in the header to show ⌄; click it to copy the address, mark as VIP, or show the contact card.</li>
   <li>Attachments appear as cards under the subject. Click to Quick Look, use ⌄ to open or save. Drag a card to the Finder to save it, or into a new message or reply to attach it.</li>
 </ul>
@@ -92,7 +93,7 @@
 <h2 id="read">Reading and organizing</h2>
 <table>
   <tr><th>To</th><th>Do this</th></tr>
-  <tr><td>Mark read / unread</td><td>Message &gt; Mark as Read (⇧⌘U), or swipe right</td></tr>
+  <tr><td>Mark read / unread</td><td>A message becomes read as soon as you open it, and the list, sidebar count, and Dock badge update at once. To mark it unread again: Message &gt; Mark as Unread (⇧⌘U), or swipe right</td></tr>
   <tr><td>Flag</td><td>⇧⌘L. Choose a color in Message &gt; Flag Color</td></tr>
   <tr><td>Archive</td><td>⌃⌘A. Moves to the account’s Archive (Gmail removes it from Inbox)</td></tr>
   <tr><td>Delete</td><td>Delete (⌫). Moves to Deleted Items / Trash</td></tr>
@@ -105,12 +106,14 @@
   <tr><td>Raw Source</td><td>⌥⌘U shows all headers and the MIME source</td></tr>
   <tr><td>Print</td><td>⌘P</td></tr>
   <tr><td>New, rename, delete mailboxes</td><td>Mailbox menu, or Control-click a mailbox</td></tr>
+  <tr><td>Mailbox menu</td><td>Control-click (right-click) a mailbox: Add to Favorites, Export Mailbox…, Erase Deleted Items…, Synchronize “account”, Edit “account”…, Out of Office…, Get Account Info (message count and size per mailbox)</td></tr>
 </table>
 
 <h2 id="search">Search and smart mailboxes</h2>
 <ul>
   <li>Type in the toolbar search field (⌥⌘F) and choose <strong>This Folder</strong> or <strong>All Folders</strong>. All Folders searches every account and your imported mail in <strong>On My Mac</strong>.</li>
-  <li><strong>Mailbox &gt; New Smart Mailbox…</strong> (⌥⌘N) saves conditions — sender, subject, unread, flagged, attachments, high priority, VIP, received in the last days, mailbox — and shows them like a mailbox.</li>
+  <li><strong>Mailbox &gt; New Smart Mailbox…</strong> (⌥⌘N) saves conditions — sender, subject, unread, flagged, attachments, high priority, VIP, received in the last days, mailbox — and shows them like a mailbox. It searches <em>all</em> mail in every folder (without a mailbox condition, Deleted Items and Junk are skipped).</li>
+  <li>The first search can take a while with lots of mail. Results are kept on this Mac, and later only new mail is searched. To search everything again, click <strong>Refresh</strong> in the toolbar (or Mailbox &gt; Get All New Mail).</li>
   <li><strong>VIP</strong>: select a message and choose Message &gt; Add Sender to VIPs… (⌃⌘V). You can give each VIP a name and icon.</li>
 </ul>
 
@@ -126,7 +129,16 @@
   <li><strong>Outside addresses</strong>: list your company domains in Settings &gt; Composing; recipients outside them are shown in orange.</li>
   <li><strong>Undo Send</strong>: choose 5–20 seconds in Settings &gt; Composing, then cancel from the bar at the top of the window (Esc).</li>
   <li><strong>Send Later</strong> (Exchange): choose <strong>Send Later…</strong> (⌥⇧⌘D) in the compose toolbar; the server sends it at that time.</li>
-  <li><strong>Drafts</strong> are saved as you write. You’re asked whether to save when you close the window.</li>
+  <li><strong>Save</strong> (⌘S): messages are saved to Drafts as you write (new messages every 30 seconds automatically). Closing a message you were writing asks <strong>Do you want to save this message as a draft?</strong>
+    <ul>
+      <li><strong>Save</strong>: keeps it in Drafts and closes. Open it later to continue writing.</li>
+      <li><strong>Don’t Save</strong>: a new message is discarded, including what was saved automatically. A message you reopened from Drafts loses only this session’s changes and stays as it was.</li>
+      <li><strong>Cancel</strong>: go back and keep writing.</li>
+    </ul>
+    An empty window or an unchanged message closes without asking. Quitting the app (⌘Q) keeps your message in Drafts without asking.</li>
+  <li><strong>Without internet</strong>: what you write is saved on this Mac every few seconds, shows in Drafts right away, and goes to the server’s Drafts when you’re back online.</li>
+  <li><strong>Font</strong>: new messages and replies use the <strong>message font</strong> and size from Settings &gt; Fonts &amp; Colors, and recipients see that font too (if their computer has it).</li>
+  <li><strong>Edit menu</strong>: Paste as Quotation, Paste and Match Style, Append Selected Messages, Add Link…, Attachments &gt; Attach Files… and Remove All Attachments.</li>
   <li><strong>Large attachments</strong>: Exchange uploads attachments over 4 MB separately (up to 150 MB per file). iCloud accepts about 20 MB per message, Gmail 25 MB.</li>
 </ul>
 
@@ -158,7 +170,9 @@
 
 <h2 id="server">Rules and automatic replies (Exchange)</h2>
 <ul>
-  <li><strong>Settings &gt; Rules</strong>: move, mark read, set importance, or delete by sender or subject words. These are Exchange server rules, so they run even when the app is closed and show in Outlook.</li>
+  <li><strong>Settings &gt; Rules</strong>: a table of active rules and descriptions with <strong>Add, Edit, Duplicate, Remove</strong> buttons, like Mail. As in Outlook, a rule can have several conditions (sender, recipient, words in subject or body, attachments, importance, and more), actions (move or copy to a folder, mark read, importance, categories, delete, and more), and exceptions. Drag rows to change their order. These are Exchange server rules, so they run even when the app is closed and show in Outlook.</li>
+  <li>When you save a rule, you’re asked whether to <strong>apply it to messages in your Inbox</strong>. Choose Apply to run it on mail you already have. You can also right-click a message and choose <strong>Create Rule…</strong> to start from its sender and subject.</li>
+  <li>Blocked senders don’t appear in the rules table; manage them in Settings &gt; Junk Mail &gt; Blocked.</li>
   <li><strong>Settings &gt; Automatic Replies</strong>: turn on an out-of-office reply with dates and separate text for people inside and outside your organization.</li>
 </ul>
 
@@ -193,8 +207,8 @@
   <tr><td>General</td><td>Default email reader, accent color, check for new mail, Dock badge, offline copy</td></tr>
   <tr><td>Accounts</td><td>Add and remove accounts, description (sidebar name), mailbox behaviors, server settings, Mac Calendar</td></tr>
   <tr><td>Junk Mail</td><td>Junk Mail Behavior | Blocked: what happens to blocked mail, manage blocked senders (add an address or @domain, unblock), also use the blocked list in Apple Contacts</td></tr>
-  <tr><td>Fonts &amp; Colors</td><td>List font size, message font, fixed-width plain text, quote level colors</td></tr>
-  <tr><td>Viewing</td><td>Preview lines, bold unread, when to mark read, conversations, prefetch, swipe actions, remote content</td></tr>
+  <tr><td>Fonts &amp; Colors</td><td>List font size, message font (for reading and writing), fixed-width plain text, quote level colors</td></tr>
+  <tr><td>Viewing</td><td>Preview lines, bold unread, conversations, prefetch, swipe actions, remote content</td></tr>
   <tr><td>Composing</td><td>Spelling, automatically include me, company domains, quote original, attachment fix defaults, Undo Send</td></tr>
   <tr><td>Signatures</td><td>Create and style signatures, defaults per situation</td></tr>
   <tr><td>Rules · Automatic Replies</td><td>Exchange server rules, out-of-office reply</td></tr>
