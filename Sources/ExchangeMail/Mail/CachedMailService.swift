@@ -173,14 +173,20 @@ final class CachedMailService: MailService {
         }
     }
 
+    /// 저장된 스마트 메일상자 결과와 폴더 목록의 읽음 상태를 바꾼다 (S-079, S-081)
     private func setReadInSmart(_ ids: Set<String>, read: Bool) {
-        patchSmart { list in
+        guard !ids.isEmpty, let c = writableCache else { return }
+        let change: @Sendable (inout [MailMessage]) -> Bool = { list in
             var changed = false
             for i in list.indices where ids.contains(list[i].id) && list[i].isRead != read {
                 list[i].isRead = read
                 changed = true
             }
             return changed
+        }
+        Self.writer.async {
+            c.updateSmartLists(change)
+            c.updateLists(change)
         }
     }
 

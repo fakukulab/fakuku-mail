@@ -88,7 +88,8 @@ extension AppModel {
                 if let cached = threadCache[conv], Date().timeIntervalSince(cached.at) < 60 {
                     part = cached.list
                 } else {
-                    part = try await service.conversation(id: conv)
+                    let started = Date()
+                    part = overlayReads(try await service.conversation(id: conv), startedAt: started)
                     threadCache[conv] = (Date(), part)
                 }
                 for m in part where seen.insert(m.id).inserted { list.append(m) }

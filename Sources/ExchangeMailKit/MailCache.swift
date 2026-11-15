@@ -100,6 +100,16 @@ public struct MailCache: Sendable {
         }
     }
 
+    /// 저장된 모든 폴더 목록을 고친다 (읽음 상태가 다음에 폴더를 열 때도 맞게, S-081).
+    public func updateLists(_ change: (inout [MailMessage]) -> Bool) {
+        let dir = root.appending(path: "lists", directoryHint: .isDirectory)
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for url in files where url.pathExtension == "json" {
+            guard var list = read(List.self, from: url) else { continue }
+            if change(&list.messages) { write(list, to: url) }
+        }
+    }
+
     func smartURL(_ key: String) -> URL {
         root.appending(path: "smart/\(Self.hash(key)).json")
     }

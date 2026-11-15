@@ -133,6 +133,10 @@ final class AppModel {
     @ObservationIgnored var readChain: Task<Void, Never>?
     /// 메일마다 읽음 상태를 바꾼 횟수: 서버가 거절해 되돌릴 때, 그사이 다시 바꾼 메일은 되돌리지 않는다
     @ObservationIgnored var readGeneration: [String: Int] = [:]
+    /// 읽음 변경 기록: 서버가 반영하기 전에 받은 응답이 화면을 되돌리지 않게 (S-081, AppModel+ReadSync)
+    @ObservationIgnored var readMarks: [String: ReadMark] = [:]
+    /// 읽음 변경이 자리 잡은 뒤 폴더 수를 다시 받는 일
+    @ObservationIgnored var folderRecheck: Task<Void, Never>?
     /// 대화별 메일과 받은 시각 (1분 동안 다시 묻지 않는다)
     @ObservationIgnored var threadCache: [String: (at: Date, list: [MailMessage])] = [:] {
         // 옮기기·지우기 등으로 비우면 목록 줄의 확인된 수도 다시 센다.
@@ -487,7 +491,13 @@ final class AppModel {
                 accountFolders[account.id] = FolderOrder.tree(saved)
             }
             do {
-                accountFolders[account.id] = FolderOrder.tree(try await router.folders(of: account))
+                let started = Date()
+                var fresh = try await router.folders(of: account)
+                // 아직 서버에 보내는 중인 읽음 변경은 서버 수에 더하고, 자리 잡은 뒤 다시 받는다 (S-081)
+                if addPendingCounts(&fresh, startedAt: started) {
+                    recheckCountsWhenSettled()
+                }
+                accountFolders[account.id] = FolderOrder.tree(fresh)
             } catch {
                 report(error)
             }
@@ -542,8 +552,9 @@ final class AppModel {
         }
         isLoading = true
         defer { isLoading = false }
+        let started = Date()
         do {
-            let page: MessagePage
+            var page: MessagePage
             if !search.isEmpty && (searchScope == .all || VirtualMailbox.isVirtual(folderID)) {
                 // 모든 폴더 검색 (S-033). 깃발 표시·VIP·스마트 메일상자는 서버 폴더가 아니라서 그 안의 검색도 전체 검색이다.
                 page = try await service.searchAll(search)
@@ -556,6 +567,8 @@ final class AppModel {
             }
             // 기다리는 사이 폴더나 검색어가 바뀌었으면 버린다.
             guard folderID == selectedFolderID, search == searchText.trimmingCharacters(in: .whitespaces) else { return }
+            // 기다리는 사이 읽은 메일이 서버의 옛 상태로 되돌아가지 않게 (S-081)
+            page = overlayReads(page, startedAt: started)
             // 서버 폴더가 아닌 상자·모든 폴더 검색은 서버 필터를 쓰지 않으므로 앱이 다 건다.
             let serverFiltered = page.serverFiltered && !VirtualMailbox.isVirtual(folderID) && search.isEmpty
             messages = arrange(search.isEmpty ? withPendingDrafts(page.messages, folderID: folderID) : page.messages,
@@ -602,9 +615,10 @@ final class AppModel {
             return
         }
         let other = kind == "sentitems" ? "inbox" : "sentitems"
+        let started = Date()
         let list = (try? await service.messages(folderID: other, search: nil).messages) ?? []
         guard folderID == selectedFolderID else { return }
-        relatedMessages = list
+        relatedMessages = overlayReads(list, startedAt: started)
     }
 
     /// 목록 끝에 닿으면 다음 쪽을 더 불러온다.
@@ -612,8 +626,9 @@ final class AppModel {
         guard let link = nextLink, !isLoadingMore else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
+        let started = Date()
         do {
-            let page = try await service.nextPage(link)
+            let page = overlayReads(try await service.nextPage(link), startedAt: started)
             guard link == nextLink else { return }
             let known = Set(messages.map(\.id))
             let more = arrange(page.messages, serverFiltered: page.serverFiltered).filter { !known.contains($0.id) }
@@ -674,20 +689,28 @@ final class AppModel {
             warmAttachments(detailAttachments, messageID: id)
             return
         }
+        // 목록 줄로 읽지 않은 메일인 줄 알면 본문을 기다리지 않고 바로 읽음으로 (S-081: 큰 메일은 본문이 몇 초 걸렸다)
+        let row = messages.first { $0.id == id } ?? thread.first { $0.id == id }
+        var markedEarly = false
+        if row?.isUnread == true {
+            markedEarly = true
+            Task { await markReadAfterOpening(id) }
+        }
         do {
             // 목록 줄에 첨부가 있다고 나오면 첨부 목록을 본문과 같이(동시에) 요청한다.
-            let rowHasAttachments = messages.first(where: { $0.id == id })?.hasAttachments == true
+            let rowHasAttachments = row?.hasAttachments == true
             let attachmentsTask: Task<[FileAttachment]?, Never>? = rowHasAttachments
                 ? Task { try? await service.attachments(messageID: id) } : nil
             // 본문을 먼저 보이고(첨부를 기다리지 않는다), 첨부 목록과 인라인 그림은 뒤이어 채운다.
-            let m = try await service.message(id: id)
+            // 서버 본문의 읽음 상태는 방금 바꾼 것보다 늦을 수 있다: 목록 줄의 상태로 덮는다
+            let m = withCurrentState(try await service.message(id: id))
             guard id == displayedMessageID else { attachmentsTask?.cancel(); return }
             detail = m
             detailAttachments = []
             detailBody = MailContent.displayBody(m.body, attachments: [])
             updateMenu()
             addressBook.noteSeen([m], me: auth.email)
-            if m.isUnread { Task { await markReadAfterOpening(id) } }
+            if m.isUnread, !markedEarly { Task { await markReadAfterOpening(id) } }
             detailCache.put(id, DetailCache.Entry(message: m, attachments: Self.needsAttachments(m) ? nil : []))
             prefetchNeighbors(of: id)
             if Self.needsAttachments(m) {
@@ -765,7 +788,11 @@ final class AppModel {
         for id in wanted {
             readGeneration[id, default: 0] += 1
             generation[id] = readGeneration[id]
+            let m = known[id]
+            let delta = m?.isRead.map { $0 == read ? 0 : (read ? -1 : 1) } ?? 0
+            readMarks[id] = ReadMark(read: read, folder: m?.parentFolderId ?? selectedFolderID, delta: delta)
         }
+        pruneReadMarks()
         applyRead(wanted, read, known: known)
 
         // 2. 서버는 뒤에서, 앞의 읽음 요청이 끝난 다음에
@@ -786,6 +813,9 @@ final class AppModel {
 
         // 3. 서버가 거절한 메일은 되돌린다. 그사이 사용자가 다시 바꾼 메일은 건드리지 않는다.
         let failed = wanted.subtracting(done).filter { readGeneration[$0] == generation[$0] }
+        let confirmed = Date()
+        for id in done where readGeneration[id] == generation[id] { readMarks[id]?.confirmedAt = confirmed }
+        for id in failed { readMarks[id] = nil }
         if !failed.isEmpty {
             var now: [String: MailMessage] = [:]
             for (id, m) in known where failed.contains(id) {

@@ -64,3 +64,22 @@ func smartListUpdate() throws {
     #expect(saved.messages.map(\.id) == ["b"])
     #expect(saved.scannedAt == Date(timeIntervalSince1970: 10))
 }
+
+/// S-081 읽음 상태를 바꾸면 저장된 폴더 목록도 바뀐다 (다음에 폴더를 열 때 옛 상태가 잠깐 보이지 않게)
+@Test
+func savedListsFollowRead() throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: "lists-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let cache = MailCache(root: dir)
+    var unread = mail("a", 1)
+    unread.isRead = false
+    cache.saveList(folderID: "inbox", messages: [unread, mail("b", 2)], nextLink: "next")
+    cache.updateLists { list in
+        guard let i = list.firstIndex(where: { $0.id == "a" }) else { return false }
+        list[i].isRead = true
+        return true
+    }
+    let saved = try #require(cache.list(folderID: "inbox"))
+    #expect(saved.messages.first { $0.id == "a" }?.isRead == true)
+    #expect(saved.nextLink == "next")
+}

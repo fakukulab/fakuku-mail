@@ -879,6 +879,16 @@ As the user, 설정 > 서체 및 색상 > 메시지 서체를 정하면 새 메�
 - [x] [selftest] S-080 다섯 가지
 - [ ] [manual] 서체를 바꾸고 새 메시지를 열어 같은지, 보낸 메일을 받은 쪽에서 같은 서체인지
 
+### S-081 읽은 메일과 읽지 않은 수가 바로, 그대로 보인다
+Status: built (2026-11-15)
+As the user, 메일을 읽으면 목록의 파란 점·사이드바 수·Dock 배지가 바로 바뀌고, 새로 고침이 끼어도 다시 읽지 않음으로 돌아가지 않는다.
+- [x] 목록 줄이 읽지 않음이면 본문을 기다리지 않고 바로 읽음으로 (큰 메일은 본문이 몇 초 걸렸다)
+- [x] 서버가 반영하기 전에 받은 목록·대화·본문은 이 Mac의 읽음 상태로 덮는다 (`AppModel+ReadSync`)
+- [x] 폴더 수: 서버 수 + 아직 보내는 중인 변경. 새로 온 메일은 그대로 늘고, 변경이 자리 잡으면 폴더 수를 한 번 더 받는다
+- [x] 저장된 폴더 목록(오프라인 캐시)의 읽음 상태도 바로 바꾼다
+- [x] [selftest] S-081 세 가지, [unit] savedListsFollowRead
+- [ ] [manual] 실제 계정에서 읽자마자 수가 줄고, 2분 새로 고침 뒤에도 그대로인지
+
 ## 배포
 - 2026-11-05 **1.0.0** 공개: Developer ID 서명·Apple 공증 DMG, https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.0
   (만드는 법: docs/RELEASE.md, tools/release.sh)

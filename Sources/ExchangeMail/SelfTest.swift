@@ -544,7 +544,8 @@ enum SelfTest {
                 check("S-024 다시 확인해도 알림이 늘지 않는다", recorder.posted.count == 1)
                 let unread = model.folders.first { $0.kind == "inbox" }?.unreadItemCount
                 check("S-024 Dock 배지는 받은 편지함의 읽지 않은 수",
-                      recorder.badge != nil && recorder.badge == DockBadge.label(unread: unread))
+                      recorder.badge != nil && recorder.badge == DockBadge.label(unread: unread),
+                      "badge \(recorder.badge ?? "nil") unread \(unread ?? -1)")
 
                 model.selectedFolderID = "sentitems"
                 try? await Task.sleep(for: .seconds(0.5))
@@ -689,8 +690,21 @@ enum SelfTest {
                           serverStillUnread && model.messages.first { $0.id == target.id }?.isUnread == false
                           && (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1),
                           "server unread=\(serverStillUnread) count \(unreadNow) → \(model.selectedFolder?.unreadItemCount ?? -1)")
+                    // S-081 서버가 아직 바꾸기 전에 새로 고침해도 읽은 메일과 수가 옛 상태로 돌아가지 않는다
+                    await model.loadMessages(keepSelection: true)
+                    await model.loadFolders()
+                    let stillUnreadOnServer = await onServer() == true
+                    check("S-081 서버가 반영하기 전에 새로 고쳐도 읽음 표시가 남는다",
+                          stillUnreadOnServer && model.messages.first { $0.id == target.id }?.isUnread == false,
+                          "server unread=\(stillUnreadOnServer)")
+                    check("S-081 서버가 반영하기 전에 새로 고쳐도 사이드바 수가 줄어든 채 남는다",
+                          (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1),
+                          "\(unreadNow) → \(model.selectedFolder?.unreadItemCount ?? -1)")
                     _ = await slow.value
                     check("1.0.2 서버도 뒤이어 읽음", await onServer() == false)
+                    await model.loadFolders()
+                    check("S-081 서버가 반영한 뒤에는 서버의 수를 쓴다",
+                          (model.selectedFolder?.unreadItemCount ?? 0) == max(0, unreadNow - 1) && model.readMarks[target.id]?.confirmedAt != nil)
 
                     demo.simulateOffline = true
                     model.errorMessage = nil
