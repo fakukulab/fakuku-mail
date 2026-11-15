@@ -392,7 +392,11 @@ final class IMAPMailService: MailService {
                     .map { IMAP.decodeFolderName($0.path) }
             }
         }
-        let criteria = Self.searchCriteria(query)
+        var criteria = Self.searchCriteria(query)
+        if let since = query.since {
+            // 저장된 결과에 더할 새 메일만 (SINCE는 날짜 단위라 그날 받은 것이 겹치지만 같은 메일은 합칠 때 하나가 된다)
+            criteria = [.text(Self.sinceCriterion(since) + " ")] + criteria
+        }
         let screen = Self.screenItems(query)
         // 폴더마다 동시에 찾는다 (연결 여러 개가 나눠 맡는다)
         let tasks = paths.map { path in
@@ -494,12 +498,16 @@ final class IMAPMailService: MailService {
         case .flagged: return "FLAGGED"
         case .receivedWithinDays:
             guard let days = Int(c.value.trimmingCharacters(in: .whitespaces)), days > 0 else { return nil }
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = "d-MMM-yyyy"
-            return "SINCE " + f.string(from: now.addingTimeInterval(-Double(days) * 86_400))
+            return sinceCriterion(now.addingTimeInterval(-Double(days) * 86_400))
         default: return nil
         }
+    }
+
+    static func sinceCriterion(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "d-MMM-yyyy"
+        return "SINCE " + f.string(from: date)
     }
 
     private static let collectChunk = 500

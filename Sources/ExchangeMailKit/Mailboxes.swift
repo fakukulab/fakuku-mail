@@ -166,6 +166,27 @@ public struct SmartMailbox: Codable, Hashable, Identifiable, Sendable {
         return parts.isEmpty ? nil : parts.joined(separator: " and ")
     }
 
+    /// 찾은 결과를 저장해 두고 새로 받은 메일만 더 찾아도 되는지.
+    /// 읽지 않음·깃발은 이미 찾은 메일의 상태가 바뀌면 빠져야 하므로 매번 찾는다 (서버가 좁혀 주어 빠르다).
+    public var reusesResults: Bool {
+        !usable.contains { [.unread, .flagged].contains($0.field) }
+    }
+
+    /// 조건이 같으면 같은 값: 저장된 결과의 이름. 조건을 고치면 처음부터 다시 찾는다.
+    public func resultKey(vips: Set<String>, folderID: String?) -> String {
+        var parts = [matchAll ? "all" : "any", folderID ?? "-"]   // l10n: data
+        parts += usable.map { "\($0.field.rawValue)=\($0.value.trimmingCharacters(in: .whitespaces).lowercased())" }
+        if usable.contains(where: { $0.field == .vip }) { parts += vips.sorted() }
+        return "smart|" + parts.joined(separator: "|")   // l10n: data
+    }
+
+    /// 저장된 결과에 새로 찾은 메일을 더한다. 같은 메일은 새 것으로, 최근 순.
+    public static func merge(_ saved: [MailMessage], _ fresh: [MailMessage]) -> [MailMessage] {
+        let ids = Set(fresh.map(\.id))
+        return (fresh + saved.filter { !ids.contains($0.id) })
+            .sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) }
+    }
+
     /// 사이드바 도움말에 보일 한 줄 설명
     public func summary(folderName: (String) -> String?) -> String {
         let parts = usable.map { c -> String in

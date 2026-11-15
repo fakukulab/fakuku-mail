@@ -10,7 +10,7 @@ extension MessageListView {
         ToolbarItem(id: "filter", placement: .primaryAction) { FilterMenu(model: model) }
         ToolbarItem(id: "sort", placement: .primaryAction) { SortMenu(model: model) }
         ToolbarItem(id: "listGetMail", placement: .primaryAction) {
-            Button(L("받은 메일 가져오기"), systemImage: "arrow.clockwise") { Task { await model.refresh() } }
+            Button(L("받은 메일 가져오기"), systemImage: "arrow.clockwise") { Task { await model.refresh(rescanSmart: true) } }
                 .help(L("받은 메일 가져오기 (⇧⌘N)"))
         }
         ToolbarItem(id: "listNewMessage", placement: .primaryAction) {

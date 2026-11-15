@@ -167,7 +167,7 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
         public var isHTML: Bool { contentType.lowercased() == "html" }
     }
 
-    public let id: String
+    public var id: String
     public var internetMessageId: String?
     public var conversationId: String?
     public var subject: String?

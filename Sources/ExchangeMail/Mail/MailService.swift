@@ -49,8 +49,22 @@ extension MailService {
 struct SmartQuery {
     var smart: SmartMailbox?
     var vips: Set<String> = []
-    /// Graph `$filter` ("모두"일 때 읽음·깃발·첨부·중요도·기간)
-    var graphFilter: String? { smart?.graphFilter() }
+    /// 이때 이후에 받은 메일만 (저장된 결과에 더할 새 메일)
+    var since: Date?
+    /// 저장된 결과를 쓰지 않고 처음부터 다시 찾는다 (새로 고침)
+    var fullRescan = false
+    /// Graph `$filter` ("모두"일 때 읽음·깃발·첨부·중요도·기간, 그리고 `since`)
+    var graphFilter: String? {
+        var parts: [String] = []
+        if let since {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime]
+            f.timeZone = TimeZone(identifier: "UTC")
+            parts.append("receivedDateTime ge \(f.string(from: since))")
+        }
+        if let rest = smart?.graphFilter() { parts.append(rest) }
+        return parts.isEmpty ? nil : parts.joined(separator: " and ")
+    }
     /// 조건 없이 모든 메일
     static let everything = SmartQuery()
 }

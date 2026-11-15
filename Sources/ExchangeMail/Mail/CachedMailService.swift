@@ -128,8 +128,60 @@ final class CachedMailService: MailService {
         try await write(L("검색할")) { try await remote.searchAll(text) }
     }
 
+    /// 스마트 메일상자 (S-079): 한 번 찾은 결과를 저장해 두고, 다음에는 그 뒤에 받은 메일만 서버에 물어 더한다.
+    /// 앱을 다시 열어도 모든 메일을 다시 훑지 않는다. 새로 고침(`fullRescan`)이면 처음부터 찾는다.
+    /// 읽지 않음·깃발 조건은 매번 찾는다 (`SmartMailbox.reusesResults`).
     func collectMessages(folderID: String?, query: SmartQuery) async throws -> MessagePage {
-        try await write(L("스마트 메일상자를 불러올")) { try await remote.collectMessages(folderID: folderID, query: query) }
+        let what = L("스마트 메일상자를 불러올")
+        guard let smart = query.smart, smart.reusesResults, let c = writableCache else {
+            return try await write(what) { try await remote.collectMessages(folderID: folderID, query: query) }
+        }
+        let key = smart.resultKey(vips: query.vips, folderID: folderID)
+        let started = Date()
+        let saved = query.fullRescan ? nil : c.smartList(key: key)
+        var ask = query
+        // 서버 시각과 이 Mac 시각이 조금 달라도 놓치지 않게 한 시간 겹쳐 찾는다 (같은 메일은 합칠 때 하나가 된다)
+        ask.since = saved.map { $0.scannedAt.addingTimeInterval(-Self.smartOverlap) }
+        let page: MessagePage
+        do {
+            page = try await write(what) { try await remote.collectMessages(folderID: folderID, query: ask) }
+        } catch let error where OfflineError.isOffline(error) || error is OfflineError {
+            // 인터넷이 없으면 저장된 결과를 그대로 보인다
+            if let saved { return MessagePage(messages: saved.messages, nextLink: nil, serverFiltered: false) }
+            throw error
+        }
+        let merged = saved.map { SmartMailbox.merge($0.messages, page.messages) } ?? page.messages
+        let list = MailCache.SmartList(messages: merged, scannedAt: started)
+        Self.writer.async { c.saveSmartList(list, key: key) }
+        return MessagePage(messages: merged, nextLink: nil, serverFiltered: false)
+    }
+
+    /// 새 메일만 찾을 때 앞으로 겹쳐 찾는 시간
+    static let smartOverlap: TimeInterval = 3600
+
+    /// 저장된 스마트 메일상자 결과도 바로 고친다 (옮기기·지우기는 빼고, 읽음·깃발은 바꾼다)
+    private func patchSmart(_ change: @escaping @Sendable (inout [MailMessage]) -> Bool) {
+        guard let c = writableCache else { return }
+        Self.writer.async { c.updateSmartLists(change) }
+    }
+
+    private func dropFromSmart(_ ids: Set<String>) {
+        patchSmart { list in
+            let before = list.count
+            list.removeAll { ids.contains($0.id) }
+            return list.count != before
+        }
+    }
+
+    private func setReadInSmart(_ ids: Set<String>, read: Bool) {
+        patchSmart { list in
+            var changed = false
+            for i in list.indices where ids.contains(list[i].id) && list[i].isRead != read {
+                list[i].isRead = read
+                changed = true
+            }
+            return changed
+        }
     }
 
     func messages(fromSender address: String) async throws -> MessagePage {
@@ -146,6 +198,11 @@ final class CachedMailService: MailService {
 
     func setFlag(id: String, flagged: Bool) async throws {
         try await write(L("깃발을 바꿀")) { try await remote.setFlag(id: id, flagged: flagged) }
+        patchSmart { list in
+            guard let i = list.firstIndex(where: { $0.id == id }) else { return false }
+            list[i].flag = flagged ? .flagged : .notFlagged
+            return true
+        }
     }
 
     func copy(id: String, to destination: String) async throws {
@@ -224,10 +281,13 @@ final class CachedMailService: MailService {
     func setRead(id: String, read: Bool) async throws {
         if PendingDrafts.id(fromMessageID: id) != nil { return }
         try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(id: id, read: read) }
+        setReadInSmart([id], read: read)
     }
 
     func setRead(ids: [String], read: Bool) async throws -> [String] {
-        try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(ids: ids, read: read) }
+        let done = try await write(L("읽음 상태를 바꿀")) { try await remote.setRead(ids: ids, read: read) }
+        setReadInSmart(Set(done), read: read)
+        return done
     }
 
     func move(id: String, to destination: String) async throws -> String {
@@ -238,7 +298,15 @@ final class CachedMailService: MailService {
             PendingDrafts.remove(p)
             return id
         }
-        return try await write(L("옮길")) { try await remote.move(id: id, to: destination) }
+        let newID = try await write(L("옮길")) { try await remote.move(id: id, to: destination) }
+        // 옮긴 메일은 id와 폴더가 바뀐다 (지운 편지함·정크로 옮긴 것은 스마트 메일상자가 빼고 보인다)
+        patchSmart { list in
+            guard let i = list.firstIndex(where: { $0.id == id }) else { return false }
+            list[i].id = newID
+            list[i].parentFolderId = destination
+            return true
+        }
+        return newID
     }
 
     func sendMIME(_ mime: Data) async throws {
@@ -253,6 +321,7 @@ final class CachedMailService: MailService {
         // 이 Mac에만 저장된 초안은 그 파일을 지운다 (인터넷 없이도)
         if let p = PendingDrafts.id(fromMessageID: id) { PendingDrafts.remove(p); return }
         try await write(L("지울")) { try await remote.deleteMessage(id: id) }
+        dropFromSmart([id])
     }
 
     func uploadAttachment(_ attachment: OutgoingAttachment, toMessage id: String,

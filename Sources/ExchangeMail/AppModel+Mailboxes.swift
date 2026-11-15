@@ -47,7 +47,11 @@ extension AppModel {
             let vips = mailboxes.vipAddresses
             progressText = L("'\(smart.name)'에 맞는 메일을 찾는 중…")
             defer { progressText = nil }
-            let page = try await service.collectMessages(folderID: smart.serverFolderID, query: SmartQuery(smart: smart, vips: vips))
+            // 한 번 찾은 결과는 저장해 두고 새로 받은 메일만 더 찾는다 (S-079). 새로 고침을 눌렀으면 처음부터.
+            var query = SmartQuery(smart: smart, vips: vips)
+            query.fullRescan = smartRescanRequested
+            smartRescanRequested = false
+            let page = try await service.collectMessages(folderID: smart.serverFolderID, query: query)
             // 폴더를 고르지 않았으면 지운 편지함과 정크 메일은 뺀다 (맥 Mail과 같다).
             let skipped = smart.usable.contains { $0.field == .folder } ? Set<String>() : skippedFolderIDs
             let kept = page.messages.filter { m in

@@ -61,6 +61,8 @@ final class AppModel {
 
     // 목록
     var messages: [MailMessage] = []
+    /// 다음 스마트 메일상자 불러오기는 처음부터 (새로 고침을 눌렀다)
+    var smartRescanRequested = false
     private(set) var nextLink: String?
     var searchText = ""
     private(set) var isLoading = false
@@ -467,8 +469,12 @@ final class AppModel {
     }
 
     /// 받은 메일 가져오기: 선택한 폴더와 메일을 유지한 채 다시 불러온다.
-    func refresh() async {
+    /// `rescanSmart`: 사람이 누른 새로 고침이면 스마트 메일상자를 저장된 결과 없이 처음부터 다시 찾는다 (S-079)
+    func refresh(rescanSmart: Bool = false) async {
         guard isSignedIn else { return }
+        if rescanSmart, selectedVirtual.map({ if case .smart = $0 { true } else { false } }) == true {
+            smartRescanRequested = true
+        }
         await loadFolders()
         await loadMessages(keepSelection: true)
     }

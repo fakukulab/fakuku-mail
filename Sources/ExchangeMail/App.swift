@@ -312,7 +312,7 @@ struct MailCommands: Commands {
 
     @ViewBuilder
     private var mailboxMenu: some View {
-        Button(L("모든 새로운 메일 가져오기")) { Task { await model.refresh() } }
+        Button(L("모든 새로운 메일 가져오기")) { Task { await model.refresh(rescanSmart: true) } }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(!menu.signedIn)
         Button(L("모든 메시지를 읽음으로 표시")) { Task { await model.markAllReadInFolder() } }

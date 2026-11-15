@@ -953,6 +953,20 @@ enum SelfTest {
             try? await Task.sleep(for: .seconds(1.5))
             check("S-078 스마트 메일상자는 조건에 맞는 메일만 보인다",
                   !model.messages.isEmpty && model.messages.allSatisfy { $0.subject?.contains("견적") == true })
+            // S-079 한 번 찾은 결과는 저장해 두고, 다시 열면 그 뒤에 받은 메일만 찾는다. 새로 고침은 처음부터.
+            let firstCount = model.messages.count
+            let firstScan = model.demoService?.collectLog.last
+            model.selectedFolderID = "inbox"
+            try? await Task.sleep(for: .seconds(1))
+            model.selectedFolderID = smartBox.id
+            try? await Task.sleep(for: .seconds(1.5))
+            check("S-079 처음에는 모든 메일에서 찾는다", firstScan == .some(nil))
+            check("S-079 다시 열면 지난번 뒤에 받은 메일만 찾고 결과는 그대로다",
+                  (model.demoService?.collectLog.last ?? nil) != nil && model.messages.count == firstCount)
+            await model.refresh(rescanSmart: true)
+            try? await Task.sleep(for: .seconds(1))
+            check("S-079 새로 고침을 누르면 처음부터 다시 찾는다",
+                  model.demoService?.collectLog.last == .some(nil) && model.messages.count == firstCount)
             model.selectedFolderID = "inbox"
             try? await Task.sleep(for: .seconds(1))
             model.mailboxes.removeSmart(id: smartBox.id)

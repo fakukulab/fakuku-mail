@@ -70,6 +70,40 @@ public struct MailCache: Sendable {
     public func list(folderID: String) -> List? { read(List.self, from: listURL(folderID)) }
     public func message(id: String) -> Message? { read(Message.self, from: messageURL(id)) }
 
+    // MARK: 스마트 메일상자 결과
+
+    /// 스마트 메일상자가 찾은 메일과 찾기 시작한 때. 다음에는 그 뒤에 받은 메일만 찾아 더한다.
+    public struct SmartList: Codable, Equatable, Sendable {
+        public var messages: [MailMessage]
+        public var scannedAt: Date
+
+        public init(messages: [MailMessage], scannedAt: Date) {
+            self.messages = messages
+            self.scannedAt = scannedAt
+        }
+    }
+
+    public func smartList(key: String) -> SmartList? { read(SmartList.self, from: smartURL(key)) }
+
+    public func saveSmartList(_ list: SmartList, key: String) {
+        write(list, to: smartURL(key))
+    }
+
+    /// 저장된 모든 스마트 메일상자 결과를 고친다 (옮기기·지우기·읽음·깃발이 바로 보이게).
+    /// `change`가 true를 돌려준 것만 다시 쓴다.
+    public func updateSmartLists(_ change: (inout [MailMessage]) -> Bool) {
+        let dir = root.appending(path: "smart", directoryHint: .isDirectory)
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for url in files where url.pathExtension == "json" {
+            guard var list = read(SmartList.self, from: url) else { continue }
+            if change(&list.messages) { write(list, to: url) }
+        }
+    }
+
+    func smartURL(_ key: String) -> URL {
+        root.appending(path: "smart/\(Self.hash(key)).json")
+    }
+
     // MARK: 정리
 
     /// 오래된 본문부터 지워 `maxMessages`만 남긴다.

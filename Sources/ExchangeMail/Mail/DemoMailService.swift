@@ -407,16 +407,20 @@ final class DemoMailService: MailService {
                            nextLink: nil)
     }
 
+    /// 스마트 메일상자 찾기 기록: 처음부터(nil)인지, 언제 이후만 찾았는지 (자체 점검용)
+    private(set) var collectLog: [Date?] = []
+
     func collectMessages(folderID: String?, query: SmartQuery) async throws -> MessagePage {
         try checkOnline()
-        // 데모는 서버 필터를 흉내 내지 않는다. 스마트 메일상자의 판정은 앱이 다시 건다.
+        if query.smart != nil { collectLog.append(query.since) }
+        // 데모는 서버 필터를 흉내 내지 않는다(기간만 건다). 스마트 메일상자의 판정은 앱이 다시 건다.
         let all = store.flatMap { folder, list in
             (folderID == nil || folderID == folder ? list : []).map { m -> MailMessage in
                 var copy = m
                 copy.parentFolderId = folder
                 return copy
             }
-        }
+        }.filter { m in query.since.map { (m.receivedDateTime ?? .distantPast) >= $0 } ?? true }
         return MessagePage(messages: all.sorted { ($0.receivedDateTime ?? .distantPast) > ($1.receivedDateTime ?? .distantPast) },
                            nextLink: nil, serverFiltered: false)
     }
