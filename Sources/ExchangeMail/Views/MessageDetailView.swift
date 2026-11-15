@@ -231,28 +231,58 @@ struct MessageHeader: View {
         .padding(.vertical, Space.lg)
     }
 
+    /// 받는 사람·참조를 다 펼친 메일 (다른 메일을 고르면 다시 접힌다)
+    @State private var expandedID: String?
+
+    /// 처음에 보이는 받는 사람·참조 수. 넘으면 "외 N명"을 눌러 펼친다.
+    static let recipientPreview = 8
+    /// 펼친 받는 사람·참조의 최대 높이. 넘으면 그 안에서 스크롤한다.
+    static let recipientMaxHeight: CGFloat = 160
+
     /// "받는 사람: 김전, 참조: Lorielaine Mendoza, 이정식" — 맥 Mail처럼 한 줄에 이어 붙인다 (많으면 줄을 넘긴다).
     /// 레이블은 진하게, 이름은 흐리게. 이름을 누르면 주소 메뉴.
+    /// 수백 명에게 보낸 메일은 머리글이 창보다 몇 배 길어져 사이드바·목록이 창 밖으로 밀려났다:
+    /// 처음 몇 명만 보이고 "외 N명"으로 펼치며, 펼쳐도 높이를 넘지 않게 스크롤한다.
     @ViewBuilder
     private var recipientLine: some View {
         let to = message.toRecipients ?? []
         let cc = message.ccRecipients ?? []
-        if !to.isEmpty || !cc.isEmpty {
-            FlowLayout(spacing: Space.xs) {
-                if !to.isEmpty {
+        let total = to.count + cc.count
+        let expanded = expandedID == message.id
+        let limit = expanded ? total : Self.recipientPreview
+        let shownTo = Array(to.prefix(limit))
+        let shownCC = Array(cc.prefix(max(0, limit - shownTo.count)))
+        let hidden = total - shownTo.count - shownCC.count
+        if total > 0 {
+            let flow = FlowLayout(spacing: Space.xs) {
+                if !shownTo.isEmpty {
                     Text(L("받는 사람:"))
-                    ForEach(Array(to.enumerated()), id: \.offset) { index, r in
-                        AddressToken(recipient: r, trailingComma: index < to.count - 1 || !cc.isEmpty)
+                    ForEach(Array(shownTo.enumerated()), id: \.offset) { index, r in
+                        AddressToken(recipient: r, trailingComma: index < shownTo.count - 1 || !shownCC.isEmpty)
                     }
                 }
-                if !cc.isEmpty {
+                if !shownCC.isEmpty {
                     Text(L("참조:"))
-                    ForEach(Array(cc.enumerated()), id: \.offset) { index, r in
-                        AddressToken(recipient: r, trailingComma: index < cc.count - 1)
+                    ForEach(Array(shownCC.enumerated()), id: \.offset) { index, r in
+                        AddressToken(recipient: r, trailingComma: index < shownCC.count - 1)
                     }
+                }
+                if hidden > 0 {
+                    Button(L("외 \(hidden)명")) { expandedID = message.id }
+                        .buttonStyle(.link)
+                        .help(L("받는 사람과 참조를 모두 봅니다"))
+                } else if expanded && total > Self.recipientPreview {
+                    Button(L("접기")) { expandedID = nil }
+                        .buttonStyle(.link)
                 }
             }
             .font(.callout)
+            if expanded && total > Self.recipientPreview {
+                ScrollView { flow }
+                    .frame(maxHeight: Self.recipientMaxHeight)
+            } else {
+                flow
+            }
         }
     }
 }
