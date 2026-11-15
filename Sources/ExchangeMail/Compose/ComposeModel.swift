@@ -43,6 +43,8 @@ final class ComposeModel {
     @ObservationIgnored private var localFingerprint = ""
     /// 이 Mac에만 저장되어 있고 서버의 임시 보관함에는 아직 없다 (S-072: 오프라인에 저장했을 때)
     private(set) var savedOnlyOnMac = false
+    /// 이 Mac에만 저장된 초안을 다시 연 창 (S-072)
+    let openedFromMac: Bool
     /// 보냈거나 버렸으면 창을 닫아도 저장하지 않는다.
     private(set) var finished = false
     /// 사람이 본문을 고친 횟수. 웹 편집기는 넣은 HTML을 정리해서 돌려주므로 HTML 문자열로 비교하지 않는다.
@@ -56,7 +58,9 @@ final class ComposeModel {
         self.draft = draft
         savedDraftID = draft.draftMessageID
         // 이 Mac에만 저장된 초안을 이어 쓰면: 서버에 올릴 것이 남아 있다 (손대지 않고 닫아도 사본을 지우지 않게, S-072)
-        savedOnlyOnMac = PendingDrafts.load(draft.id) != nil
+        let onMac = PendingDrafts.load(draft.id) != nil
+        openedFromMac = onMac
+        savedOnlyOnMac = onMac
     }
 
     // MARK: 시작
@@ -402,8 +406,43 @@ final class ComposeModel {
         }
     }
 
+    /// 이미 있던 초안을 이어 쓰는 창 (임시 보관함이나 이 Mac에서 다시 열었다)
+    var isReopenedDraft: Bool { draft.draftMessageID != nil || openedFromMac }
+
+    /// 쓰는 동안 30초마다 임시 보관함에 저장하는가. 다시 연 초안은 하지 않는다 (S-083):
+    /// "저장 안 함"을 고르면 임시 보관함의 초안이 연 때 그대로 남게. 이 Mac에는 늘 저장한다.
+    var autosavesToServer: Bool { !isReopenedDraft || savedOnlyOnMac }
+
+    /// 창을 닫을 때 저장할지 물어야 하는가 (S-083). 고친 것이 있거나, 이 창에서 처음 만든 초안이 남아 있으면.
+    /// 아무것도 안 쓴 새 창, 손대지 않은 답장, 고치지 않은 초안은 묻지 않고 닫는다.
+    var needsCloseConfirmation: Bool {
+        guard didSetUp, !finished, !sending else { return false }
+        return hasUnsavedChanges || (!isReopenedDraft && (savedDraftID != nil || savedOnlyOnMac))
+    }
+
+    /// 창을 닫으며 "저장 안 함" (S-083). 새 메시지면 자동 저장된 초안까지 버린다.
+    /// 다시 연 초안이면 이번에 고친 것만 버리고 임시 보관함의 초안은 그대로 둔다.
+    func discardChanges(app: AppModel) async {
+        guard isReopenedDraft else {
+            await discard(app: app)
+            return
+        }
+        await waitForSave()
+        finished = true
+        // 이 Mac에만 있던 초안은 그 사본이 초안 자체라 남긴다
+        if !openedFromMac { PendingDrafts.remove(draft.id) }
+    }
+
+    /// 저장하는 중이면 끝날 때까지 기다린다 (버리는 사이 저장이 끝나 초안이 다시 생기지 않게). 길어야 15초.
+    private func waitForSave() async {
+        for _ in 0..<150 where savingDraft {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
     /// 이 메일을 버린다: 저장된 초안이 있으면 지우고, 창을 닫아도 다시 저장하지 않는다.
     func discard(app: AppModel) async {
+        await waitForSave()
         finished = true
         PendingDrafts.remove(draft.id)
         savedOnlyOnMac = false

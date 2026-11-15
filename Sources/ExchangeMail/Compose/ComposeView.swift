@@ -29,6 +29,9 @@ struct ComposeView: View {
     @State private var compose: ComposeModel
     @State private var dropTargeted = false
     @State private var showSchedule = false
+    /// 창을 닫을 때 저장할지 묻는다 (S-083)
+    @State private var askSave = false
+    @State private var closer = WindowCloser()
     /// 첨부 카드의 미리 보기 (Quick Look)
     @State private var previewURL: URL?
     /// 머리글 필드 (보기 메뉴와 도구 막대의 머리글 필드 단추)
@@ -146,10 +149,33 @@ struct ComposeView: View {
                 if Task.isCancelled { break }
                 tick += 1
                 compose.saveLocally(app: model)
-                if tick % 6 == 0 { await compose.saveDraft(app: model) }
+                if tick % 6 == 0, compose.autosavesToServer { await compose.saveDraft(app: model) }
             }
         }
-        // 창을 닫으면 쓰던 것을 초안으로 남긴다. 창이 사라져도 저장은 끝까지 간다.
+        // 닫기 단추·⌘W: 쓰던 것이 있으면 저장할지 묻는다 (S-083, 맥 Mail과 같다)
+        .closeGuard(closer) {
+            guard compose.needsCloseConfirmation else { return true }
+            askSave = true
+            return false
+        }
+        .alert(L("이 메시지를 초안으로 저장하겠습니까?"), isPresented: $askSave) {
+            Button(L("저장")) {
+                Task { if await compose.saveDraft(app: model) { closer.close() } }
+            }
+            Button(L("저장 안 함"), role: .destructive) {
+                Task {
+                    await compose.discardChanges(app: model)
+                    closer.close()
+                }
+            }
+            Button(L("취소"), role: .cancel) {}
+        } message: {
+            Text(compose.isReopenedDraft
+                 ? L("저장하지 않으면 이번에 고친 내용은 버리고, 임시 보관함의 초안은 그대로 둡니다.")
+                 : L("저장하지 않으면 이 메시지를 버립니다."))
+        }
+        // 창이 닫히면(앱을 끝낼 때 포함) 쓰던 것을 초안으로 남긴다. 창이 사라져도 저장은 끝까지 간다.
+        // "저장 안 함"을 골랐으면 finished라 아무것도 하지 않는다.
         .onDisappear {
             let compose = compose, app = model
             compose.saveLocally(app: app)   // 바로: 앱이 곧 끝나도 남게 (S-072)

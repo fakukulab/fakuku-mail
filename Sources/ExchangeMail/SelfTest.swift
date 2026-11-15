@@ -408,6 +408,49 @@ enum SelfTest {
             check("S-022 삭제하면 저장된 초안도 지우고 다시 저장하지 않는다",
                   afterDiscard == draftsBefore && !thrown.hasUnsavedChanges)
 
+            // S-083 창을 닫을 때 저장할지 묻고, 고른 대로 남기거나 버린다
+            let blank = ComposeModel(draft: ComposeDraft())
+            await blank.setUp(app: model, fixDefault: true)
+            check("S-083 아무것도 안 쓴 창은 묻지 않고 닫는다", !blank.needsCloseConfirmation)
+            let typed = ComposeModel(draft: ComposeDraft())
+            await typed.setUp(app: model, fixDefault: true)
+            typed.subject = "닫을 때 버릴 메일"
+            check("S-083 쓰던 창은 닫을 때 묻는다", typed.needsCloseConfirmation)
+            await typed.saveDraft(app: model)   // 30초 자동 저장이 이미 됐다고 친다
+            check("S-083 자동 저장된 새 메시지도 묻는다", typed.needsCloseConfirmation)
+            await typed.discardChanges(app: model)
+            await typed.windowClosed(app: model)
+            let afterNoSave = await draftCount()
+            check("S-083 '저장 안 함'이면 자동 저장된 초안과 이 Mac 사본까지 버린다",
+                  afterNoSave == draftsBefore && PendingDrafts.load(typed.draft.id) == nil && !typed.needsCloseConfirmation)
+            let kept = ComposeModel(draft: ComposeDraft())
+            await kept.setUp(app: model, fixDefault: true)
+            kept.subject = "닫을 때 저장할 메일"
+            let keptOK = await kept.saveDraft(app: model)
+            await kept.windowClosed(app: model)
+            let afterSave = await draftCount()
+            check("S-083 '저장'이면 임시 보관함에 남는다", keptOK && afterSave == draftsBefore + 1)
+            if let keptID = kept.savedDraftID {
+                var again = ComposeDraft()
+                again.subject = "닫을 때 저장할 메일"
+                again.draftMessageID = keptID
+                let reopened = ComposeModel(draft: again)
+                await reopened.setUp(app: model, fixDefault: true)
+                check("S-083 고치지 않은 초안은 묻지 않고, 30초 자동 저장도 하지 않는다",
+                      !reopened.needsCloseConfirmation && !reopened.autosavesToServer)
+                reopened.subject = "고쳤다가 버림"
+                reopened.saveLocally(app: model)
+                await reopened.discardChanges(app: model)
+                await reopened.windowClosed(app: model)
+                let subjects = (try? await model.service.messages(folderID: "drafts", search: nil).messages.map(\.subject)) ?? []
+                check("S-083 다시 연 초안에서 '저장 안 함'이면 고친 것만 버리고 초안은 그대로",
+                      subjects.contains("닫을 때 저장할 메일") && !subjects.contains("고쳤다가 버림")
+                      && PendingDrafts.load(again.id) == nil)
+                try? await model.service.deleteMessage(id: keptID)
+            } else {
+                check("S-083 '저장'이면 초안 id가 생긴다", false)
+            }
+
             // 편집 > 첨부 파일 > 모든 첨부 파일 제거 (S-074)
             let withFiles = ComposeModel(draft: ComposeDraft())
             await withFiles.setUp(app: model, fixDefault: true)
