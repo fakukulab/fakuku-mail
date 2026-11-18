@@ -153,6 +153,12 @@ func replyStateQueryAndDecode() throws {
     plain.replyState = .forwarded
     #expect(plain.replyState == .forwarded && plain.singleValueExtendedProperties?.count == 1)
     #expect(ReplyState(verb: 101) == nil)
+    let iconOnly = #"""
+    {"id":"c","singleValueExtendedProperties":[{"id":"Integer 0x1080","value":"262"}]}
+    """#
+    #expect(try JSONDecoder().decode(MailMessage.self, from: Data(iconOnly.utf8)).replyState == .forwarded)
+    plain.replyState = .replied
+    #expect(plain.singleValueExtendedProperties?.count == 1 && plain.replyState == .replied)
 }
 
 @Test("받는 사람 칸을 주소 목록으로 읽는다")

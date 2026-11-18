@@ -239,11 +239,18 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     /// 이 메일에 마지막으로 한 일: 답장, 전체 답장, 전달 (S-090). Outlook·웹 메일에서 한 것도 보인다.
     public var replyState: ReplyState? {
         get {
-            let raw = singleValueExtendedProperties?.first { $0.id.lowercased().hasSuffix(ReplyState.propertyTag) }?.value
-            return raw.flatMap(Int.init).flatMap(ReplyState.init(verb:))
+            func value(_ tag: String) -> Int? {
+                singleValueExtendedProperties?.first { $0.id.lowercased().hasSuffix(tag) }?.value.flatMap { Int($0) }
+            }
+            // 마지막 동작 값이 없으면 Outlook 아이콘 값으로 (이것만 남기는 메일 앱이 있다)
+            return value(ReplyState.propertyTag).flatMap(ReplyState.init(verb:))
+                ?? value(ReplyState.iconTag).flatMap(ReplyState.init(iconIndex:))
         }
         set {
-            var props = (singleValueExtendedProperties ?? []).filter { !$0.id.lowercased().hasSuffix(ReplyState.propertyTag) }
+            var props = (singleValueExtendedProperties ?? []).filter {
+                let id = $0.id.lowercased()
+                return !id.hasSuffix(ReplyState.propertyTag) && !id.hasSuffix(ReplyState.iconTag)
+            }
             if let newValue { props.append(ExtendedProperty(id: ReplyState.propertyID, value: "\(newValue.verb)")) }
             singleValueExtendedProperties = props.isEmpty ? nil : props
         }
@@ -280,8 +287,10 @@ public enum ReplyState: String, Codable, Hashable, Sendable {
     /// Graph 확장 속성 id
     public static let propertyID = "Integer 0x1081"  // l10n: data
     static let propertyTag = "0x1081"  // l10n: data
-    /// 목록 요청에 붙이는 `$expand` (이 속성만)
-    public static let listExpand = "singleValueExtendedProperties($filter=id eq 'Integer 0x1081')"  // l10n: data
+    static let iconTag = "0x1080"  // l10n: data
+    /// 목록 요청에 붙이는 `$expand` (마지막 동작과 Outlook 아이콘 두 속성만)
+    public static let listExpand =
+        "singleValueExtendedProperties($filter=id eq 'Integer 0x1081' or id eq 'Integer 0x1080')"  // l10n: data
 
     /// MS-OXOMSG: 102 보낸 사람에게 답장, 103 전체 답장, 104 전달
     public init?(verb: Int) {
@@ -303,6 +312,15 @@ public enum ReplyState: String, Codable, Hashable, Sendable {
 
     /// Outlook 목록 아이콘 (PidTagIconIndex 0x1080): 261 답장함, 262 전달함
     public var iconIndex: Int { self == .forwarded ? 262 : 261 }
+
+    /// 아이콘 값에서 (전체 답장은 답장과 같은 값이다)
+    public init?(iconIndex: Int) {
+        switch iconIndex {
+        case 261: self = .replied
+        case 262: self = .forwarded
+        default: return nil
+        }
+    }
 
     public var systemImage: String {
         switch self {

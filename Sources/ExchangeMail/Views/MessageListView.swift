@@ -353,10 +353,9 @@ struct MessageRow: View {
     var blocked = false
 
     var body: some View {
-        // 왼쪽 칸: 첫 줄에 읽지 않음 점, 제목 줄에 답장·전달 표시 (S-090, Mail처럼)
-        Grid(alignment: .leading, horizontalSpacing: Space.sm, verticalSpacing: 2) {
-            GridRow {
-                UnreadDot(unread: message.isUnread)
+        HStack(alignment: .top, spacing: Space.sm) {
+            RowMarks(unread: message.isUnread, state: message.replyState)
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                     if let vip {
                         VIPBadge(vip: vip)
@@ -385,9 +384,6 @@ struct MessageRow: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-            }
-            GridRow {
-                ReplyStateMark(state: message.replyState)
                 HStack(spacing: Space.xs) {
                     Text(message.title)
                         .lineLimit(1)
@@ -400,10 +396,7 @@ struct MessageRow: View {
                             .background(.quaternary, in: Capsule())
                     }
                 }
-            }
-            if previewLines > 0 {
-                GridRow {
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                if previewLines > 0 {
                     Text(message.bodyPreview ?? "")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -415,35 +408,32 @@ struct MessageRow: View {
     }
 }
 
-/// 목록 줄 왼쪽 칸의 읽지 않음 점
-struct UnreadDot: View {
+/// 목록 줄 왼쪽 칸 (S-090, Mail처럼): 보낸 사람 줄에 읽지 않음 점, 제목 줄에 답장함·전체 답장함·전달함.
+/// 오른쪽 글 줄과 높이가 같은 보이지 않는 글자 위에 얹어 두 줄에 정확히 맞춘다.
+struct RowMarks: View {
     let unread: Bool
-
-    var body: some View {
-        Circle()
-            .fill(unread ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
-            .frame(width: 8, height: 8)
-            .frame(width: Space.lg)
-            .accessibilityLabel(unread ? L("읽지 않음") : "")
-    }
-}
-
-/// 목록 줄 왼쪽 칸의 답장함·전체 답장함·전달함 표시 (S-090). 없으면 빈 칸 (폭은 같다).
-struct ReplyStateMark: View {
     let state: ReplyState?
 
     var body: some View {
-        Group {
-            if let state {
-                Image(systemName: state.systemImage)
-                    .font(.caption)
-                    .imageScale(.small)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(state.label)
-                    .help(state.label)
-            } else {
-                Color.clear.frame(height: 1)
-            }
+        VStack(spacing: 2) {
+            Text(verbatim: " ").hidden()
+                .overlay {
+                    Circle()
+                        .fill(unread ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(Color.clear))
+                        .frame(width: 8, height: 8)
+                        .accessibilityLabel(unread ? L("읽지 않음") : "")
+                }
+            Text(verbatim: " ").hidden()
+                .overlay {
+                    if let state {
+                        Image(systemName: state.systemImage)
+                            .font(.caption)
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(state.label)
+                            .help(state.label)
+                    }
+                }
         }
         .frame(width: Space.lg)
     }
@@ -479,9 +469,9 @@ struct ConversationRow: View {
 
     var body: some View {
         let latest = conversation.latest
-        Grid(alignment: .leading, horizontalSpacing: Space.sm, verticalSpacing: 2) {
-            GridRow {
-                UnreadDot(unread: conversation.isUnread)
+        HStack(alignment: .top, spacing: Space.sm) {
+            RowMarks(unread: conversation.isUnread, state: latest.replyState)
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                     if let vip {
                         VIPBadge(vip: vip)
@@ -518,15 +508,9 @@ struct ConversationRow: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-            }
-            GridRow {
-                ReplyStateMark(state: latest.replyState)
                 Text(latest.title)
                     .lineLimit(1)
-            }
-            if previewLines > 0 {
-                GridRow {
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                if previewLines > 0 {
                     Text(latest.bodyPreview ?? "")
                         .font(.callout)
                         .foregroundStyle(.secondary)
