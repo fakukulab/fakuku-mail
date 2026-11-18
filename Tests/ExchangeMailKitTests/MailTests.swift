@@ -128,6 +128,17 @@ func searchQuery() {
 
 // S-006 받는 사람
 
+@Test("S-086 완성된 주소 뒤 띄어쓰기는 주소를 끝낸다")
+func addressCompletesOnSpace() {
+    #expect(AddressParser.completesOnSpace("hong@x.com "))
+    #expect(AddressParser.completesOnSpace(" kim.lee@fabrikam.co.kr "))
+    #expect(!AddressParser.completesOnSpace("hong@x.com"))        // 아직 띄지 않음
+    #expect(!AddressParser.completesOnSpace("hong@x "))           // 도메인을 쓰는 중
+    #expect(!AddressParser.completesOnSpace("김민지 "))            // 이름을 쓰는 중
+    #expect(!AddressParser.completesOnSpace("김민지 <hong@x.com "))  // 꺾쇠 주소를 쓰는 중
+    #expect(!AddressParser.completesOnSpace(" "))
+}
+
 @Test("받는 사람 칸을 주소 목록으로 읽는다")
 func parseAddresses() {
     let r = AddressParser.parse("홍길동 <hong@x.com>; \"Kim, Lee\" <kl@y.co.kr>, c@d.com\n잘못된주소, hong@x.com")

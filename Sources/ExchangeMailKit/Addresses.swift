@@ -84,6 +84,14 @@ public enum AddressParser {
         address.range(of: #"^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;.]+$"#, options: .regularExpression) != nil
     }
 
+    /// 받는 사람 칸에서 쓰던 글자 끝에 띄어쓰기를 했을 때 주소가 끝난 것으로 볼지 (S-086).
+    /// 이름 없이 완성된 주소만 쓴 경우에만 그렇다: "김민지 "처럼 이름을 쓰는 중이거나
+    /// "김민지 <…"처럼 꺾쇠를 쓰는 중이면 띄어쓰기를 그대로 둔다.
+    public static func completesOnSpace(_ typed: String) -> Bool {
+        guard typed.hasSuffix(" ") else { return false }
+        return isValid(typed.trimmingCharacters(in: .whitespaces))
+    }
+
     /// 주소 목록을 입력 칸 글자로.
     public static func format(_ addresses: [MailAddress]) -> String {
         addresses.map(\.editable).joined(separator: ", ")
