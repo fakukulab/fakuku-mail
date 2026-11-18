@@ -372,7 +372,7 @@ struct FormatToolbar: View {
                 .labelStyle(.iconOnly)
                 .help(L("그림 넣기"))
             if showsWritingTools {
-                Button(L("Siri로 글쓰기"), systemImage: "apple.writing.tools") { controller.showWritingTools() }
+                Button(L("Siri로 글쓰기"), systemImage: "siri") { controller.showWritingTools() }
                     .labelStyle(.iconOnly)
                     .help(L("Siri로 글쓰기"))
             }

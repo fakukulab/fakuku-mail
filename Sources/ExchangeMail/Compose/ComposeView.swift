@@ -425,7 +425,7 @@ struct ComposeView: View {
         }
         // 맥 Mail처럼 창 도구 막대의 아이콘 단추 (⌃⌘W)
         ToolbarItem {
-            Button(L("Siri로 글쓰기"), systemImage: "apple.writing.tools") { compose.editor.showWritingTools() }
+            Button(L("Siri로 글쓰기"), systemImage: "siri") { compose.editor.showWritingTools() }
                 .help(L("Siri로 글쓰기"))
         }
         ToolbarItem {
