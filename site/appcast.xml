@@ -6,6 +6,22 @@
     <link>https://mail.fakukulab.com/appcast.xml</link>
     <language>ko</language>
     <item>
+      <title>FAKUKU Mail 1.0.8</title>
+      <pubDate>Wed, 18 Nov 2026 02:55:09 GMT</pubDate>
+      <sparkle:version>202611181153</sparkle:version>
+      <sparkle:shortVersionString>1.0.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description xml:lang="ko"><![CDATA[
+<ul><li><b>전체 답장 확인</b>: 전체 답장을 보낼 때 &quot;전체 답장으로 보내겠습니까?&quot; 창이 받는 사람 수와 이름을 보여 줍니다. 확인을 눌러야 보냅니다.</li><li><b>보내기 취소 창</b>: 설정 &gt; 작성에서 보내기 취소를 켜 두면, 보내기를 누른 뒤 남은 시간을 보여 주는 창이 뜹니다. 보내기 취소(Esc)로 되돌리거나 지금 보내기(Return)로 바로 보낼 수 있고, 보내면 창이 사라집니다.</li><li><b>띄어쓰기로 다음 주소</b>: 받는 사람·참조·숨은 참조에 주소를 다 쓰고 한 칸 띄면 쉼표 없이도 주소가 정리되고 바로 다음 주소를 씁니다.</li><li><b>주소 제안</b>: 제안 목록의 맨 위 주소가 처음부터 골라져 있고, 마우스를 올린 주소가 파랗게 강조됩니다. Return·Tab이나 클릭으로 넣습니다.</li><li><b>Siri 아이콘</b>: 작성 창의 Siri로 글쓰기 단추가 새 Siri 아이콘으로 보입니다.</li></ul>
+<p>macOS 26 이상. 사용법: <a href="https://mail.fakukulab.com/help.html">https://mail.fakukulab.com/help.html</a></p>
+      ]]></description>
+      <description xml:lang="en"><![CDATA[
+<ul><li><b>Reply All check</b>: before a Reply All goes out, FAKUKU Mail shows how many people get it and asks “Send this as Reply All?” It sends only when you click OK.</li><li><b>Undo Send window</b>: with Undo Send turned on in Settings &gt; Composing, a window shows the time left after you click Send. Click Undo Send (Esc) to stop it or Send Now (Return) to send right away; the window closes when the message is sent.</li><li><b>Space for the next address</b>: in To, Cc, and Bcc, press Space after a complete address to turn it into a token and go on to the next one, no comma needed.</li><li><b>Address suggestions</b>: the top suggestion is chosen from the start, and the one under the pointer is highlighted. Press Return or Tab, or click, to add it.</li><li><b>Siri icon</b>: the Writing with Siri button in the compose window uses the new Siri icon.</li></ul>
+<p>Requires macOS 26 or later. Help: <a href="https://mail.fakukulab.com/help-en.html">https://mail.fakukulab.com/help-en.html</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/fakukulab/fakuku-mail/releases/download/v1.0.8/FAKUKU-Mail-1.0.8.dmg" type="application/octet-stream" sparkle:edSignature="3WVt5qVKzRUkvxqEx6nVYQlYTA9v7ssEK86+UmmhhI+meyCMnmteefanoKm9wR19xbWgNWGJ44B1WELJNDfkAw==" length="7725581"/>
+    </item>
+    <item>
       <title>FAKUKU Mail 1.0.7</title>
       <pubDate>Sun, 15 Nov 2026 13:22:01 GMT</pubDate>
       <sparkle:version>202611152220</sparkle:version>

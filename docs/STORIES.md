@@ -984,6 +984,10 @@ As the user, 주소를 쓰기 시작하면 제안 목록의 맨 위 줄이 파�
   - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·Gatekeeper 확인
   - 담은 것: Outlook 같은 규칙(S-075~077), 스마트 메일상자 모든 메일·결과 저장(S-078·079), 메시지 서체(S-080), 읽음 바로 표시(S-081·082), 닫을 때 저장 묻기(S-083), 오프라인 작성(S-072), 메일상자 메뉴, 도움말 갱신
   - 1.0.6 → 1.0.7 자동 업데이트 알림을 사용자가 확인했다 (2026-11-15)
+- 2026-11-18 **1.0.8** 공개: https://github.com/fakukulab/fakuku-mail/releases/tag/v1.0.8 (태그 v1.0.8 = main da66fca)
+  - DMG `FAKUKU-Mail-1.0.8.dmg` 7,725,581바이트, SHA-256 `3bbc27590c701f09335f078ce18e6dd7982c8e4eee418130a912d1c0238ae1e2`, 빌드 202611181153
+  - 앱·DMG 공증 Accepted, 받은 파일의 SHA-256·Gatekeeper 확인. 다른 Mac에서 열어 보기는 하지 않았다
+  - 담은 것: 전체 답장 확인(S-084), 보내기 취소 창(S-085), 띄어쓰기로 다음 주소(S-086), 주소 제안 첫 줄·마우스 강조(S-087), 새 Siri 아이콘, 도움말 갱신
 - 남은 일: NSTableView 재진입 경고 (동작 영향 없음, 원인은 SwiftUI List 안쪽: docs/FIXLOG.md 2026-11-08)
 
 ## Later
