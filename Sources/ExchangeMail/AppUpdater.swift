@@ -3,8 +3,11 @@ import Combine
 import Sparkle
 
 /// 자동 업데이트 (1.0.2, Sparkle).
-/// 하루에 한 번 소개 사이트의 appcast.xml(Info.plist `SUFeedURL`)을 보고, 새 버전이 있으면 GitHub 릴리스의 DMG를 받아
-/// 서명(EdDSA, `SUPublicEDKey`)을 확인한 뒤 바꾼다. 받기·설치를 자동으로 하면 앱을 끌 때 설치된다.
+/// 앱을 켤 때 한 번 소개 사이트의 appcast.xml(Info.plist `SUFeedURL`)을 본다 (1.0.9). 켜 둔 동안에는 다시 보지 않는다.
+/// 새 버전이 있으면 Sparkle 창에 "업데이트 설치"가 보이고, 누르면 GitHub 릴리스의 DMG를 받아
+/// 서명(EdDSA, `SUPublicEDKey`)을 확인한 뒤 바꾸고 다시 켠다. 몰래 받아 두었다 끌 때 바꾸는 자동 설치는 쓰지 않는다
+/// (Info.plist `SUAllowsAutomaticUpdates` false: 켜 둔 메일 앱은 끌 일이 드물어 설치되지 않는 것처럼 보였다).
+/// "나중에"를 누르면 다음에 앱을 켤 때 다시 묻는다.
 /// 메뉴: FAKUKU Mail > 업데이트 확인…  설정: 일반 > 업데이트.
 /// 테스트·스냅숏·데모(APP_STORE)에서는 켜지 않는다: 서버에 묻지도, 앱을 바꾸지도 않는다.
 @Observable
@@ -12,6 +15,8 @@ final class AppUpdater {
     static let shared = AppUpdater()
 
     private let controller: SPUStandardUpdaterController?
+    /// 켜 둔 동안 다시 확인하지 않게 하는 Sparkle 대리인 (controller는 약하게 잡으므로 여기서 붙든다)
+    private let gate = LaunchCheckGate()
     @ObservationIgnored private var watchers: Set<AnyCancellable> = []
 
     /// 지금 "업데이트 확인…"을 누를 수 있는가 (이미 확인·설치 중이면 false)
@@ -25,8 +30,10 @@ final class AppUpdater {
             controller = nil
             return
         }
-        let c = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        let c = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: gate, userDriverDelegate: nil)
         controller = c
+        // 앱을 켤 때 한 번 (Sparkle 권장: 시작한 바로 뒤, 자동 확인이 켜져 있을 때만)
+        if c.updater.automaticallyChecksForUpdates { c.updater.checkForUpdatesInBackground() }
         c.updater.publisher(for: \.canCheckForUpdates)
             .receive(on: RunLoop.main)
             .sink { [weak self] value in self?.canCheck = value }
@@ -47,7 +54,7 @@ final class AppUpdater {
         controller?.checkForUpdates(nil)
     }
 
-    /// 설정 > 일반 > 업데이트: 하루에 한 번 자동으로 확인
+    /// 설정 > 일반 > 업데이트: 앱을 켤 때 새 버전 확인
     var checksAutomatically: Bool {
         get {
             access(keyPath: \.checksAutomatically)
@@ -60,19 +67,20 @@ final class AppUpdater {
         }
     }
 
-    /// 설정 > 일반 > 업데이트: 새 버전을 자동으로 받아 두고, 앱을 끌 때 설치
-    var installsAutomatically: Bool {
-        get {
-            access(keyPath: \.installsAutomatically)
-            return controller?.updater.automaticallyDownloadsUpdates ?? false
-        }
-        set {
-            withMutation(keyPath: \.installsAutomatically) {
-                controller?.updater.automaticallyDownloadsUpdates = newValue
-            }
-        }
-    }
-
     /// 마지막으로 확인한 때 (아직 없으면 nil)
     var lastChecked: Date? { controller?.updater.lastUpdateCheckDate }
+}
+
+/// 켜 둔 동안 저절로 하는 확인은 앱을 켠 뒤 첫 번째만 허락한다. 사람이 누른 "업데이트 확인…"은 언제나 된다.
+final class LaunchCheckGate: NSObject, SPUUpdaterDelegate {
+    private var launchCheckDone = false
+
+    func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
+        guard updateCheck == .updatesInBackground else { return }
+        if launchCheckDone {
+            throw NSError(domain: "FAKUKUMail.Update", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Checked at launch already"]) // l10n: data
+        }
+        launchCheckDone = true
+    }
 }

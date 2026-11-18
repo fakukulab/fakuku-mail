@@ -1,6 +1,7 @@
 import AppKit
 import ExchangeMailKit
 import Foundation
+import Sparkle
 
 /// Self-test for agents: runs the app's real functions on the demo mailbox and a /tmp store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
@@ -721,6 +722,17 @@ enum SelfTest {
                 // 1.0.2 자동 업데이트: 앱 정보에 업데이트 주소(https)와 공개 키가 있고, 테스트 실행에서는 켜지 않는다
                 check("1.0.2 업데이트 주소와 공개 키가 앱 정보에 있다", AppUpdater.isConfigured(Bundle.main))
                 check("1.0.2 셀프 테스트에서는 업데이트를 확인하지 않는다", !AppUpdater.shared.isAvailable)
+                // 1.0.9: 켤 때 한 번만 확인하고, 설치는 창의 "업데이트 설치"를 눌러서
+                let gate = LaunchCheckGate()
+                let probe = SPUUpdater(hostBundle: Bundle.main, applicationBundle: Bundle.main,
+                                       userDriver: SPUStandardUserDriver(hostBundle: Bundle.main, delegate: nil), delegate: nil)
+                let firstOK = (try? gate.updater(probe, mayPerform: .updatesInBackground)) != nil
+                let secondOK = (try? gate.updater(probe, mayPerform: .updatesInBackground)) != nil
+                let manualOK = (try? gate.updater(probe, mayPerform: .updates)) != nil
+                check("1.0.9 켜 둔 동안 저절로 하는 확인은 첫 번째만", firstOK && !secondOK, "\(firstOK) \(secondOK)")
+                check("1.0.9 업데이트 확인…은 언제나 된다", manualOK)
+                check("1.0.9 몰래 받아 끌 때 설치하지 않는다 (창에서 업데이트 설치)",
+                      Bundle.main.object(forInfoDictionaryKey: "SUAllowsAutomaticUpdates") as? Bool == false)
 
                 // 1.0.2 맥 Mail처럼: 메뉴는 할 일 하나만, 화면은 서버를 기다리지 않고 바로, 서버가 거절하면 되돌린다
                 if let row = model.navigationOrder.first, let target = model.messages.first(where: { $0.id == row }),

@@ -180,9 +180,7 @@ struct UpdateSettings: View {
         Section {
             LabeledContent(L("업데이트:")) {
                 VStack(alignment: .leading, spacing: Space.sm) {
-                    Toggle(L("새 버전을 자동으로 확인"), isOn: $updater.checksAutomatically)
-                    Toggle(L("새 버전을 자동으로 받아서 설치"), isOn: $updater.installsAutomatically)
-                        .disabled(!updater.checksAutomatically)
+                    Toggle(L("앱을 열 때 새 버전 확인"), isOn: $updater.checksAutomatically)
                     HStack(spacing: Space.sm) {
                         Text(L("지금 버전 \(Self.version)"))
                             .foregroundStyle(.secondary)
@@ -192,7 +190,7 @@ struct UpdateSettings: View {
                             .disabled(!updater.canCheck)
                     }
                     SettingsNote(updater.isAvailable
-                        ? L("하루에 한 번 새 버전이 있는지 확인합니다. 자동으로 설치하면 새 버전을 받아 두었다가 앱을 끌 때 바꿉니다.")
+                        ? L("앱을 열 때 한 번 확인합니다. 새 버전이 있으면 창이 뜨고, \"업데이트 설치\"를 누르면 받아서 설치한 뒤 다시 켭니다. \"나중에\"를 누르면 다음에 앱을 열 때 다시 묻습니다.")
                         : L("이 빌드는 업데이트를 확인하지 않습니다 (테스트 또는 개발 빌드)."))
                 }
             }

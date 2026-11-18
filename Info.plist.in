@@ -23,7 +23,8 @@
 <key>SUFeedURL</key><string>https://mail.fakukulab.com/appcast.xml</string>
 <key>SUPublicEDKey</key><string>GQ7AYZ8tJGFCA8kvzElRSwZ28L9/PwIVlBa2VUTmGQY=</string>
 <key>SUEnableAutomaticChecks</key><true/>
-<key>SUAutomaticallyUpdate</key><true/>
+<key>SUAllowsAutomaticUpdates</key><false/>
+<key>SUAutomaticallyUpdate</key><false/>
 <key>SUScheduledCheckInterval</key><integer>86400</integer>
 <key>SUVerifyUpdateBeforeExtraction</key><true/>
 <key>CFBundleURLTypes</key><array>
