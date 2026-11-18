@@ -275,25 +275,50 @@ final class ComposeModel {
 
     // MARK: 보내기 취소 (S-036)
 
-    /// 보내기까지 남은 초. nil이면 기다리는 중이 아니다.
+    /// 보내기까지 남은 초. nil이면 기다리는 중이 아니다. 이 값이 있는 동안 보내기 취소 창이 떠 있다 (S-085).
     private(set) var sendCountdown: Int?
+    /// 처음 기다린 초 (보내기 취소 창의 진행 막대)
+    private(set) var sendCountdownTotal = 0
     @ObservationIgnored private var sendCancelled = false
+    @ObservationIgnored private var sendNowRequested = false
 
-    /// 남은 시간을 1초씩 줄인다. 다 지나면 true, 그 사이 취소하면 false.
+    /// 남은 시간을 줄인다. 다 지나거나 "지금 보내기"를 누르면 true, 그 사이 취소하면 false.
+    /// 0.1초마다 보아 단추를 누르면 바로 따른다.
     private func countdown(_ seconds: Int) async -> Bool {
         sendCancelled = false
+        sendNowRequested = false
+        sendCountdownTotal = seconds
         sendCountdown = seconds
         defer { sendCountdown = nil }
-        while let left = sendCountdown, left > 0 {
-            try? await Task.sleep(for: .seconds(1))
+        let end = ContinuousClock.now + .seconds(seconds)
+        while true {
             if sendCancelled { return false }
-            sendCountdown = left - 1
+            if sendNowRequested { return true }
+            let left = end - ContinuousClock.now
+            if left <= .zero { return true }
+            sendCountdown = Int((left / .seconds(1)).rounded(.up))
+            try? await Task.sleep(for: .milliseconds(100))
         }
-        return !sendCancelled
     }
 
     func cancelSend() {
         sendCancelled = true
+    }
+
+    /// 보내기 취소 창의 "지금 보내기": 남은 시간을 기다리지 않고 바로 보낸다 (S-085).
+    func sendNow() {
+        sendNowRequested = true
+    }
+
+    // MARK: 전체 답장 확인 (S-084)
+
+    /// 전체 답장을 보내기 전에 물어본다.
+    var needsReplyAllConfirmation: Bool { draft.kind == .replyAll }
+
+    /// 확인 창에 보일 받는 사람 (받는 사람·참조·숨은 참조, 이름이 있으면 이름)
+    var allRecipients: [String] {
+        [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
+            .map { a in a.name.flatMap { $0.isEmpty ? nil : $0 } ?? a.address }
     }
 
     // MARK: 예약 보내기 (S-037)

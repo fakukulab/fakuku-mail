@@ -770,7 +770,7 @@ struct ComposingSettings: View {
             }
             .fixedSize()
             LabeledContent("") {
-                SettingsNote(L("보내기를 누른 뒤 이 시간 동안 작성 창에서 \"보내기 취소\"를 누를 수 있습니다."))
+                SettingsNote(L("보내기를 누른 뒤 이 시간 동안 보내기 취소 창이 떠 있습니다. \"보내기 취소\"로 되돌리거나 \"지금 보내기\"로 바로 보낼 수 있습니다."))
             }
         }
         Section {

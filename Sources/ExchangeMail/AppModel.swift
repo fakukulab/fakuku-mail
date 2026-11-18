@@ -308,6 +308,8 @@ final class AppModel {
     var relatedMessages: [MailMessage] = []
     /// 스냅숏에서 로그인 화면을 찍을 때만 켠다.
     var previewSignIn = false
+    /// 스냅숏에서 작성 창의 보내기 취소 창을 찍을 때만 켠다 (S-085).
+    var previewUndoSend = false
 
     /// Settings reopens on the last tab. Test and snapshot runs leave it alone.
     var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {

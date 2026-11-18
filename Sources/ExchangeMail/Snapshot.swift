@@ -80,6 +80,16 @@ enum Snapshot {
                         try? await Task.sleep(for: .seconds(0.8))
                         capture(to: "\(dir)/compose-\(mode).png", window: compose)
                     }
+                    // 보내기 취소 창 (S-085)
+                    model.previewUndoSend = true
+                    try? await Task.sleep(for: .seconds(1))
+                    for mode in ["light", "dark"] {
+                        NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                        try? await Task.sleep(for: .seconds(0.8))
+                        capture(to: "\(dir)/compose-undosend-\(mode).png", window: compose?.attachedSheet ?? compose)
+                    }
+                    model.previewUndoSend = false
+                    try? await Task.sleep(for: .seconds(0.5))
                     compose?.close()
                 }
             }

@@ -29,6 +29,8 @@ struct ComposeView: View {
     @State private var compose: ComposeModel
     @State private var dropTargeted = false
     @State private var showSchedule = false
+    /// 전체 답장을 보내기 전에 묻는다 (S-084)
+    @State private var askReplyAll = false
     /// 창을 닫을 때 저장할지 묻는다 (S-083)
     @State private var askSave = false
     @State private var closer = WindowCloser()
@@ -80,10 +82,6 @@ struct ComposeView: View {
                     .padding(.vertical, Space.sm)
                 Divider()
             }
-            if let left = compose.sendCountdown {
-                UndoSendBar(seconds: left) { compose.cancelSend() }
-                Divider()
-            }
             FormatToolbar(controller: compose.editor, showsWritingTools: false)
             Divider()
             RichTextEditor(controller: compose.editor)
@@ -127,6 +125,19 @@ struct ComposeView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+        }
+        // 보내기 취소 창 (S-085): 기다리는 동안 떠 있고, 보내거나 취소하면 사라진다.
+        .sheet(isPresented: Binding(get: { compose.sendCountdown != nil || model.previewUndoSend },
+                                    set: { if !$0 { compose.cancelSend() } })) {
+            UndoSendSheet(seconds: compose.sendCountdown ?? 7, total: compose.sendCountdown == nil ? 10 : compose.sendCountdownTotal,
+                          cancel: { compose.cancelSend() }, sendNow: { compose.sendNow() })
+        }
+        .alert(L("전체 답장으로 보내겠습니까?"), isPresented: $askReplyAll) {
+            Button(L("취소"), role: .cancel) {}
+            Button(L("확인")) { send() }
+                .keyboardShortcut(.defaultAction)
+        } message: {
+            Text(replyAllMessage)
         }
         .sheet(isPresented: $showSchedule) {
             ScheduleSheet { date in
@@ -433,7 +444,11 @@ struct ComposeView: View {
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
-                Task { if await compose.send(app: model, undoDelay: undoDelay) { dismiss() } }
+                if compose.needsReplyAllConfirmation {
+                    askReplyAll = true
+                } else {
+                    send()
+                }
             } label: {
                 if compose.sending {
                     ProgressView().controlSize(.small)
@@ -446,6 +461,18 @@ struct ComposeView: View {
             .keyboardShortcut("d", modifiers: [.command, .shift])
             .help(L("보내기 (⇧⌘D)"))
         }
+    }
+
+    private func send() {
+        Task { if await compose.send(app: model, undoDelay: undoDelay) { dismiss() } }
+    }
+
+    /// 전체 답장 확인 창의 설명: 몇 명에게 가는지와 앞의 몇 사람
+    private var replyAllMessage: String {
+        let people = compose.allRecipients
+        let shown = people.prefix(5).joined(separator: ", ")
+        let more = people.count > 5 ? L(" 외 \(people.count - 5)명") : ""
+        return L("받는 사람 \(people.count)명 모두에게 보냅니다.") + "\n" + shown + more
     }
 
     private func attach() {
@@ -475,26 +502,36 @@ extension View {
     }
 }
 
-/// 보내기 취소 막대 (S-036): 남은 초와 취소 버튼. Esc로도 취소한다.
-struct UndoSendBar: View {
+/// 보내기 취소 창 (S-036, S-085): 남은 초와 진행 막대, "보내기 취소"(Esc)와 "지금 보내기"(Return).
+/// 기다리는 시간이 다 지나 보내면 저절로 닫힌다.
+struct UndoSendSheet: View {
     let seconds: Int
+    let total: Int
     let cancel: () -> Void
+    let sendNow: () -> Void
 
     var body: some View {
-        HStack(spacing: Space.sm) {
-            Image(systemName: "paperplane")
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Space.md) {
+            Label(L("보내기 취소"), systemImage: "paperplane")
+                .font(.headline)
             Text(L("\(seconds)초 뒤에 보냅니다"))
-                .font(.callout)
                 .monospacedDigit()
-            Spacer()
-            Button(L("보내기 취소"), action: cancel)
-                .keyboardShortcut(.cancelAction)
-                .controlSize(.small)
+            ProgressView(value: Double(max(total - seconds, 0)), total: Double(max(total, 1)))
+                .accessibilityLabel(L("보내기까지 남은 시간"))
+            HStack {
+                Spacer()
+                Button(L("보내기 취소"), action: cancel)
+                    .keyboardShortcut(.cancelAction)
+                    .help(L("보내지 않고 작성 창으로 돌아갑니다 (Esc)"))
+                Button(L("지금 보내기"), action: sendNow)
+                    .keyboardShortcut(.defaultAction)
+                    .help(L("기다리지 않고 바로 보냅니다 (Return)"))
+            }
         }
-        .padding(.horizontal, Space.margin)
-        .padding(.vertical, Space.sm)
-        .background(.bar)
+        .padding(Space.margin)
+        .frame(width: 320)
+        .interactiveDismissDisabled()
+        .noInitialFocus()
     }
 }
 

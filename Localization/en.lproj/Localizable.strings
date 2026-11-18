@@ -283,7 +283,7 @@
 "5초" = "5 seconds";
 "10초" = "10 seconds";
 "20초" = "20 seconds";
-"보내기를 누른 뒤 이 시간 동안 작성 창에서 \"보내기 취소\"를 누를 수 있습니다." = "For this long after you click Send, you can click “Undo Send” in the compose window.";
+"보내기를 누른 뒤 이 시간 동안 보내기 취소 창이 떠 있습니다. \"보내기 취소\"로 되돌리거나 \"지금 보내기\"로 바로 보낼 수 있습니다." = "For this long after you click Send, an Undo Send window stays open. Click “Undo Send” to stop it or “Send Now” to send right away.";
 "첨부 보정:" = "Attachment fix:";
 "새 메일에 첨부 보정 켜기" = "Turn on attachment fix for new messages";
 "본문 그림을 일반 첨부파일로 보내기" = "Send inline images as regular attachments";
@@ -1263,3 +1263,12 @@
 "메시지를 임시 저장하겠습니까?" = "Do you want to save this message as a draft?";
 "보내지 않은 메시지에 저장하지 않은 변경 사항이 있습니다. 나중에 이어서 작업하도록 임시 저장할 수 있습니다." = "This message has unsent changes that haven't been saved. You can save it as a draft to continue working on it later.";
 "저장하지 않음" = "Don't Save";
+
+/* S-084 전체 답장 확인, S-085 보내기 취소 창 */
+"전체 답장으로 보내겠습니까?" = "Send this as Reply All?";
+" 외 %@명" = " and %@ more";
+"받는 사람 %@명 모두에게 보냅니다." = "This message goes to all %@ recipients.";
+"보내기까지 남은 시간" = "Time left before sending";
+"보내지 않고 작성 창으로 돌아갑니다 (Esc)" = "Go back to the message without sending (Esc)";
+"지금 보내기" = "Send Now";
+"기다리지 않고 바로 보냅니다 (Return)" = "Send right away without waiting (Return)";

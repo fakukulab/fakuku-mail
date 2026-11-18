@@ -216,6 +216,16 @@ enum SelfTest {
             check("S-007 인용문의 그림은 data URI다", reply?.quoteHTML.contains("data:image/svg+xml") == true)
             let forward = model.draft(.forward)
             check("S-007 전달은 원본 첨부를 가져온다", forward?.forwardAttachmentsFrom == "m1")
+            // S-084: 전체 답장만 보내기 전에 묻는다
+            if let reply {
+                let replyAllCompose = ComposeModel(draft: reply)
+                await replyAllCompose.setUp(app: model, fixDefault: true)
+                check("S-084 전체 답장은 보내기 전에 묻는다", replyAllCompose.needsReplyAllConfirmation
+                      && replyAllCompose.allRecipients.count >= 2, "\(replyAllCompose.allRecipients)")
+            }
+            check("S-084 답장·전달·새 메시지는 묻지 않는다",
+                  [model.draft(.reply), forward, ComposeDraft()].allSatisfy { d in
+                      d.map { !ComposeModel(draft: $0).needsReplyAllConfirmation } == true })
 
             // S-006, S-008, S-010: 작성 창이 쓰는 그대로 MIME을 만들고 보낸다
             let signature = model.signatures.defaultSignature(kind: .reply, account: model.auth.email)
@@ -929,6 +939,18 @@ enum SelfTest {
                   !undoneResult && demo.sent.count == sentBeforeUndo && undoable.sendCountdown == nil && undoable.error == nil)
             let sentAfterWait = await undoable.send(app: model, undoDelay: 1)
             check("S-036 기다린 시간이 지나면 보낸다", sentAfterWait && demo.sent.count == sentBeforeUndo + 1)
+            // S-085: 보내기 취소 창의 "지금 보내기"는 기다리지 않고 보낸다
+            let sentBeforeNow = demo.sent.count
+            let started = ContinuousClock.now
+            let pendingNow = Task { await undoable.send(app: model, undoDelay: 20) }
+            try? await Task.sleep(for: .seconds(0.5))
+            check("S-085 보내기 취소 창이 남은 초와 전체 초를 안다",
+                  undoable.sendCountdown == 20 && undoable.sendCountdownTotal == 20, "\(undoable.sendCountdown ?? -1)")
+            undoable.sendNow()
+            let sentNow = await pendingNow.value
+            check("S-085 지금 보내기를 누르면 바로 보내고 창이 사라진다",
+                  sentNow && demo.sent.count == sentBeforeNow + 1 && undoable.sendCountdown == nil
+                      && ContinuousClock.now - started < .seconds(3))
 
             let later = ComposeModel(draft: ComposeDraft())
             await later.setUp(app: model, fixDefault: true)
