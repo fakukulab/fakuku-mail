@@ -219,6 +219,15 @@ final class CachedMailService: MailService {
         try await write(L("우선 순위를 바꿀")) { try await remote.setImportance(id: id, importance: importance) }
     }
 
+    func markReplyState(id: String, state: ReplyState) async throws {
+        try await write(L("답장 표시를 남길")) { try await remote.markReplyState(id: id, state: state) }
+        patchSmart { list in
+            guard let i = list.firstIndex(where: { $0.id == id }) else { return false }
+            list[i].replyState = state
+            return true
+        }
+    }
+
     func mimeContent(id: String) async throws -> Data {
         if let p = PendingDrafts.id(fromMessageID: id), let saved = PendingDrafts.load(p) { return saved.mime }
         return try await write(L("원본을 불러올")) { try await remote.mimeContent(id: id) }

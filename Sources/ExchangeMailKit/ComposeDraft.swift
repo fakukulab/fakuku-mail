@@ -29,6 +29,8 @@ public struct ComposeDraft: Codable, Hashable, Identifiable, Sendable {
     public var attachFiles: [URL] = []
     /// mailto: 링크의 body (글자). 서명 앞, 본문 첫머리에 들어간다.
     public var bodyText: String?
+    /// 답장·전달하는 원본 메일 id (Graph id). 보내면 원본에 답장함·전달함 표시를 남긴다 (S-090).
+    public var originalMessageID: String?
 
     public init(kind: ComposeKind = .new, to: String = "", subject: String = "") {
         self.kind = kind
@@ -187,6 +189,7 @@ public enum ReplyBuilder {
         d.to = AddressParser.format(r.to)
         d.cc = AddressParser.format(r.cc)
         d.quoteHTML = quoteHTML(for: kind, message: m, bodyHTML: bodyHTML, timeZone: timeZone)
+        d.originalMessageID = m.id
         if kind == .forward {
             d.forwardAttachmentsFrom = (m.hasAttachments ?? false) ? m.id : nil
         } else if let id = m.internetMessageId, !id.isEmpty {

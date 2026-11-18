@@ -259,6 +259,9 @@ final class AccountRouter: MailService {
         try await forMessage(id).setImportance(id: id, importance: importance)
     }
     func mimeContent(id: String) async throws -> Data { try await forMessage(id).mimeContent(id: id) }
+    func markReplyState(id: String, state: ReplyState) async throws {
+        try await forMessage(id).markReplyState(id: id, state: state)
+    }
 
     // MARK: 보내기·초안 (지금 계정; 작성 창은 service(forAccount:)로 직접 보낸다)
 

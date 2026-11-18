@@ -139,6 +139,22 @@ func addressCompletesOnSpace() {
     #expect(!AddressParser.completesOnSpace(" "))
 }
 
+@Test("목록 요청은 답장·전달 표시를 받는다 (S-090)")
+func replyStateQueryAndDecode() throws {
+    #expect(GraphQuery.messageList(search: nil).query["$expand"] == ReplyState.listExpand)
+    #expect(GraphQuery.messageList(search: "견적").query["$expand"] == nil)
+    let json = #"""
+    {"id":"a","subject":"s","singleValueExtendedProperties":[{"id":"Integer 0x1081","value":"103"}]}
+    """#
+    let m = try JSONDecoder().decode(MailMessage.self, from: Data(json.utf8))
+    #expect(m.replyState == .repliedAll)
+    var plain = MailMessage(id: "b", subject: nil, from: nil, receivedDateTime: nil)
+    #expect(plain.replyState == nil)
+    plain.replyState = .forwarded
+    #expect(plain.replyState == .forwarded && plain.singleValueExtendedProperties?.count == 1)
+    #expect(ReplyState(verb: 101) == nil)
+}
+
 @Test("받는 사람 칸을 주소 목록으로 읽는다")
 func parseAddresses() {
     let r = AddressParser.parse("홍길동 <hong@x.com>; \"Kim, Lee\" <kl@y.co.kr>, c@d.com\n잘못된주소, hong@x.com")

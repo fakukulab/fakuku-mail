@@ -1276,3 +1276,9 @@
 /* 1.0.9 업데이트: 켤 때 한 번 확인, 창에서 설치 */
 "앱을 열 때 새 버전 확인" = "Check for a new version when the app opens";
 "앱을 열 때 한 번 확인합니다. 새 버전이 있으면 창이 뜨고, \"업데이트 설치\"를 누르면 받아서 설치한 뒤 다시 켭니다. \"나중에\"를 누르면 다음에 앱을 열 때 다시 묻습니다." = "FAKUKU Mail checks once when it opens. If there’s a new version, a window appears: click “Install Update” to download it, install it, and relaunch. Click “Remind Me Later” to be asked again the next time the app opens.";
+
+/* 1.0.9 S-090 답장·전달 표시 */
+"답장 표시를 남길" = "mark the message as replied";
+"답장함" = "Replied";
+"전체 답장함" = "Replied to all";
+"전달함" = "Forwarded";

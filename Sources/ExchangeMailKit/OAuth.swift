@@ -154,7 +154,8 @@ public enum GraphQuery {
 
     /// 깃발 단 메일, 모든 폴더 (S-029). `$orderby`를 함께 쓰면 Graph가 거절할 수 있어 정렬은 앱에서 한다.
     public static func flagged(top: Int = pageSize) -> Request {
-        Request(query: ["$filter": "flag/flagStatus eq 'flagged'", "$select": listSelect, "$top": "\(top)"], headers: [:])
+        Request(query: ["$filter": "flag/flagStatus eq 'flagged'", "$select": listSelect, "$expand": ReplyState.listExpand,
+                       "$top": "\(top)"], headers: [:])
     }
     /// 스마트 메일상자 (S-046): 모든 폴더에서 최근 메일. `$filter`가 있으면 `$orderby`를 빼고 정렬은 앱에서 한다
     /// (모든 폴더 요청에 둘을 함께 쓰면 Graph가 거절할 수 있다).
@@ -163,7 +164,7 @@ public enum GraphQuery {
     public static let collectMaxPages = 500
 
     public static func collect(filter: String?, top: Int = collectPageSize) -> Request {
-        var q = ["$select": listSelect, "$top": "\(top)"]
+        var q = ["$select": listSelect, "$expand": ReplyState.listExpand, "$top": "\(top)"]
         if let filter, !filter.isEmpty { q["$filter"] = filter } else { q["$orderby"] = "receivedDateTime desc" }
         return Request(query: q, headers: [:])
     }
@@ -173,7 +174,8 @@ public enum GraphQuery {
 
     /// 대화 전체 요청 (S-025). `$orderby`와 함께 쓰면 Graph가 거절할 수 있어 정렬은 앱에서 한다.
     public static func conversation(id: String, top: Int = 50) -> Request {
-        Request(query: ["$filter": Conversations.filter(conversationID: id), "$select": threadSelect, "$top": "\(top)"],
+        Request(query: ["$filter": Conversations.filter(conversationID: id), "$select": threadSelect,
+                        "$expand": ReplyState.listExpand, "$top": "\(top)"],
                 headers: [:])
     }
 
@@ -196,6 +198,8 @@ public enum GraphQuery {
             q["$search"] = "\"\(s.replacingOccurrences(of: "\"", with: ""))\""
             h["ConsistencyLevel"] = "eventual"
         } else {
+            // 답장·전달 표시 (S-090). 검색 요청에는 붙이지 않는다 (검색과 함께 쓸 수 있는지 확인하지 못했다).
+            q["$expand"] = ReplyState.listExpand
             q["$orderby"] = oldestFirst ? "receivedDateTime asc" : "receivedDateTime desc"
             if let filter, !filter.isEmpty {
                 q["$filter"] = filter.hasPrefix("receivedDateTime") ? filter : "receivedDateTime ge 1900-01-01T00:00:00Z and \(filter)"

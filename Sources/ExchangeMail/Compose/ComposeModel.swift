@@ -264,6 +264,9 @@ final class ComposeModel {
         let sentTo = [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
         app.addressBook.noteSent(sentTo, me: account(app)?.email)
         app.threadCache = [:]   // 방금 보낸 답장이 대화 내역에 들어가게
+        if let original = draft.originalMessageID, let state = ReplyState(draft.kind) {
+            await app.noteReplyState(id: original, state: state)
+        }
         // 보낸 편지함을 보고 있으면 바로 새로 고쳐 방금 보낸 메일이 보이게
         if app.selectedFolder?.kind == "sentitems" { Task { await app.refresh() } }
         if let id = savedDraftID {

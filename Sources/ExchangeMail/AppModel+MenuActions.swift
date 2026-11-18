@@ -24,7 +24,16 @@ extension AppModel {
         var d = ComposeDraft(kind: .forward, subject: ReplyBuilder.subject(for: .forward, original: m.subject ?? ""))
         d.attachMessageFrom = m.id
         d.attachMessageName = m.title
+        d.originalMessageID = m.id
         return d
+    }
+
+    /// 답장·전달을 보낸 뒤: 원본에 표시를 남기고 목록 줄에 바로 보인다 (S-090). 실패해도 보낸 것은 그대로다.
+    func noteReplyState(id: String, state: ReplyState) async {
+        if let i = messages.firstIndex(where: { $0.id == id }) { messages[i].replyState = state }
+        patchDetail(id) { $0.replyState = state }
+        threadCache = [:]
+        try? await service.markReplyState(id: id, state: state)
     }
 
     /// 우선 순위 설정: low, normal, high

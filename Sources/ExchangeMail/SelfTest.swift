@@ -233,6 +233,18 @@ enum SelfTest {
                 check("1.0.9 전체 답장이라도 받는 사람이 모두 한 명이면 묻지 않는다",
                       !single.needsReplyAllConfirmation && two.needsReplyAllConfirmation, "\(single.allRecipients) \(two.allRecipients)")
             }
+            // S-090: 목록의 답장함·전달함 표시
+            check("S-090 답장·전달 창은 원본 메일 id를 갖는다",
+                  reply?.originalMessageID == "m1" && forward?.originalMessageID == "m1")
+            let inboxPage = try? await model.service.messages(folderID: "inbox", search: nil)
+            let stateOf = { (id: String) in inboxPage?.messages.first { $0.id == id }?.replyState }
+            check("S-090 목록이 답장함·전달함 표시를 받는다", stateOf("m3") == .replied && stateOf("m4") == .forwarded
+                  && stateOf("m2") == nil, "\(String(describing: stateOf("m3"))) \(String(describing: stateOf("m4")))")
+            await model.noteReplyState(id: "m5", state: .repliedAll)
+            let m5 = try? await model.service.message(id: "m5")
+            check("S-090 보낸 뒤 원본에 전체 답장함 표시를 남긴다", m5?.replyState == .repliedAll)
+            check("S-090 작성 창 종류에서 표시를 고른다", ReplyState(.reply) == .replied && ReplyState(.forward) == .forwarded
+                  && ReplyState(ComposeKind.new) == nil)
             check("S-084 답장·전달·새 메시지는 묻지 않는다",
                   [model.draft(.reply), forward, ComposeDraft()].allSatisfy { d in
                       d.map { !ComposeModel(draft: $0).needsReplyAllConfirmation } == true })

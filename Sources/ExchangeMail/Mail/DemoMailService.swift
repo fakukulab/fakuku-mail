@@ -108,6 +108,10 @@ final class DemoMailService: MailService {
             store["inbox"]?[i].importance = "high"
             store["inbox"]?[i].categories = ["빨강 범주"]
         }
+        // 답장함·전달함 표시 (S-090)
+        for (id, state) in [("m3", ReplyState.replied), ("m4", .forwarded)] {
+            if let i = store["inbox"]?.firstIndex(where: { $0.id == id }) { store["inbox"]?[i].replyState = state }
+        }
         store["sentitems"] = [
             MailMessage(id: "s2", internetMessageId: "<s2@contoso.co.kr>", conversationId: "conv-quote",
                         subject: "[견적] 3분기 장비 견적 요청", from: me, toRecipients: [who("김민지", "minji.kim@fabrikam.com")],
@@ -275,6 +279,7 @@ final class DemoMailService: MailService {
         moved.flag = m.flag
         moved.importance = m.importance
         moved.categories = m.categories
+        moved.singleValueExtendedProperties = m.singleValueExtendedProperties
         moved.odataType = m.odataType
         moved.event = m.event
         store[target, default: []].append(moved)
@@ -366,6 +371,12 @@ final class DemoMailService: MailService {
         try checkOnline()
         guard let (folder, index) = find(id) else { throw URLError(.fileDoesNotExist) }
         store[folder]?[index].importance = importance
+    }
+
+    func markReplyState(id: String, state: ReplyState) async throws {
+        try checkOnline()
+        guard let (folder, index) = find(id) else { throw URLError(.fileDoesNotExist) }
+        store[folder]?[index].replyState = state
     }
 
     func mimeContent(id: String) async throws -> Data {

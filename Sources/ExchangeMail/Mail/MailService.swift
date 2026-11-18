@@ -108,6 +108,8 @@ protocol MailService: AnyObject {
     func copy(id: String, to destination: String) async throws
     /// 우선 순위: low, normal, high (M17)
     func setImportance(id: String, importance: String) async throws
+    /// 원본에 답장함·전달함 표시를 남긴다 (S-090). Outlook과 같은 MAPI 속성이라 Outlook에도 보인다.
+    func markReplyState(id: String, state: ReplyState) async throws
     /// 원본 MIME (RFC 822). 원본 보기와 첨부 파일로 전달에 쓴다 (M17)
     func mimeContent(id: String) async throws -> Data
     /// 깃발 단 메일, 모든 폴더, 최근 순 (S-029)
@@ -146,6 +148,8 @@ protocol MailService: AnyObject {
 
 extension MailService {
     func folderSizes(_ folderIDs: [String]) async throws -> [String: Int64] { [:] }
+    /// 표시를 남길 곳이 없는 서비스 (IMAP, 이 Mac의 메일상자)
+    func markReplyState(id: String, state: ReplyState) async throws {}
 }
 
 struct GraphError: LocalizedError {
@@ -519,6 +523,17 @@ final class GraphMailService: MailService {
 
     func setImportance(id: String, importance: String) async throws {
         _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))", body: try json(["importance": importance]))
+    }
+
+    func markReplyState(id: String, state: ReplyState) async throws {
+        let now = ISO8601DateFormatter().string(from: Date())
+        let props: [[String: Any]] = [
+            ["id": ReplyState.propertyID, "value": "\(state.verb)"],
+            ["id": "SystemTime 0x1082", "value": now],  // l10n: data  PidTagLastVerbExecutionTime
+            ["id": "Integer 0x1080", "value": "\(state.iconIndex)"],  // l10n: data  PidTagIconIndex (Outlook 아이콘)
+        ]
+        _ = try await request("PATCH", "/me/messages/\(GraphPath.segment(id))",
+                              body: try json(["singleValueExtendedProperties": props]))
     }
 
     func mimeContent(id: String) async throws -> Data {

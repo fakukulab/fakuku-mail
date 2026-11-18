@@ -194,6 +194,8 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var importance: String?
     /// Outlook 범주 이름 (S-041)
     public var categories: [String]?
+    /// MAPI 확장 속성. 목록은 마지막 동작(답장·전달, `Integer 0x1081`)만 받는다 (S-090)
+    public var singleValueExtendedProperties: [ExtendedProperty]?
 
     public init(id: String, internetMessageId: String? = nil, conversationId: String? = nil, subject: String?,
                 from: Recipient?, toRecipients: [Recipient]? = nil, ccRecipients: [Recipient]? = nil,
@@ -219,12 +221,13 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
         self.event = nil
         self.importance = nil
         self.categories = nil
+        self.singleValueExtendedProperties = nil
     }
 
     enum CodingKeys: String, CodingKey {
         case id, internetMessageId, conversationId, subject, from, toRecipients, ccRecipients, bccRecipients
         case parentFolderId, receivedDateTime, bodyPreview, isRead, hasAttachments, body, internetMessageHeaders, flag, event
-        case importance, categories
+        case importance, categories, singleValueExtendedProperties
         case odataType = "@odata.type"
     }
 
@@ -232,6 +235,19 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var isMeetingRequest: Bool { odataType?.hasSuffix("eventMessageRequest") ?? false }
 
     public var isFlagged: Bool { flag?.flagStatus == "flagged" }
+
+    /// 이 메일에 마지막으로 한 일: 답장, 전체 답장, 전달 (S-090). Outlook·웹 메일에서 한 것도 보인다.
+    public var replyState: ReplyState? {
+        get {
+            let raw = singleValueExtendedProperties?.first { $0.id.lowercased().hasSuffix(ReplyState.propertyTag) }?.value
+            return raw.flatMap(Int.init).flatMap(ReplyState.init(verb:))
+        }
+        set {
+            var props = (singleValueExtendedProperties ?? []).filter { !$0.id.lowercased().hasSuffix(ReplyState.propertyTag) }
+            if let newValue { props.append(ExtendedProperty(id: ReplyState.propertyID, value: "\(newValue.verb)")) }
+            singleValueExtendedProperties = props.isEmpty ? nil : props
+        }
+    }
 
     public var title: String {
         if let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty { subject } else { L("(제목 없음)") }
@@ -243,6 +259,75 @@ public struct MailMessage: Codable, Identifiable, Hashable, Sendable {
     public var referenceIDs: [String] {
         guard let raw = internetMessageHeaders?.first(where: { $0.name.lowercased() == "references" })?.value else { return [] }
         return raw.split(whereSeparator: { $0.isWhitespace }).map(String.init).filter { $0.hasPrefix("<") }
+    }
+}
+
+/// Graph singleValueLegacyExtendedProperty
+public struct ExtendedProperty: Codable, Hashable, Sendable {
+    public var id: String
+    public var value: String?
+
+    public init(id: String, value: String?) {
+        self.id = id
+        self.value = value
+    }
+}
+
+/// 메일에 마지막으로 한 일 (MAPI PidTagLastVerbExecuted, 0x1081). Outlook과 같은 값을 쓴다.
+public enum ReplyState: String, Codable, Hashable, Sendable {
+    case replied, repliedAll, forwarded
+
+    /// Graph 확장 속성 id
+    public static let propertyID = "Integer 0x1081"  // l10n: data
+    static let propertyTag = "0x1081"  // l10n: data
+    /// 목록 요청에 붙이는 `$expand` (이 속성만)
+    public static let listExpand = "singleValueExtendedProperties($filter=id eq 'Integer 0x1081')"  // l10n: data
+
+    /// MS-OXOMSG: 102 보낸 사람에게 답장, 103 전체 답장, 104 전달
+    public init?(verb: Int) {
+        switch verb {
+        case 102: self = .replied
+        case 103: self = .repliedAll
+        case 104: self = .forwarded
+        default: return nil
+        }
+    }
+
+    public var verb: Int {
+        switch self {
+        case .replied: 102
+        case .repliedAll: 103
+        case .forwarded: 104
+        }
+    }
+
+    /// Outlook 목록 아이콘 (PidTagIconIndex 0x1080): 261 답장함, 262 전달함
+    public var iconIndex: Int { self == .forwarded ? 262 : 261 }
+
+    public var systemImage: String {
+        switch self {
+        case .replied: "arrowshape.turn.up.left.fill"
+        case .repliedAll: "arrowshape.turn.up.left.2.fill"
+        case .forwarded: "arrowshape.turn.up.right.fill"
+        }
+    }
+
+    public var label: String {
+        switch self {
+        case .replied: L("답장함")
+        case .repliedAll: L("전체 답장함")
+        case .forwarded: L("전달함")
+        }
+    }
+
+    /// 보낸 작성 창 종류에서
+    public init?(_ kind: ComposeKind) {
+        switch kind {
+        case .reply: self = .replied
+        case .replyAll: self = .repliedAll
+        case .forward: self = .forwarded
+        default: return nil
+        }
     }
 }
 
