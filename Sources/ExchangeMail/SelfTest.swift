@@ -224,6 +224,15 @@ enum SelfTest {
                 check("S-084 전체 답장은 보내기 전에 묻는다", replyAllCompose.needsReplyAllConfirmation
                       && replyAllCompose.allRecipients.count >= 2, "\(replyAllCompose.allRecipients)")
             }
+            // 1.0.9: 전체 답장이라도 받는 사람·참조·숨은 참조를 합쳐 한 명이면 묻지 않는다 (같은 주소는 한 명)
+            if let reply {
+                let single = ComposeModel(draft: reply)
+                single.to = "minji.kim@fabrikam.com"; single.cc = "김민지 <Minji.Kim@fabrikam.com>"; single.bcc = ""
+                let two = ComposeModel(draft: reply)
+                two.to = "minji.kim@fabrikam.com"; two.cc = ""; two.bcc = "seojun.park@fabrikam.com"
+                check("1.0.9 전체 답장이라도 받는 사람이 모두 한 명이면 묻지 않는다",
+                      !single.needsReplyAllConfirmation && two.needsReplyAllConfirmation, "\(single.allRecipients) \(two.allRecipients)")
+            }
             check("S-084 답장·전달·새 메시지는 묻지 않는다",
                   [model.draft(.reply), forward, ComposeDraft()].allSatisfy { d in
                       d.map { !ComposeModel(draft: $0).needsReplyAllConfirmation } == true })

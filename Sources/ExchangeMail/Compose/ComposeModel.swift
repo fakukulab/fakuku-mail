@@ -313,11 +313,14 @@ final class ComposeModel {
     // MARK: 전체 답장 확인 (S-084)
 
     /// 전체 답장을 보내기 전에 물어본다.
-    var needsReplyAllConfirmation: Bool { draft.kind == .replyAll }
+    /// 받는 사람·참조·숨은 참조를 합쳐 두 명 이상일 때만 묻는다 (1.0.9: 한 명이면 묻지 않는다).
+    var needsReplyAllConfirmation: Bool { draft.kind == .replyAll && allRecipients.count > 1 }
 
-    /// 확인 창에 보일 받는 사람 (받는 사람·참조·숨은 참조, 이름이 있으면 이름)
+    /// 확인 창에 보일 받는 사람 (받는 사람·참조·숨은 참조, 이름이 있으면 이름). 같은 주소는 한 번만 센다.
     var allRecipients: [String] {
-        [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
+        var seen = Set<String>()
+        return [to, cc, bcc].flatMap { AddressParser.parse($0).valid }
+            .filter { seen.insert($0.address.lowercased()).inserted }
             .map { a in a.name.flatMap { $0.isEmpty ? nil : $0 } ?? a.address }
     }
 
