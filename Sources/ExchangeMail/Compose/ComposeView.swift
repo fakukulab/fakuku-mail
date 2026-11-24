@@ -85,6 +85,9 @@ struct ComposeView: View {
             FormatToolbar(controller: compose.editor, showsWritingTools: false)
             Divider()
             RichTextEditor(controller: compose.editor)
+                .onDrop(of: imagesAsAttachments ? [] : [.image, .fileURL], isTargeted: nil) { providers, point in
+                    receiveBodyDrop(providers, at: point)
+                }
             if compose.uploadFraction != nil || compose.hasLargeAttachments || movedImageCount > 0 {
                 Divider()
                 attachmentBar
@@ -103,7 +106,7 @@ struct ComposeView: View {
         } message: {
             Text(compose.error ?? "")
         }
-        // 창 어디에 놓아도 첨부가 된다 (S-017). 편집기 위도 여기로 온다 (RichTextController.makeWebView).
+        // 본문에서 처리하지 않은 파일 드롭은 일반 첨부로 받는다 (S-017).
         // 파일 주소를 직접 꺼낸다: SwiftUI의 dropDestination(for: URL)은 Finder에서 끈 파일은 받지만
         // 받은 메일의 첨부 카드(앱 안에서 끈 것)는 꺼내지 못했다.
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
@@ -330,6 +333,38 @@ struct ComposeView: View {
         }
         .padding(.horizontal, Space.margin)
         .padding(.vertical, Space.md)
+    }
+
+    private func receiveBodyDrop(_ providers: [NSItemProvider], at point: CGPoint) -> Bool {
+        var accepted = false
+        for provider in providers {
+            let imageType = provider.registeredTypeIdentifiers.first {
+                UTType($0)?.conforms(to: .image) == true
+            }
+            // File URLs preserve the original format and filename when the source supplies them.
+            if Self.receiveFiles([provider], add: { urls in
+                for url in urls {
+                    if UTTypeLookup.isImage(url),
+                       let data = try? Data(contentsOf: url),
+                       compose.editor.insertImage(data, name: url.lastPathComponent, at: point) {
+                        continue
+                    }
+                    compose.addFiles([url])
+                }
+            }) {
+                accepted = true
+            } else if let imageType {
+                accepted = true
+                let name = provider.suggestedName ?? "image"
+                _ = provider.loadDataRepresentation(forTypeIdentifier: imageType) { data, _ in
+                    guard let data else { return }
+                    Task { @MainActor in
+                        compose.editor.insertImage(data, name: name, at: point)
+                    }
+                }
+            }
+        }
+        return accepted
     }
 
     // MARK: 첨부 막대

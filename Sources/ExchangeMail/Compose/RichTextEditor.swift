@@ -1,5 +1,6 @@
 import AppKit
 import ExchangeMailKit
+import ImageIO
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -40,7 +41,19 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     </style></head><body><div id="editor" contenteditable="true"></div><script>
     const ed=document.getElementById('editor');
     function post(user){window.webkit.messageHandlers.change.postMessage({html:ed.innerHTML,user:user})}
-    ed.addEventListener('input',()=>post(true));
+    ed.addEventListener('input',e=>{
+      post(true);
+      if(e.inputType!=='insertFromPaste') return;
+      // Rich clipboard selections may include WebKit blob URLs alongside formatted text.
+      ed.querySelectorAll('img[src^="blob:"]').forEach(async image=>{
+        const original=image.src;
+        try{
+          const response=await fetch(original);
+          const src=await imageDataURL(await response.blob());
+          if(ed.contains(image)&&image.src===original){image.src=src;post(true)}
+        }catch{}
+      });
+    });
     // 탭 키: 본문에 탭 간격을 넣는다 (다음 입력 칸인 받는 사람으로 넘어가지 않게).
     // 목록 안이면 탭은 한 단계 들여쓰기, ⇧탭은 내어쓰기. 목록 밖의 ⇧탭은 그대로 둔다(제목 칸으로 돌아가기).
     ed.addEventListener('keydown',e=>{
@@ -61,6 +74,47 @@ final class RichTextController: NSObject, WKNavigationDelegate {
       ed.querySelectorAll('font[size="7"]').forEach(f=>{f.removeAttribute('size');f.style.fontSize=px+'px'});
       post(true)}
     function insertHTML(h){ed.focus();document.execCommand('insertHTML',false,h);post(true)}
+    function insertDroppedHTML(h,x,y){
+      ed.focus();
+      const range=document.caretRangeFromPoint(x,y);
+      if(range&&ed.contains(range.startContainer)){
+        const selection=window.getSelection();
+        selection.removeAllRanges();selection.addRange(range);
+      }
+      insertHTML(h)
+    }
+    function imageDataURL(blob){
+      return new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(reader.result);reader.onerror=reject;
+        reader.readAsDataURL(blob)
+      })
+    }
+    // Save image bytes in the draft instead of relying on WebKit's temporary paste URLs.
+    ed.addEventListener('paste',e=>{
+      const files=Array.from(e.clipboardData.files);
+      if(!files.length||files.some(f=>!f.type.startsWith('image/'))) return;
+      const html=e.clipboardData.getData('text/html');
+      if(html){
+        const fragment=document.createElement('template');
+        fragment.innerHTML=html;
+        if(fragment.content.textContent.trim()||fragment.content.querySelectorAll('img').length>files.length) return;
+      }
+      e.preventDefault();
+      const selection=window.getSelection();
+      const range=selection.rangeCount?selection.getRangeAt(0).cloneRange():null;
+      Promise.all(files.map(async file=>[await imageDataURL(file),file.name])).then(images=>{
+        const markup=images.map(([src,name])=>{
+          const image=document.createElement('img');
+          image.src=src;image.alt=name;
+          return image.outerHTML
+        }).join('');
+        if(range&&ed.contains(range.commonAncestorContainer)){
+          selection.removeAllRanges();selection.addRange(range);
+        }
+        insertHTML(markup)
+      }).catch(()=>{});
+    });
     function insertPlain(t){ed.focus();document.execCommand('insertText',false,t);post(true)}
     function appendHTML(h){ed.insertAdjacentHTML('beforeend',h);post(true)}
     function replaceSignature(h){
@@ -220,9 +274,46 @@ final class RichTextController: NSObject, WKNavigationDelegate {
     /// 그림 넣기: data: URI로 넣고 파일 이름은 alt에 둔다 → 보낼 때 첨부 이름이 된다.
     func insertImage(url: URL) {
         guard let data = try? Data(contentsOf: url) else { return }
-        let mime = UTTypeLookup.mimeType(for: url, fallback: "image/png")
-        let name = HTMLAttr.escape(url.lastPathComponent.precomposedStringWithCanonicalMapping)
-        insertHTML("<img src=\"data:\(mime);base64,\(data.base64EncodedString())\" alt=\"\(name)\" style=\"max-width:100%\">")
+        insertImage(data, name: url.lastPathComponent)
+    }
+
+    /// ImageIO identifies the actual bytes so file extensions and pasteboard types cannot mislabel them.
+    @discardableResult
+    func insertImage(_ data: Data, name: String, at point: CGPoint? = nil) -> Bool {
+        guard let markup = Self.imageHTML(data, name: name) else { return false }
+        if let point {
+            webView?.window?.makeFirstResponder(webView)
+            js("insertDroppedHTML(\(literal(markup)),\(point.x),\(point.y))")
+        } else {
+            insertHTML(markup)
+        }
+        return true
+    }
+
+    static func imageHTML(_ data: Data, name: String) -> String? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let identifier = CGImageSourceGetType(source),
+              let type = UTType(identifier as String) else { return nil }
+        let imageData: Data
+        let imageType: UTType
+        let supportedTypes: [UTType] = [.png, .jpeg, .gif, .webP]
+        if supportedTypes.contains(type) {
+            imageData = data
+            imageType = type
+        } else {
+            // AppKit drags commonly provide TIFF. Embed a PNG for mail clients to display.
+            guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+                  let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+            else { return nil }
+            imageData = png
+            imageType = .png
+        }
+        let path = name as NSString
+        let currentType = UTType(filenameExtension: path.pathExtension)
+        let base = path.deletingPathExtension
+        let filename = currentType == imageType ? name : "\(base.isEmpty ? "image" : base).\(imageType.preferredFilenameExtension ?? "png")"
+        let alt = HTMLAttr.escape(filename.precomposedStringWithCanonicalMapping)
+        return "<img src=\"data:\(imageType.preferredMIMEType ?? "image/png");base64,\(imageData.base64EncodedString())\" alt=\"\(alt)\" style=\"max-width:100%\">"
     }
 
     func insertHTML(_ h: String) { js("insertHTML(\(literal(h)))") }
@@ -285,9 +376,6 @@ enum UTTypeLookup {
         UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) ?? false
     }
 
-    static func mimeType(for url: URL, fallback: String) -> String {
-        ComposeSender.mimeType(for: url) == "application/octet-stream" ? fallback : ComposeSender.mimeType(for: url)
-    }
 }
 
 enum HTMLAttr {

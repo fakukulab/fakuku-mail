@@ -816,9 +816,10 @@ enum SelfTest {
                     let savedThreaded = UserDefaults.standard.object(forKey: "list.threaded")
                     UserDefaults.standard.set(true, forKey: "list.threaded")
                     let base = Date()
-                    model.messages = (0..<2000).map { i in
-                        MailMessage(id: "perf-\(i)", conversationId: "conv-\(i % 400)", subject: "perf \(i)", from: nil,
-                                    receivedDateTime: base.addingTimeInterval(Double(-i * 60)), isRead: i % 3 == 0)
+                    model.messages = (0..<2000).map { (i: Int) -> MailMessage in
+                        let received = base.addingTimeInterval(-Double(i) * 60)
+                        return MailMessage(id: "perf-\(i)", conversationId: "conv-\(i % 400)", subject: "perf \(i)", from: nil,
+                                           receivedDateTime: received, isRead: i % 3 == 0)
                     }
                     model.selection = Set(model.navigationOrder)
                     let clock = ContinuousClock()
@@ -948,6 +949,22 @@ enum SelfTest {
                   accepted && droppedURL.map { FileManager.default.fileExists(atPath: $0.path) } == true
                       && droppedURL?.lastPathComponent == "보고서.pdf",
                   "\(accepted) \(droppedURL?.path ?? "nil")")
+
+            // WebKit image drags can supply TIFF bytes without a file URL.
+            if let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1, pixelsHigh: 1,
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
+                bitmap.setColor(.red, atX: 0, y: 0)
+                let tiff = bitmap.tiffRepresentation
+                let html = tiff.flatMap { RichTextController.imageHTML($0, name: "본문.tiff") } ?? ""
+                let processed = HTMLProcessor.process(html: html, convertBodyImagesToAttachments: false)
+                check("끌어온 TIFF 그림을 표시할 수 있는 인라인 PNG로 저장한다",
+                      html.contains("data:image/png;base64,") && processed.html.contains("cid:")
+                          && processed.images.first?.filename == "본문.png"
+                          && processed.images.first?.contentID != nil)
+            } else {
+                check("끌어온 그림 검사에 사용할 TIFF를 준비한다", false)
+            }
 
             // 다른 메일의 같은 이름 첨부는 다른 임시 파일 (앞부분이 같은 Exchange id라도 서로 덮어쓰지 않게)
             let sameA = FileAttachment(id: String(repeating: "A", count: 80) + "/one", name: "같은.xlsx", contentType: nil,
