@@ -6,6 +6,22 @@
     <link>https://mail.fakukulab.com/appcast.xml</link>
     <language>ko</language>
     <item>
+      <title>FAKUKU Mail 1.0.10</title>
+      <pubDate>Tue, 24 Nov 2026 16:18:19 GMT</pubDate>
+      <sparkle:version>202611250117</sparkle:version>
+      <sparkle:shortVersionString>1.0.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description xml:lang="ko"><![CDATA[
+<ul><li><b>본문 이미지 붙여넣기</b> — 붙여넣은 이미지 데이터를 메일에 저장해 작성 중이거나 초안을 다시 열었을 때 이미지가 표시되도록 개선했습니다.</li><li><b>메일 간 이미지 드래그</b> — 설정에서 <b>본문 그림을 일반 첨부파일로 보내기</b>를 끄면 다른 메일의 이미지를 새 메일 본문의 원하는 위치로 끌어 놓고 본문에 포함해 보낼 수 있습니다.</li></ul>
+<p>macOS 26 이상 · [사용법](<a href="https://mail.fakukulab.com/help.html)">https://mail.fakukulab.com/help.html)</a></p>
+      ]]></description>
+      <description xml:lang="en"><![CDATA[
+<ul><li><b>Pasting images</b> — Pasted image data is saved in the message so images display while composing and when reopening drafts.</li><li><b>Dragging images between messages</b> — Turn off <b>Send inline images as regular attachments</b> to drop an image from another message into the compose body and send it inline.</li></ul>
+<p>Requires macOS 26 or later · [Help](<a href="https://mail.fakukulab.com/help-en.html)">https://mail.fakukulab.com/help-en.html)</a></p>
+      ]]></description>
+      <enclosure url="https://github.com/fakukulab/fakuku-mail/releases/download/v1.0.10/FAKUKU-Mail-1.0.10.dmg" type="application/octet-stream" sparkle:edSignature="5rtuvnC7hvfDEHfn8AtfhzZHA3kQMLGhcwMVJVP0xpwgORME0Ti5zbQXIknQQl21ubujy+WFLVdFZwo71i9pBA==" length="7762240"/>
+    </item>
+    <item>
       <title>FAKUKU Mail 1.0.9</title>
       <pubDate>Wed, 18 Nov 2026 05:45:46 GMT</pubDate>
       <sparkle:version>202611181444</sparkle:version>
